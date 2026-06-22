@@ -1,21 +1,19 @@
-# Godot 4+ specific ignores
+# ── Godot ────────────────────────────────────────────────────────────────────
 .godot/
 /android/
+builds/
+export_presets.cfg
 
-# Node / web platform
+# ── Node / web (Plataforma_Clinica) ──────────────────────────────────────────
 Plataforma_Clinica/node_modules/
 Plataforma_Clinica/dist/
 Plataforma_Clinica/.vite/
 Plataforma_Clinica/package-lock.json
 
-# Variables de entorno (credenciales — nunca subir)
+# ── Credenciales — NUNCA subir ────────────────────────────────────────────────
 Plataforma_Clinica/.env
 Plataforma_Clinica/.env.local
 Plataforma_Clinica/.env.*.local
 
-# Editor
+# ── Editor ────────────────────────────────────────────────────────────────────
 .vscode/
-Plataforma_Clinica/.env
-Plataforma_Clinica/.vite/
-Plataforma_Clinica/node_modules/
-builds/
