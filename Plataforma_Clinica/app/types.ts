@@ -1,8 +1,8 @@
 // ─── TIPOS COMPARTIDOS ────────────────────────────────────────────────────────
 
 export type Screen =
-  | "dashboard" | "patients" | "new-session"
-  | "minigames" | "results" | "history" | "settings";
+  | "dashboard" | "patients" | "patient-profile"
+  | "new-session" | "minigames" | "results" | "history" | "settings";
 
 export interface Patient {
   id: string;          // Firestore doc ID (string)

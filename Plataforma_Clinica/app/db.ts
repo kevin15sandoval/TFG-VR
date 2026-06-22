@@ -93,31 +93,42 @@ export async function deleteSession(id: string) {
 
 // ── SEED — datos iniciales ────────────────────────────────────────────────────
 // Solo se ejecuta si Firestore está vacío (primera vez)
+// Flag para evitar doble ejecución en React StrictMode
+
+let _seedRunning = false;
 
 export async function seedIfEmpty(
   initialPatients: Omit<Patient, "id">[],
   initialSessions: Omit<SessionRecord, "id">[]
 ) {
-  const pSnap = await getDocs(collection(db, COL_PATIENTS));
-  if (!pSnap.empty) return; // Ya hay datos, no hacer nada
+  if (_seedRunning) return;
+  _seedRunning = true;
 
-  const batch = writeBatch(db);
+  try {
+    const pSnap = await getDocs(collection(db, COL_PATIENTS));
+    if (!pSnap.empty) return; // Ya hay datos, no hacer nada
 
-  // Insertar pacientes y guardar los IDs generados para las sesiones
-  const patientRefs: Record<number, string> = {};
-  for (const p of initialPatients) {
-    const ref = doc(collection(db, COL_PATIENTS));
-    batch.set(ref, { ...p, createdAt: serverTimestamp() });
-    patientRefs[p.id as unknown as number] = ref.id;
+    const batch = writeBatch(db);
+
+    // Insertar pacientes y mapear índice -> ID Firestore
+    const patientRefs: Record<number, string> = {};
+    initialPatients.forEach((p, idx) => {
+      const ref = doc(collection(db, COL_PATIENTS));
+      batch.set(ref, { ...p, createdAt: serverTimestamp() });
+      patientRefs[idx + 1] = ref.id;
+    });
+
+    // Insertar sesiones con el patientId correcto de Firestore
+    for (const s of initialSessions) {
+      const ref = doc(collection(db, COL_SESSIONS));
+      const numericId = parseInt(String(s.patientId));
+      const firestorePatientId = patientRefs[numericId] ?? String(s.patientId);
+      batch.set(ref, { ...s, patientId: firestorePatientId, createdAt: serverTimestamp() });
+    }
+
+    await batch.commit();
+    console.log("✅ Firebase: datos iniciales insertados");
+  } finally {
+    _seedRunning = false;
   }
-
-  // Insertar sesiones con el nuevo patientId de Firestore
-  for (const s of initialSessions) {
-    const ref = doc(collection(db, COL_SESSIONS));
-    const firestorePatientId = patientRefs[s.patientId as unknown as number] ?? String(s.patientId);
-    batch.set(ref, { ...s, patientId: firestorePatientId, createdAt: serverTimestamp() });
-  }
-
-  await batch.commit();
-  console.log("✅ Firebase: datos iniciales insertados");
 }

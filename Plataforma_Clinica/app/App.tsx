@@ -557,12 +557,13 @@ function DashboardScreen({ patients, sessions, onNewSession, onViewHistory, onPa
 
 // ─── SCREEN: PATIENTS (CRUD) ──────────────────────────────────────────────────
 
-function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: {
+function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete, onViewProfile }: {
   patients: Patient[];
   onSelectPatient: (p: Patient) => void;
   onAdd: (p: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) => void;
-  onEdit: (id: number, p: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) => void;
-  onDelete: (id: number) => void;
+  onEdit: (id: string, p: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) => void;
+  onDelete: (id: string) => void;
+  onViewProfile: (p: Patient) => void;
 }) {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -611,7 +612,7 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         {pag.paged.map(p => (
           <Card key={p.id} className="p-5 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-start gap-3 mb-4">
+            <div className="flex items-start gap-3 mb-4 cursor-pointer" onClick={() => onViewProfile(p)}>
               <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} size="lg" />
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-slate-800 text-sm leading-tight">{p.name}</div>
@@ -640,6 +641,9 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: 
             </div>
             <button onClick={() => onSelectPatient(p)} className="w-full py-2 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded-lg text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer border border-blue-100 hover:border-blue-600">
               <PlayCircle size={13} /> Iniciar sesión
+            </button>
+            <button onClick={() => onViewProfile(p)} className="mt-2 w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200">
+              <User size={13} /> Ver perfil completo
             </button>
           </Card>
         ))}
@@ -674,21 +678,24 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: 
 
 // ─── SCREEN: NEW SESSION (3 steps) ────────────────────────────────────────────
 
+// ─── SCREEN: NEW SESSION — Paciente → Minijuego → Configuración ───────────────
+
 function StepIndicator({ step }: { step: number }) {
-  const steps = ["Paciente", "Configuración", "Minijuego"];
+  const labels = ["Paciente", "Minijuego", "Configuración"];
   return (
-    <div className="flex items-center gap-0 mb-8">
-      {steps.map((label, i) => {
+    <div className="flex items-center mb-8">
+      {labels.map((label, i) => {
         const n = i + 1; const done = step > n; const active = step === n;
         return (
           <div key={label} className="flex items-center">
             <div className="flex items-center gap-2">
-              <div className={cx("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all", done ? "bg-emerald-500 text-white" : active ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-slate-100 text-slate-400")}>
+              <div className={cx("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                done ? "bg-emerald-500 text-white" : active ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-slate-100 text-slate-400")}>
                 {done ? <CheckCircle size={14} /> : n}
               </div>
               <span className={cx("text-sm font-medium", active ? "text-slate-800" : done ? "text-emerald-600" : "text-slate-400")}>{label}</span>
             </div>
-            {i < steps.length - 1 && <div className={cx("mx-3 h-px w-12", done ? "bg-emerald-400" : "bg-slate-200")} />}
+            {i < labels.length - 1 && <div className={cx("mx-3 h-px w-12", done ? "bg-emerald-400" : "bg-slate-200")} />}
           </div>
         );
       })}
@@ -696,77 +703,147 @@ function StepIndicator({ step }: { step: number }) {
   );
 }
 
-function NewSessionScreen({ patients, initialPatient, initialGame, onLaunch }: {
-  patients: Patient[]; initialPatient?: Patient | null;
-  initialGame?: string; onLaunch: (config: SessionConfig) => void;
+function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onLaunch }: {
+  patients: Patient[]; sessions: SessionRecord[];
+  initialPatient?: Patient | null; initialGame?: string;
+  onLaunch: (config: SessionConfig) => void;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(initialPatient ? 2 : 1);
-  const [config, setConfig] = useState<SessionConfig>({ ...DEFAULT_CONFIG, patientId: initialPatient?.id ?? null, selectedGame: initialGame ?? "" });
+  const [config, setConfig] = useState<SessionConfig>({
+    ...DEFAULT_CONFIG,
+    patientId: initialPatient?.id ?? null,
+    selectedGame: initialGame ?? "",
+    therapySide: initialPatient?.affectedSide ?? "Izquierdo",
+  });
   const [query, setQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient ?? null);
 
-  const filtered = useMemo(() => patients.filter(p => p.name.toLowerCase().includes(query.toLowerCase())), [patients, query]);
-  const pagStep1 = usePagination(filtered, 10);
-  const set = (key: keyof SessionConfig, val: string | number) => setConfig(c => ({ ...c, [key]: val }));
+  const filtered = useMemo(() => patients.filter(p =>
+    p.name.toLowerCase().includes(query.toLowerCase()) ||
+    p.diagnosis.toLowerCase().includes(query.toLowerCase())
+  ), [patients, query]);
+  const pagPat = usePagination(filtered, 10);
+  const set = (key: keyof SessionConfig, val: string | number | null) =>
+    setConfig(c => ({ ...c, [key]: val }));
+
+  const lastPlayedMap = useMemo(() => {
+    if (!selectedPatient) return {} as Record<string, string>;
+    const map: Record<string, string> = {};
+    for (const g of MINIGAMES) {
+      const last = sessions
+        .filter(s => s.patientId === selectedPatient.id && s.gameId === g.id)
+        .sort((a, b) => (b.id > a.id ? 1 : -1))[0];
+      if (last) map[g.id] = last.date;
+    }
+    return map;
+  }, [sessions, selectedPatient]);
+
+  const selectedGame = MINIGAMES.find(g => g.id === config.selectedGame);
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       <div className="mb-7">
         <h1 className="text-2xl font-bold text-slate-800">Nueva sesión VR</h1>
-        <p className="text-slate-500 text-sm mt-1">Configura la sesión antes de conectar con el dispositivo Meta Quest 3</p>
+        <p className="text-slate-500 text-sm mt-1">Configura la sesión para conectar con Meta Quest 3</p>
       </div>
       <StepIndicator step={step} />
 
-      {/* STEP 1 */}
       {step === 1 && (
         <div>
           <div className="relative mb-5">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar paciente..."
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar paciente por nombre o diagnóstico..."
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" />
           </div>
-          <div className="grid md:grid-cols-2 gap-3 mb-6">
-            {pagStep1.paged.map(p => (
-              <button key={p.id} onClick={() => { setSelectedPatient(p); set("patientId", p.id); }}
-                className={cx("flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-150 cursor-pointer", selectedPatient?.id === p.id ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100" : "border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/50")}>
+          <div className="grid md:grid-cols-2 gap-3 mb-4">
+            {pagPat.paged.map(p => (
+              <button key={p.id} onClick={() => { setSelectedPatient(p); set("patientId", p.id); set("therapySide", p.affectedSide); }}
+                className={cx("flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all cursor-pointer",
+                  selectedPatient?.id === p.id ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100" : "border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/50")}>
                 <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-slate-800 truncate">{p.name}</div>
                   <div className="text-xs text-slate-400">{p.diagnosis} · {p.age} años</div>
                   <div className="flex items-center gap-2 mt-1.5">
                     <Badge color={p.affectedSide === "Izquierdo" ? "blue" : p.affectedSide === "Derecho" ? "purple" : "amber"}>{p.affectedSide}</Badge>
-                    <span className="text-xs text-slate-400">{p.sessions} sesiones</span>
+                    <span className="text-xs text-slate-400">{p.sessions} sesiones · {p.progress}%</span>
                   </div>
                 </div>
                 {selectedPatient?.id === p.id && <CheckCircle size={18} className="text-blue-600 flex-shrink-0" />}
               </button>
             ))}
-            {filtered.length === 0 && <div className="col-span-2 py-10 text-center text-xs text-slate-400">No hay pacientes que coincidan</div>}
+            {filtered.length === 0 && <div className="col-span-2 py-10 text-center text-xs text-slate-400">No hay pacientes</div>}
           </div>
-          {filtered.length > 0 && (
-            <div className="mb-4 bg-white rounded-xl border border-slate-100 shadow-sm">
-              <Paginacion {...pagStep1} />
-            </div>
-          )}
+          {filtered.length > 0 && <div className="mb-4 bg-white rounded-xl border border-slate-100 shadow-sm"><Paginacion {...pagPat} /></div>}
           <div className="flex justify-end">
             <button disabled={!selectedPatient} onClick={() => setStep(2)}
-              className={cx("flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer", selectedPatient ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-slate-100 text-slate-400 cursor-not-allowed")}>
+              className={cx("flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer",
+                selectedPatient ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-slate-100 text-slate-400 cursor-not-allowed")}>
               Siguiente <ArrowRight size={16} />
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 2 */}
       {step === 2 && (
+        <div>
+          {selectedPatient && (
+            <div className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-100 shadow-sm mb-5">
+              <AvatarIcon initials={selectedPatient.initials} colorIdx={selectedPatient.colorIdx} size="sm" />
+              <div className="flex-1">
+                <div className="text-sm font-bold text-slate-800">{selectedPatient.name}</div>
+                <div className="text-xs text-slate-400">{selectedPatient.diagnosis} · Lado {selectedPatient.affectedSide}</div>
+              </div>
+              <button onClick={() => { setSelectedPatient(null); set("patientId", null); setStep(1); }}
+                className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer">Cambiar</button>
+            </div>
+          )}
+          <p className="text-sm text-slate-500 mb-4">Selecciona el ejercicio. Se indica la última vez que jugó este paciente.</p>
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            {MINIGAMES.map(g => {
+              const lastPlayed = lastPlayedMap[g.id];
+              const isSelected = config.selectedGame === g.id;
+              return (
+                <button key={g.id} onClick={() => set("selectedGame", g.id)}
+                  className={cx("text-left p-5 rounded-xl border-2 transition-all cursor-pointer",
+                    isSelected ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100" : `${g.bg} ${g.border} hover:shadow-sm`)}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={cx("w-11 h-11 rounded-xl flex items-center justify-center", g.iconBg)}><g.Icon size={22} className={g.iconColor} /></div>
+                    <Badge color={g.diffColor as "amber" | "red" | "green"}>{g.difficulty}</Badge>
+                  </div>
+                  <h3 className="font-bold text-sm text-slate-800 mb-1">{g.name}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed mb-3">{g.description}</p>
+                  <div className="text-xs text-slate-400 font-medium mb-2">{g.area}</div>
+                  <div className={cx("flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg",
+                    lastPlayed ? "bg-white/80 text-slate-600" : "bg-white/50 text-slate-400")}>
+                    <Calendar size={10} />
+                    {lastPlayed ? <span>Última vez: <strong>{lastPlayed}</strong></span> : <span>Sin sesiones previas</span>}
+                  </div>
+                  {isSelected && <div className="mt-2 flex items-center gap-1.5 text-blue-600 text-xs font-semibold"><CheckCircle size={13} /> Seleccionado</div>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex justify-between">
+            <button onClick={() => setStep(1)} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"><ArrowLeft size={14} /> Atrás</button>
+            <button disabled={!config.selectedGame} onClick={() => setStep(3)}
+              className={cx("flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold cursor-pointer transition-all",
+                config.selectedGame ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-slate-100 text-slate-400 cursor-not-allowed")}>
+              Siguiente <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             {[
-              { key: "duration" as const, label: "Duración de la sesión", Icon: Timer, iconBg: "bg-blue-100", iconColor: "text-blue-600", options: DURATIONS.map(d => ({ val: d, label: `${d} min` })) },
+              { key: "duration" as const, label: "Duración", Icon: Timer, iconBg: "bg-blue-100", iconColor: "text-blue-600", options: DURATIONS.map(d => ({ val: d, label: `${d} min` })) },
               { key: "therapySide" as const, label: "Lado a trabajar", Icon: Hand, iconBg: "bg-violet-100", iconColor: "text-violet-600", options: SIDES.map(s => ({ val: s, label: s })) },
-              { key: "difficulty" as const, label: "Nivel de dificultad", Icon: Zap, iconBg: "bg-amber-100", iconColor: "text-amber-600", options: DIFFICULTIES.map(d => ({ val: d, label: d })) },
+              { key: "difficulty" as const, label: "Dificultad", Icon: Zap, iconBg: "bg-amber-100", iconColor: "text-amber-600", options: DIFFICULTIES.map(d => ({ val: d, label: d })) },
               { key: "heightMode" as const, label: "Altura de objetivos", Icon: Layers, iconBg: "bg-emerald-100", iconColor: "text-emerald-600", options: HEIGHTS.map(h => ({ val: h, label: h })) },
-              { key: "sessionType" as const, label: "Tipo de sesión terapéutica", Icon: Target, iconBg: "bg-rose-100", iconColor: "text-rose-600", options: SESSION_TYPES.map(t => ({ val: t, label: t })) },
+              { key: "sessionType" as const, label: "Tipo de sesión", Icon: Target, iconBg: "bg-rose-100", iconColor: "text-rose-600", options: SESSION_TYPES.map(t => ({ val: t, label: t })) },
             ].map(({ key, label, Icon, iconBg, iconColor, options }) => (
               <Card key={key} className="p-5">
                 <div className="flex items-center gap-2 mb-3">
@@ -782,58 +859,225 @@ function NewSessionScreen({ patients, initialPatient, initialGame, onLaunch }: {
           <div className="lg:col-span-1">
             <div className="sticky top-6">
               <Card className="p-5 mb-4">
-                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><User size={14} className="text-blue-500" /> Resumen</h3>
+                <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><User size={14} className="text-blue-500" /> Resumen</h3>
+                {selectedGame && (
+                  <div className={cx("flex items-center gap-3 mb-3 p-3 rounded-lg border", selectedGame.bg, selectedGame.border)}>
+                    <div className={cx("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", selectedGame.iconBg)}>
+                      <selectedGame.Icon size={16} className={selectedGame.iconColor} />
+                    </div>
+                    <div><div className="text-xs font-bold text-slate-800">{selectedGame.name}</div><div className="text-xs text-slate-500">{selectedGame.difficulty}</div></div>
+                  </div>
+                )}
                 {selectedPatient && (
                   <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 rounded-lg">
                     <AvatarIcon initials={selectedPatient.initials} colorIdx={selectedPatient.colorIdx} size="sm" />
                     <div><div className="text-xs font-bold text-slate-800">{selectedPatient.name}</div><div className="text-xs text-slate-400">{selectedPatient.diagnosis}</div></div>
                   </div>
                 )}
-                <div className="space-y-2 text-xs">
+                <div className="space-y-1.5 text-xs">
                   {[["Duración", `${config.duration} min`], ["Lado", config.therapySide], ["Dificultad", config.difficulty], ["Altura", config.heightMode], ["Tipo", config.sessionType]].map(([l, v]) => (
-                    <div key={l} className="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
-                      <span className="text-slate-400 font-medium">{l}</span><span className="font-bold text-slate-700">{v}</span>
+                    <div key={l} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
+                      <span className="text-slate-400">{l}</span><span className="font-bold text-slate-700">{v}</span>
                     </div>
                   ))}
                 </div>
               </Card>
               <div className="flex gap-2">
-                <button onClick={() => setStep(1)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"><ArrowLeft size={14} /> Atrás</button>
-                <button onClick={() => setStep(3)} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-blue-200 transition-all cursor-pointer">Siguiente <ArrowRight size={15} /></button>
+                <button onClick={() => setStep(2)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"><ArrowLeft size={14} /> Atrás</button>
+                <button onClick={() => onLaunch(config)} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-300/40 cursor-pointer transition-all">
+                  <Headset size={16} /> Iniciar VR
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* STEP 3 */}
-      {step === 3 && (
-        <div>
-          <p className="text-sm text-slate-500 mb-5">Selecciona el minijuego que mejor se adapte a los objetivos terapéuticos.</p>
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-            {MINIGAMES.map(g => (
-              <button key={g.id} onClick={() => set("selectedGame", g.id)}
-                className={cx("text-left p-5 rounded-xl border-2 transition-all duration-150 cursor-pointer", config.selectedGame === g.id ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100" : `${g.bg} ${g.border} hover:shadow-sm`)}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className={cx("w-11 h-11 rounded-xl flex items-center justify-center", g.iconBg)}><g.Icon size={22} className={g.iconColor} /></div>
-                  <Badge color={g.diffColor as "amber" | "red" | "green"}>{g.difficulty}</Badge>
-                </div>
-                <h3 className="font-bold text-sm text-slate-800 mb-1">{g.name}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-2">{g.description}</p>
-                <div className="text-xs text-slate-400 font-medium">{g.area}</div>
-                {config.selectedGame === g.id && <div className="mt-3 flex items-center gap-1.5 text-blue-600 text-xs font-semibold"><CheckCircle size={13} /> Seleccionado</div>}
-              </button>
+// ─── SCREEN: PATIENT PROFILE ──────────────────────────────────────────────────
+
+function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdit, onDelete }: {
+  patient: Patient; sessions: SessionRecord[];
+  onBack: () => void; onStartSession: (p: Patient) => void;
+  onEdit: () => void; onDelete: () => void;
+}) {
+  const patientSessions = useMemo(() =>
+    sessions.filter(s => s.patientId === patient.id).sort((a, b) => b.id > a.id ? 1 : -1),
+    [sessions, patient.id]
+  );
+  const pagSess = usePagination(patientSessions, 10);
+
+  const bestScore = patientSessions.length ? Math.max(...patientSessions.map(s => s.score)) : 0;
+  const avgAccuracy = patientSessions.length
+    ? Math.round(patientSessions.reduce((a, s) => a + s.accuracy, 0) / patientSessions.length) : 0;
+  const totalMinutes = patientSessions.reduce((a, s) => a + s.duration, 0);
+
+  // Gráfico de evolución a partir de sesiones reales
+  const chartData = patientSessions.slice().reverse().map((s, i) => ({
+    s: `S${i + 1}`, score: s.score, precision: s.accuracy,
+  }));
+
+  const sideColor = patient.affectedSide === "Izquierdo" ? "blue" : patient.affectedSide === "Derecho" ? "purple" : "amber";
+
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-7">
+        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
+          <ArrowLeft size={16} />
+        </button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-slate-800">Perfil del paciente</h1>
+          <p className="text-slate-500 text-sm">{patient.diagnosis} · {patient.sessions} sesiones registradas</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all">
+            <Pencil size={14} /> Editar
+          </button>
+          <button onClick={onStartSession.bind(null, patient)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 cursor-pointer transition-all">
+            <PlayCircle size={14} /> Iniciar sesión
+          </button>
+        </div>
+      </div>
+
+      {/* Ficha principal */}
+      <div className="grid lg:grid-cols-3 gap-5 mb-6">
+        <Card className="lg:col-span-2 p-6">
+          <div className="flex items-start gap-5">
+            <AvatarIcon initials={patient.initials} colorIdx={patient.colorIdx} size="lg" />
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-slate-800 mb-1">{patient.name}</h2>
+              <p className="text-sm text-slate-500 mb-3">{patient.diagnosis}</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Badge color="gray">{patient.age} años</Badge>
+                <Badge color={sideColor}>Lado {patient.affectedSide}</Badge>
+                <Badge color={patient.status === "activo" ? "green" : "gray"}>{patient.status}</Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Última sesión",   value: patient.lastSession },
+                  { label: "Total sesiones",  value: String(patient.sessions) },
+                  { label: "Tiempo total",    value: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` },
+                  { label: "Precisión media", value: patientSessions.length ? `${avgAccuracy}%` : "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
+                    <div className="text-xs text-slate-400 mb-0.5">{label}</div>
+                    <div className="text-sm font-bold text-slate-700">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Progreso */}
+        <Card className="p-6">
+          <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <TrendingUp size={14} className="text-emerald-500" /> Progreso de rehabilitación
+          </h3>
+          <div className="flex items-center justify-center mb-4">
+            <div className="relative w-28 h-28">
+              <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                <circle cx="50" cy="50" r="40" fill="none"
+                  stroke={patient.progress >= 70 ? "#10B981" : patient.progress >= 40 ? "#F59E0B" : "#F43F5E"}
+                  strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={`${patient.progress * 2.51} 251`} />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-black text-slate-800">{patient.progress}%</span>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: "Mejor puntuación", value: bestScore ? bestScore.toLocaleString() : "—", Icon: Trophy, color: "text-amber-500" },
+              { label: "Total sesiones",   value: String(patientSessions.length), Icon: Activity, color: "text-blue-500" },
+            ].map(({ label, value, Icon, color }) => (
+              <div key={label} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                <div className={cx("flex items-center gap-2 text-xs text-slate-400")}><Icon size={12} className={color} /> {label}</div>
+                <span className="text-xs font-bold text-slate-700">{value}</span>
+              </div>
             ))}
           </div>
-          <div className="flex items-center gap-3 justify-between">
-            <button onClick={() => setStep(2)} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"><ArrowLeft size={14} /> Atrás</button>
-            <button disabled={!config.selectedGame} onClick={() => onLaunch(config)}
-              className={cx("flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer", config.selectedGame ? "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-lg shadow-blue-300/40" : "bg-slate-100 text-slate-400 cursor-not-allowed")}>
-              <Headset size={18} /> Iniciar sesión VR <ArrowRight size={16} />
-            </button>
+
+          {/* Notas clínicas */}
+          {patient.notes && (
+            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-xs font-semibold text-amber-700 mb-1">Notas clínicas</p>
+              <p className="text-xs text-amber-600 leading-relaxed">{patient.notes}</p>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Gráfico evolución */}
+      {chartData.length > 1 && (
+        <Card className="p-5 mb-5">
+          <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <BarChart3 size={14} className="text-blue-500" /> Evolución de puntuación y precisión
+          </h3>
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5FB" />
+                <XAxis dataKey="s" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="score" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={50} />
+                <YAxis yAxisId="prec" orientation="right" domain={[40, 100]} tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={35} unit="%" />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", fontSize: "12px" }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
+                <Line yAxisId="score" type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5} dot={{ fill: "#3B82F6", r: 3 }} name="Puntuación" />
+                <Line yAxisId="prec" type="monotone" dataKey="precision" stroke="#10B981" strokeWidth={2} strokeDasharray="5 3" dot={false} name="Precisión %" />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+        </Card>
       )}
+
+      {/* Tabla de sesiones */}
+      <Card>
+        <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <Calendar size={14} className="text-slate-400" /> Historial de sesiones ({patientSessions.length})
+          </h3>
+          <button onClick={onDelete} className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 font-semibold cursor-pointer transition-colors">
+            <Trash2 size={12} /> Eliminar paciente
+          </button>
+        </div>
+        {patientSessions.length === 0 ? (
+          <div className="py-12 text-center text-slate-400"><Activity size={28} className="mx-auto mb-2 opacity-30" /><p className="text-sm">Sin sesiones registradas todavía</p></div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-50">
+                    {["Fecha", "Ejercicio", "Duración", "Lado", "Dificultad", "Puntuación", "Precisión"].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {pagSess.paged.map(row => (
+                    <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
+                      <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{row.duration} min</td>
+                      <td className="px-4 py-3"><Badge color={row.side === "Izquierdo" ? "blue" : row.side === "Derecho" ? "purple" : "amber"}>{row.side}</Badge></td>
+                      <td className="px-4 py-3"><Badge color={row.difficulty === "Fácil" ? "green" : row.difficulty === "Media" ? "amber" : "red"}>{row.difficulty}</Badge></td>
+                      <td className="px-4 py-3 text-xs font-bold text-slate-700 font-mono">{row.score.toLocaleString()}</td>
+                      <td className="px-4 py-3"><Badge color={row.accuracy >= 80 ? "green" : row.accuracy >= 65 ? "amber" : "red"}>{row.accuracy}%</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {patientSessions.length > 0 && <Paginacion {...pagSess} />}
+          </>
+        )}
+      </Card>
     </div>
   );
 }
@@ -1255,6 +1499,8 @@ export default function App() {
   const [pendingGame, setPendingGame] = useState<string>("");
   const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [profilePatient, setProfilePatient] = useState<Patient | null>(null);
+  const [editFromProfile, setEditFromProfile] = useState(false);
 
   // ── Suscripción en tiempo real a Firestore ────────────────────────────────
   useEffect(() => {
@@ -1394,7 +1640,7 @@ export default function App() {
         )}
         {screen === "new-session" && (
           <NewSessionScreen key={`${pendingPatient?.id ?? "fresh"}-${pendingGame}`}
-            patients={patients} initialPatient={pendingPatient}
+            patients={patients} sessions={sessions} initialPatient={pendingPatient}
             initialGame={pendingGame} onLaunch={handleLaunch} />
         )}
         {screen === "minigames" && <MinigamesScreen onStartSession={handleStartFromMinigames} />}
