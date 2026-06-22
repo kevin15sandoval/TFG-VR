@@ -8,5 +8,10 @@ Plataforma_Clinica/dist/
 Plataforma_Clinica/.vite/
 Plataforma_Clinica/package-lock.json
 
+# Variables de entorno (credenciales — nunca subir)
+Plataforma_Clinica/.env
+Plataforma_Clinica/.env.local
+Plataforma_Clinica/.env.*.local
+
 # Editor
 .vscode/

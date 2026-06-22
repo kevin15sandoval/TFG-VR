@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Colección pacientes — lectura y escritura libre (app clínica interna)
+    match /pacientes/{docId} {
+      allow read, write: if true;
+    }
+
+    // Colección sesiones — lectura y escritura libre
+    match /sesiones/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   LayoutDashboard, Users, PlayCircle, Gamepad2, History,
   Settings, Brain, TrendingUp, Search, Plus, Eye, Hand,
@@ -7,59 +7,46 @@ import {
   Calendar, Download, Filter, Target, Trophy, User,
   BarChart3, Gem, ArrowLeft, Zap, Layers, Crosshair,
   Pencil, Trash2, X, Save, Bell, Monitor, Lock, ChevronDown,
+  Loader2,
 } from "lucide-react";
 import {
   LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import type { Patient, SessionRecord, SessionConfig, Screen } from "./types";
+import {
+  subscribePatients, subscribeSessions,
+  addPatient, updatePatient, deletePatient,
+  addSession, seedIfEmpty,
+} from "./db";
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
+// ─── TIPOS — importados desde ./types ─────────────────────────────────────────
+// Patient, SessionRecord, SessionConfig, Screen
 
-type Screen = "dashboard" | "patients" | "new-session" | "minigames" | "results" | "history" | "settings";
+// ─── DATOS DE SEED (solo se usan si Firestore está vacío) ─────────────────────
 
-interface Patient {
-  id: number;
-  name: string;
-  initials: string;
-  age: number;
-  affectedSide: string;
-  lastSession: string;
-  progress: number;
-  diagnosis: string;
-  sessions: number;
-  status: "activo" | "inactivo";
-  colorIdx: number;
-  notes: string;
-}
+const SEED_PATIENTS: Omit<Patient, "id">[] = [
+  { name: "Carmen Rodríguez López",   initials: "CR", age: 67, affectedSide: "Izquierdo", lastSession: "20 jun 2026", progress: 72, diagnosis: "Ictus isquémico",    sessions: 24, status: "activo",   colorIdx: 0, notes: "Buena tolerancia al esfuerzo." },
+  { name: "José Manuel García Vega",  initials: "JG", age: 58, affectedSide: "Derecho",   lastSession: "19 jun 2026", progress: 45, diagnosis: "Ictus hemorrágico",  sessions: 12, status: "activo",   colorIdx: 1, notes: "Inicio reciente. Progreso estable." },
+  { name: "María Antonia Pérez Ruiz", initials: "MP", age: 74, affectedSide: "Ambos",     lastSession: "18 jun 2026", progress: 88, diagnosis: "Ictus isquémico",    sessions: 38, status: "activo",   colorIdx: 2, notes: "Excelente adherencia. Cerca del alta." },
+  { name: "Antonio Fernández Sanz",   initials: "AF", age: 62, affectedSide: "Derecho",   lastSession: "17 jun 2026", progress: 31, diagnosis: "AIT recurrente",     sessions:  8, status: "activo",   colorIdx: 3, notes: "Requiere supervisión continua." },
+  { name: "Isabel Martínez Torres",   initials: "IM", age: 70, affectedSide: "Izquierdo", lastSession: "15 jun 2026", progress: 60, diagnosis: "Ictus isquémico",    sessions: 19, status: "activo",   colorIdx: 4, notes: "Motivada. Mejora semana a semana." },
+  { name: "Francisco López Moreno",   initials: "FL", age: 55, affectedSide: "Derecho",   lastSession: "14 jun 2026", progress: 52, diagnosis: "Ictus lacunar",      sessions: 15, status: "inactivo", colorIdx: 5, notes: "En pausa por viaje familiar." },
+];
 
-interface SessionRecord {
-  id: number;
-  patientId: number;
-  date: string;
-  game: string;
-  gameId: string;
-  duration: number;
-  score: number;
-  accuracy: number;
-  side: string;
-  difficulty: string;
-  sessionType: string;
-}
-
-interface SessionConfig {
-  patientId: number | null;
-  duration: number;
-  therapySide: string;
-  difficulty: string;
-  heightMode: string;
-  sessionType: string;
-  selectedGame: string;
-}
-
-interface AppState {
-  patients: Patient[];
-  sessions: SessionRecord[];
-}
+// Las sesiones de seed se insertan con IDs temporales; seedIfEmpty los remapea
+const SEED_SESSIONS: Omit<SessionRecord, "id">[] = [
+  { patientId: "1", date: "20 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 8450,  accuracy: 84, side: "Izquierdo", difficulty: "Media",  sessionType: "Alcance" },
+  { patientId: "2", date: "19 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4210,  accuracy: 71, side: "Derecho",   difficulty: "Fácil",  sessionType: "Precisión" },
+  { patientId: "3", date: "18 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 10, score: 12300, accuracy: 91, side: "Ambos",     difficulty: "Media",  sessionType: "Coordinación" },
+  { patientId: "4", date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 3120,  accuracy: 58, side: "Derecho",   difficulty: "Difícil",sessionType: "Movilidad de tronco" },
+  { patientId: "5", date: "15 jun 2026", game: "Evitar obstáculos",   gameId: "avoid",   duration: 3,  score: 5680,  accuracy: 77, side: "Izquierdo", difficulty: "Difícil",sessionType: "Equilibrio" },
+  { patientId: "1", date: "18 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 5200,  accuracy: 79, side: "Izquierdo", difficulty: "Media",  sessionType: "Precisión" },
+  { patientId: "1", date: "15 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 7100,  accuracy: 81, side: "Izquierdo", difficulty: "Media",  sessionType: "Coordinación" },
+  { patientId: "1", date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800,  accuracy: 76, side: "Ambos",     difficulty: "Difícil",sessionType: "Movilidad de tronco" },
+  { patientId: "2", date: "15 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3800,  accuracy: 65, side: "Derecho",   difficulty: "Fácil",  sessionType: "Alcance" },
+  { patientId: "3", date: "15 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 11200, accuracy: 89, side: "Ambos",     difficulty: "Difícil",sessionType: "Alcance" },
+];
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 
@@ -75,14 +62,14 @@ const INITIAL_PATIENTS: Patient[] = [
 const INITIAL_SESSIONS: SessionRecord[] = [
   { id: 1, patientId: 1, date: "20 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 8450, accuracy: 84, side: "Izquierdo", difficulty: "Media", sessionType: "Alcance" },
   { id: 2, patientId: 2, date: "19 jun 2026", game: "Atrapar objetos", gameId: "catch", duration: 3, score: 4210, accuracy: 71, side: "Derecho", difficulty: "Fácil", sessionType: "Precisión" },
-  { id: 3, patientId: 3, date: "18 jun 2026", game: "Seguir luces", gameId: "lights", duration: 10, score: 12300, accuracy: 91, side: "Ambos", difficulty: "Media", sessionType: "Coordinación" },
-  { id: 4, patientId: 4, date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5, score: 3120, accuracy: 58, side: "Derecho", difficulty: "Difícil", sessionType: "Movilidad de tronco" },
-  { id: 5, patientId: 5, date: "15 jun 2026", game: "Evitar obstáculos", gameId: "avoid", duration: 3, score: 5680, accuracy: 77, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio" },
-  { id: 6, patientId: 1, date: "18 jun 2026", game: "Atrapar objetos", gameId: "catch", duration: 3, score: 5200, accuracy: 79, side: "Izquierdo", difficulty: "Media", sessionType: "Precisión" },
-  { id: 7, patientId: 1, date: "15 jun 2026", game: "Seguir luces", gameId: "lights", duration: 5, score: 7100, accuracy: 81, side: "Izquierdo", difficulty: "Media", sessionType: "Coordinación" },
-  { id: 8, patientId: 1, date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800, accuracy: 76, side: "Ambos", difficulty: "Difícil", sessionType: "Movilidad de tronco" },
-  { id: 9, patientId: 2, date: "15 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 3800, accuracy: 65, side: "Derecho", difficulty: "Fácil", sessionType: "Alcance" },
-  { id: 10, patientId: 3, date: "15 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 11200, accuracy: 89, side: "Ambos", difficulty: "Difícil", sessionType: "Alcance" },
+  { id: "3", patientId: "3", date: "18 jun 2026", game: "Seguir luces", gameId: "lights", duration: 10, score: 12300, accuracy: 91, side: "Ambos", difficulty: "Media", sessionType: "Coordinación" },
+  { id: "4", patientId: "4", date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5, score: 3120, accuracy: 58, side: "Derecho", difficulty: "Difícil", sessionType: "Movilidad de tronco" },
+  { id: "5", patientId: "5", date: "15 jun 2026", game: "Evitar obstáculos", gameId: "avoid", duration: 3, score: 5680, accuracy: 77, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio" },
+  { id: "6", patientId: "1", date: "18 jun 2026", game: "Atrapar objetos", gameId: "catch", duration: 3, score: 5200, accuracy: 79, side: "Izquierdo", difficulty: "Media", sessionType: "Precisión" },
+  { id: "7", patientId: "1", date: "15 jun 2026", game: "Seguir luces", gameId: "lights", duration: 5, score: 7100, accuracy: 81, side: "Izquierdo", difficulty: "Media", sessionType: "Coordinación" },
+  { id: "8", patientId: "1", date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800, accuracy: 76, side: "Ambos", difficulty: "Difícil", sessionType: "Movilidad de tronco" },
+  { id: "9", patientId: "2", date: "15 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 3800, accuracy: 65, side: "Derecho", difficulty: "Fácil", sessionType: "Alcance" },
+  { id: "10", patientId: "3", date: "15 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 11200, accuracy: 89, side: "Ambos", difficulty: "Difícil", sessionType: "Alcance" },
 ];
 
 const HISTORY_CHART_BY_PATIENT: Record<number, { s: string; score: number; precision: number }[]> = {
@@ -152,8 +139,6 @@ const DEFAULT_CONFIG: SessionConfig = {
   difficulty: "Media", heightMode: "Media", sessionType: "Alcance", selectedGame: "",
 };
 
-// ─── UTILITIES ────────────────────────────────────────────────────────────────
-
 function cx(...cls: (string | false | null | undefined)[]) {
   return cls.filter(Boolean).join(" ");
 }
@@ -168,8 +153,7 @@ function formatDate(d: Date) {
   return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 }
 
-let nextId = 100;
-function newId() { return ++nextId; }
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
 
 // ─── SHARED UI COMPONENTS ─────────────────────────────────────────────────────
 
@@ -1264,11 +1248,23 @@ function SettingsScreen() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [state, setState] = useState<AppState>({ patients: INITIAL_PATIENTS, sessions: INITIAL_SESSIONS });
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [pendingPatient, setPendingPatient] = useState<Patient | null>(null);
   const [pendingGame, setPendingGame] = useState<string>("");
   const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  // ── Suscripción en tiempo real a Firestore ────────────────────────────────
+  useEffect(() => {
+    // Seed datos iniciales si Firestore está vacío
+    seedIfEmpty(SEED_PATIENTS, SEED_SESSIONS).catch(console.error);
+
+    const unsubP = subscribePatients(data => { setPatients(data); setLoading(false); });
+    const unsubS = subscribeSessions(data => setSessions(data));
+    return () => { unsubP(); unsubS(); };
+  }, []);
 
   function showToast(msg: string, type: "success" | "error" = "success") {
     setToast({ msg, type });
@@ -1282,29 +1278,25 @@ export default function App() {
 
   // ── PATIENT CRUD ──────────────────────────────────────────────────────────
 
-  function handleAddPatient(data: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) {
-    setState(prev => ({
-      ...prev,
-      patients: [...prev.patients, { ...data, id: newId(), sessions: 0, lastSession: "Sin sesiones", progress: 0 }],
-    }));
-    showToast("Paciente añadido correctamente");
+  async function handleAddPatient(data: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) {
+    try {
+      await addPatient({ ...data, sessions: 0, lastSession: "Sin sesiones", progress: 0 });
+      showToast("Paciente añadido correctamente");
+    } catch { showToast("Error al añadir el paciente", "error"); }
   }
 
-  function handleEditPatient(id: number, data: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) {
-    setState(prev => ({
-      ...prev,
-      patients: prev.patients.map(p => p.id === id ? { ...p, ...data } : p),
-    }));
-    showToast("Paciente actualizado");
+  async function handleEditPatient(id: string, data: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) {
+    try {
+      await updatePatient(id, data);
+      showToast("Paciente actualizado");
+    } catch { showToast("Error al actualizar el paciente", "error"); }
   }
 
-  function handleDeletePatient(id: number) {
-    setState(prev => ({
-      ...prev,
-      patients: prev.patients.filter(p => p.id !== id),
-      sessions: prev.sessions.filter(s => s.patientId !== id),
-    }));
-    showToast("Paciente eliminado");
+  async function handleDeletePatient(id: string) {
+    try {
+      await deletePatient(id);
+      showToast("Paciente eliminado");
+    } catch { showToast("Error al eliminar el paciente", "error"); }
   }
 
   // ── SESSION FLOW ──────────────────────────────────────────────────────────
@@ -1325,7 +1317,7 @@ export default function App() {
     setScreen("results");
   }
 
-  function handleSaveSession() {
+  async function handleSaveSession() {
     const game = MINIGAMES.find(g => g.id === lastConfig.selectedGame);
     if (!game || !lastConfig.patientId) { showToast("Error al guardar la sesión", "error"); return; }
 
@@ -1333,29 +1325,51 @@ export default function App() {
     const score = baseScore + Math.floor(lastConfig.duration * 120);
     const accuracy = lastConfig.difficulty === "Fácil" ? 75 : lastConfig.difficulty === "Media" ? 82 : 70;
 
-    const newSession: SessionRecord = {
-      id: newId(), patientId: lastConfig.patientId, date: formatDate(new Date("2026-06-22")),
-      game: game.name, gameId: game.id, duration: lastConfig.duration, score, accuracy,
-      side: lastConfig.therapySide, difficulty: lastConfig.difficulty, sessionType: lastConfig.sessionType,
-    };
-
-    setState(prev => {
-      const updatedSessions = [newSession, ...prev.sessions];
-      const updatedPatients = prev.patients.map(p => {
-        if (p.id !== lastConfig.patientId) return p;
-        const pSessions = updatedSessions.filter(s => s.patientId === p.id);
-        const avgAcc = pSessions.reduce((a, s) => a + s.accuracy, 0) / pSessions.length;
-        const newProgress = Math.min(100, Math.round(avgAcc * 0.8 + pSessions.length * 0.5));
-        return { ...p, sessions: pSessions.length, lastSession: formatDate(new Date("2026-06-22")), progress: newProgress };
+    try {
+      // Guardar sesión en Firestore
+      await addSession({
+        patientId: lastConfig.patientId,
+        date: formatDate(new Date("2026-06-22")),
+        game: game.name, gameId: game.id,
+        duration: lastConfig.duration, score, accuracy,
+        side: lastConfig.therapySide,
+        difficulty: lastConfig.difficulty,
+        sessionType: lastConfig.sessionType,
       });
-      return { patients: updatedPatients, sessions: updatedSessions };
-    });
 
-    showToast("Sesión guardada correctamente");
-    navigate("history");
+      // Actualizar progreso del paciente
+      const patientSessions = sessions.filter(s => s.patientId === lastConfig.patientId);
+      const newCount = patientSessions.length + 1;
+      const avgAcc = (patientSessions.reduce((a, s) => a + s.accuracy, 0) + accuracy) / newCount;
+      const newProgress = Math.min(100, Math.round(avgAcc * 0.8 + newCount * 0.5));
+
+      await updatePatient(lastConfig.patientId, {
+        sessions: newCount,
+        lastSession: formatDate(new Date("2026-06-22")),
+        progress: newProgress,
+      });
+
+      showToast("Sesión guardada correctamente");
+      navigate("history");
+    } catch { showToast("Error al guardar la sesión", "error"); }
   }
 
-  const activeCount = state.patients.filter(p => p.status === "activo").length;
+  const activeCount = patients.filter(p => p.status === "activo").length;
+
+  // ── Pantalla de carga ─────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#EEF2F7]">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
+            <Loader2 size={28} className="text-blue-600 animate-spin" />
+          </div>
+          <p className="text-sm font-semibold text-slate-600">Conectando con Firebase...</p>
+          <p className="text-xs text-slate-400 mt-1">Cargando datos clínicos</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen font-[Plus_Jakarta_Sans,system-ui,sans-serif] bg-[#EEF2F7]">
@@ -1370,25 +1384,25 @@ export default function App() {
         )}
 
         {screen === "dashboard" && (
-          <DashboardScreen patients={state.patients} sessions={state.sessions}
+          <DashboardScreen patients={patients} sessions={sessions}
             onNewSession={() => navigate("new-session")} onViewHistory={() => navigate("history")}
             onPatients={() => navigate("patients")} onSelectPatient={handleSelectPatient} />
         )}
         {screen === "patients" && (
-          <PatientsScreen patients={state.patients} onSelectPatient={handleSelectPatient}
+          <PatientsScreen patients={patients} onSelectPatient={handleSelectPatient}
             onAdd={handleAddPatient} onEdit={handleEditPatient} onDelete={handleDeletePatient} />
         )}
         {screen === "new-session" && (
           <NewSessionScreen key={`${pendingPatient?.id ?? "fresh"}-${pendingGame}`}
-            patients={state.patients} initialPatient={pendingPatient}
+            patients={patients} initialPatient={pendingPatient}
             initialGame={pendingGame} onLaunch={handleLaunch} />
         )}
         {screen === "minigames" && <MinigamesScreen onStartSession={handleStartFromMinigames} />}
         {screen === "results" && (
-          <ResultsScreen config={lastConfig} patients={state.patients}
+          <ResultsScreen config={lastConfig} patients={patients}
             onNewSession={() => navigate("new-session")} onSave={handleSaveSession} />
         )}
-        {screen === "history" && <HistoryScreen patients={state.patients} sessions={state.sessions} />}
+        {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} />}
         {screen === "settings" && <SettingsScreen />}
       </main>
     </div>
