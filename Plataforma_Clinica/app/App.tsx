@@ -388,6 +388,77 @@ function Sidebar({ current, onNavigate, activeCount }: { current: Screen; onNavi
   );
 }
 
+// ─── PAGINACIÓN ───────────────────────────────────────────────────────────────
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+type PageSize = typeof PAGE_SIZE_OPTIONS[number];
+
+function usePagination<T>(items: T[], defaultSize: PageSize = 10) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(defaultSize);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+
+  function changeSize(s: PageSize) { setPageSize(s); setPage(1); }
+  function changePage(p: number) { setPage(Math.max(1, Math.min(p, totalPages))); }
+
+  return { paged, page: safePage, pageSize, totalPages, total: items.length, changeSize, changePage };
+}
+
+function Paginacion({ page, pageSize, totalPages, total, changeSize, changePage }: {
+  page: number; pageSize: PageSize; totalPages: number; total: number;
+  changeSize: (s: PageSize) => void; changePage: (p: number) => void;
+}) {
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  const pages: (number | "…")[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push("…");
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push("…");
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 flex-wrap gap-3">
+      <div className="flex items-center gap-2 text-xs text-slate-500">
+        <span>Mostrar</span>
+        <select value={pageSize} onChange={e => changeSize(Number(e.target.value) as PageSize)}
+          className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer">
+          {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span>por página · <strong>{from}–{to}</strong> de <strong>{total}</strong></span>
+      </div>
+      <div className="flex items-center gap-1">
+        <button onClick={() => changePage(page - 1)} disabled={page === 1}
+          className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer transition-colors">
+          <ArrowLeft size={12} />
+        </button>
+        {pages.map((p, i) =>
+          p === "…"
+            ? <span key={`e${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400">…</span>
+            : <button key={p} onClick={() => changePage(p as number)}
+                className={cx("w-7 h-7 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
+                  page === p ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50")}>
+                {p}
+              </button>
+        )}
+        <button onClick={() => changePage(page + 1)} disabled={page === totalPages}
+          className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer transition-colors">
+          <ArrowRight size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── SCREEN: DASHBOARD ────────────────────────────────────────────────────────
 
 function DashboardScreen({ patients, sessions, onNewSession, onViewHistory, onPatients, onSelectPatient }: {
@@ -523,6 +594,11 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: 
     return matchQ && matchS;
   }), [patients, query, filterStatus]);
 
+  const pag = usePagination(filtered, 10);
+
+  // Reset a página 1 cuando cambia el filtro
+  useMemo(() => { pag.changePage(1); }, [query, filterStatus]); // eslint-disable-line
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-7">
@@ -549,7 +625,7 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: 
         <div className="text-center py-16 text-slate-400"><Users size={36} className="mx-auto mb-3 opacity-30" /><p className="text-sm">No se encontraron pacientes</p></div>
       )}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map(p => (
+        {pag.paged.map(p => (
           <Card key={p.id} className="p-5 hover:shadow-md transition-shadow duration-200">
             <div className="flex items-start gap-3 mb-4">
               <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} size="lg" />
@@ -584,6 +660,12 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete }: 
           </Card>
         ))}
       </div>
+
+      {filtered.length > 0 && (
+        <div className="mt-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+          <Paginacion {...pag} />
+        </div>
+      )}
 
       {showAdd && (
         <Modal title="Añadir nuevo paciente" onClose={() => setShowAdd(false)}>
@@ -640,6 +722,7 @@ function NewSessionScreen({ patients, initialPatient, initialGame, onLaunch }: {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient ?? null);
 
   const filtered = useMemo(() => patients.filter(p => p.name.toLowerCase().includes(query.toLowerCase())), [patients, query]);
+  const pagStep1 = usePagination(filtered, 10);
   const set = (key: keyof SessionConfig, val: string | number) => setConfig(c => ({ ...c, [key]: val }));
 
   return (
@@ -659,7 +742,7 @@ function NewSessionScreen({ patients, initialPatient, initialGame, onLaunch }: {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" />
           </div>
           <div className="grid md:grid-cols-2 gap-3 mb-6">
-            {filtered.map(p => (
+            {pagStep1.paged.map(p => (
               <button key={p.id} onClick={() => { setSelectedPatient(p); set("patientId", p.id); }}
                 className={cx("flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-150 cursor-pointer", selectedPatient?.id === p.id ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100" : "border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/50")}>
                 <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} />
@@ -676,6 +759,11 @@ function NewSessionScreen({ patients, initialPatient, initialGame, onLaunch }: {
             ))}
             {filtered.length === 0 && <div className="col-span-2 py-10 text-center text-xs text-slate-400">No hay pacientes que coincidan</div>}
           </div>
+          {filtered.length > 0 && (
+            <div className="mb-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+              <Paginacion {...pagStep1} />
+            </div>
+          )}
           <div className="flex justify-end">
             <button disabled={!selectedPatient} onClick={() => setStep(2)}
               className={cx("flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer", selectedPatient ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200" : "bg-slate-100 text-slate-400 cursor-not-allowed")}>
@@ -946,6 +1034,9 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
     return patientSessions;
   }, [patientSessions, filterDate]);
 
+  const pagSessions = usePagination(filteredSessions, 10);
+  const pagPatients = usePagination(patients, 25);
+
   const chartData = HISTORY_CHART_BY_PATIENT[activePatientId] ?? [];
   const bestScore = patientSessions.length ? Math.max(...patientSessions.map(s => s.score)) : 0;
   const avgAccuracy = patientSessions.length ? Math.round(patientSessions.reduce((a, s) => a + s.accuracy, 0) / patientSessions.length) : 0;
@@ -972,7 +1063,7 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
       </div>
       <Card className="p-4 mb-6">
         <div className="flex items-center gap-2 flex-wrap">
-          {patients.map(p => (
+          {pagPatients.paged.map(p => (
             <button key={p.id} onClick={() => setActivePatientId(p.id)}
               className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer", activePatientId === p.id ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-600 hover:border-blue-200")}>
               <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} size="sm" />
@@ -980,6 +1071,7 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
             </button>
           ))}
         </div>
+        {patients.length > pagPatients.pageSize && <Paginacion {...pagPatients} />}
       </Card>
       <Card className="p-5 mb-6">
         <div className="flex items-center gap-4">
@@ -1047,7 +1139,7 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
               {filteredSessions.length === 0 && (
                 <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400">No hay sesiones registradas para este paciente</td></tr>
               )}
-              {filteredSessions.map(row => (
+              {pagSessions.paged.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
                   <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
@@ -1061,6 +1153,7 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
             </tbody>
           </table>
         </div>
+        {filteredSessions.length > 0 && <Paginacion {...pagSessions} />}
       </Card>
     </div>
   );
