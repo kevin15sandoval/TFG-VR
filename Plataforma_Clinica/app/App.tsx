@@ -342,7 +342,7 @@ function Sidebar({ current, onNavigate, activeCount }: { current: Screen; onNavi
       </div>
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {NAV.map(({ id, label, Icon }) => {
-          const active = current === id;
+          const active = current === id || (id === "patients" && current === "patient-profile");
           return (
             <button key={id} onClick={() => onNavigate(id as Screen)}
               className={cx("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left cursor-pointer",
@@ -1552,6 +1552,11 @@ export default function App() {
     setScreen("new-session");
   }
 
+  function handleViewProfile(p: Patient) {
+    setProfilePatient(p);
+    setScreen("patient-profile");
+  }
+
   function handleStartFromMinigames(gameId: string) {
     setPendingGame(gameId);
     setPendingPatient(null);
@@ -1636,7 +1641,8 @@ export default function App() {
         )}
         {screen === "patients" && (
           <PatientsScreen patients={patients} onSelectPatient={handleSelectPatient}
-            onAdd={handleAddPatient} onEdit={handleEditPatient} onDelete={handleDeletePatient} />
+            onAdd={handleAddPatient} onEdit={handleEditPatient} onDelete={handleDeletePatient}
+            onViewProfile={handleViewProfile} />
         )}
         {screen === "new-session" && (
           <NewSessionScreen key={`${pendingPatient?.id ?? "fresh"}-${pendingGame}`}
@@ -1649,6 +1655,19 @@ export default function App() {
             onNewSession={() => navigate("new-session")} onSave={handleSaveSession} />
         )}
         {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} />}
+        {screen === "patient-profile" && profilePatient && (
+          <PatientProfileScreen
+            patient={patients.find(p => p.id === profilePatient.id) ?? profilePatient}
+            sessions={sessions}
+            onBack={() => navigate("patients")}
+            onStartSession={(p) => { handleSelectPatient(p); }}
+            onEdit={() => { setEditFromProfile(true); navigate("patients"); }}
+            onDelete={async () => {
+              await handleDeletePatient(profilePatient.id);
+              navigate("patients");
+            }}
+          />
+        )}
         {screen === "settings" && <SettingsScreen />}
       </main>
     </div>
