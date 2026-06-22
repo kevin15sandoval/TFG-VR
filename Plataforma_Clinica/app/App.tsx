@@ -7,8 +7,10 @@ import {
   Calendar, Download, Filter, Target, Trophy, User,
   BarChart3, Gem, ArrowLeft, Zap, Layers, Crosshair,
   Pencil, Trash2, X, Save, Bell, Monitor, Lock, ChevronDown,
-  Loader2,
+  Loader2, LogOut,
 } from "lucide-react";
+import type { User as FirebaseUser } from "firebase/auth";
+import { logout } from "./auth";
 import {
   LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -326,7 +328,10 @@ const NAV = [
   { id: "settings", label: "Configuración", Icon: Settings },
 ] as const;
 
-function Sidebar({ current, onNavigate, activeCount }: { current: Screen; onNavigate: (s: Screen) => void; activeCount: number }) {
+function Sidebar({ current, onNavigate, activeCount, user, onLogout }: {
+  current: Screen; onNavigate: (s: Screen) => void;
+  activeCount: number; user: FirebaseUser; onLogout: () => void;
+}) {
   return (
     <aside className="w-64 flex-shrink-0 bg-[#0C1B3A] flex flex-col min-h-screen">
       <div className="px-5 py-5 border-b border-white/10">
@@ -359,13 +364,21 @@ function Sidebar({ current, onNavigate, activeCount }: { current: Screen; onNavi
       </nav>
       <div className="px-4 py-4 border-t border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400/25 flex items-center justify-center">
-            <span className="text-[11px] font-bold text-blue-300">SM</span>
+          <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400/25 flex items-center justify-center flex-shrink-0">
+            <span className="text-[11px] font-bold text-blue-300">
+              {(user.displayName ?? user.email ?? "U").slice(0, 2).toUpperCase()}
+            </span>
           </div>
-          <div className="min-w-0">
-            <div className="text-white text-xs font-semibold leading-tight truncate">Dra. Sara Martínez</div>
-            <div className="text-slate-500 text-[11px] leading-tight">Fisioterapeuta</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-white text-xs font-semibold leading-tight truncate">
+              {user.displayName ?? user.email ?? "Usuario"}
+            </div>
+            <div className="text-slate-500 text-[11px] leading-tight truncate">{user.email}</div>
           </div>
+          <button onClick={onLogout} title="Cerrar sesión"
+            className="w-7 h-7 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors flex-shrink-0">
+            <LogOut size={13} />
+          </button>
         </div>
       </div>
     </aside>
@@ -1389,12 +1402,12 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
 
 // ─── SCREEN: SETTINGS ─────────────────────────────────────────────────────────
 
-function SettingsScreen() {
+function SettingsScreen({ user }: { user: FirebaseUser }) {
   const [notif, setNotif] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [autoSave, setAutoSave] = useState(true);
   const [vrDevice, setVrDevice] = useState("Meta Quest 3");
-  const [therapistName, setTherapistName] = useState("Dra. Sara Martínez");
+  const [therapistName, setTherapistName] = useState(user.displayName ?? "");
   const [clinic, setClinic] = useState("Hospital Universitario La Paz");
   const [saved, setSaved] = useState(false);
 
@@ -1490,7 +1503,7 @@ function SettingsScreen() {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 
-export default function App() {
+export default function App({ user }: { user: FirebaseUser }) {
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
@@ -1624,7 +1637,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen font-[Plus_Jakarta_Sans,system-ui,sans-serif] bg-[#EEF2F7]">
-      <Sidebar current={screen} onNavigate={navigate} activeCount={activeCount} />
+      <Sidebar current={screen} onNavigate={navigate} activeCount={activeCount} user={user} onLogout={logout} />
 
       <main className="flex-1 overflow-y-auto min-h-screen relative">
         {/* Toast */}
@@ -1668,7 +1681,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "settings" && <SettingsScreen />}
+        {screen === "settings" && <SettingsScreen user={user} />}
       </main>
     </div>
   );
