@@ -1,3 +1,12 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Node / web platform
+Plataforma_Clinica/node_modules/
+Plataforma_Clinica/dist/
+Plataforma_Clinica/.vite/
+Plataforma_Clinica/package-lock.json
+
+# Editor
+.vscode/
