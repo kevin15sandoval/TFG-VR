@@ -15,3 +15,7 @@ Plataforma_Clinica/.env.*.local
 
 # Editor
 .vscode/
+Plataforma_Clinica/.env
+Plataforma_Clinica/.vite/
+Plataforma_Clinica/node_modules/
+builds/

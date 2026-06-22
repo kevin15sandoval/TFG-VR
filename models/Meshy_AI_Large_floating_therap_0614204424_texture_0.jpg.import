@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://cn33krokdnbne"
 path.s3tc="res://.godot/imported/Meshy_AI_Large_floating_therap_0614204424_texture_0.jpg-db140d96a265878e489c93a26d4f4e26.s3tc.ctex"
+path.etc2="res://.godot/imported/Meshy_AI_Large_floating_therap_0614204424_texture_0.jpg-db140d96a265878e489c93a26d4f4e26.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://models/Meshy_AI_Large_floating_therap_0614204424_texture_0.jpg"
-dest_files=["res://.godot/imported/Meshy_AI_Large_floating_therap_0614204424_texture_0.jpg-db140d96a265878e489c93a26d4f4e26.s3tc.ctex"]
+dest_files=["res://.godot/imported/Meshy_AI_Large_floating_therap_0614204424_texture_0.jpg-db140d96a265878e489c93a26d4f4e26.s3tc.ctex", "res://.godot/imported/Meshy_AI_Large_floating_therap_0614204424_texture_0.jpg-db140d96a265878e489c93a26d4f4e26.etc2.ctex"]
 
 [params]
 

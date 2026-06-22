@@ -38,7 +38,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 script = ExtResource("2_2dftf")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Gem" unique_id=1180600561]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6128936, 0, 0)
+transform = Transform3D(0.99972486, -0.023353036, 0.0021923732, 0.023343716, 0.9997187, 0.0041848845, -0.0022894882, -0.0041325535, 0.99998885, 2.6128936, 0, 0)
 shape = SubResource("SphereShape3D_bcbcq")
 debug_color = Color(0.9643615, 6.738305e-07, 0.49609244, 0.41960785)
 
