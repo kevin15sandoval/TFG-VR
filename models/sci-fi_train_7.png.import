@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c1tq4y6c1c5bv"
 path.s3tc="res://.godot/imported/sci-fi_train_7.png-c2767b7d0dad4703c6ae64c4c6985971.s3tc.ctex"
+path.etc2="res://.godot/imported/sci-fi_train_7.png-c2767b7d0dad4703c6ae64c4c6985971.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://models/sci-fi_train_7.png"
-dest_files=["res://.godot/imported/sci-fi_train_7.png-c2767b7d0dad4703c6ae64c4c6985971.s3tc.ctex"]
+dest_files=["res://.godot/imported/sci-fi_train_7.png-c2767b7d0dad4703c6ae64c4c6985971.s3tc.ctex", "res://.godot/imported/sci-fi_train_7.png-c2767b7d0dad4703c6ae64c4c6985971.etc2.ctex"]
 
 [params]
 
