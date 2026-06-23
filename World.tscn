@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://kb21x47ltlyq"]
 
-[ext_resource type="PackedScene" uid="uid://cd7vfqko4kmfh" path="res://models/Meshy_AI_Large_floating_therap_0614204424_texture.glb" id="1_c6gwx"]
+[ext_resource type="Script" uid="uid://c166r68t6704b" path="res://vr_start.gd" id="1_bcbcq"]
 [ext_resource type="Script" uid="uid://cr327mldou4x7" path="res://gem.gd" id="2_2dftf"]
+[ext_resource type="PackedScene" uid="uid://drg3kxwnkuak0" path="res://models/sci-fi_train.glb" id="3_bcbcq"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_c6gwx"]
 
@@ -16,6 +17,7 @@ emission = Color(1, 1, 0, 1)
 emission_energy_multiplier = 3.0
 
 [node name="Node3D" type="Node3D" unique_id=668133747]
+script = ExtResource("1_bcbcq")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=911772433]
 
@@ -24,9 +26,6 @@ emission_energy_multiplier = 3.0
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1685417226]
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1252140784]
-
-[node name="Meshy_AI_Large_floating_therap_0614204424_texture" parent="." unique_id=1287019375 instance=ExtResource("1_c6gwx")]
-transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, -0.07770437, 0.011907637, -0.15137291)
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=656998741]
 
@@ -46,6 +45,9 @@ debug_color = Color(0.9643615, 6.738305e-07, 0.49609244, 0.41960785)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6128936, 9.2983246e-05, 0)
 mesh = SubResource("PrismMesh_js7pq")
 surface_material_override/0 = SubResource("StandardMaterial3D_eu7l1")
+
+[node name="Sketchfab_Scene" parent="." unique_id=32728281 instance=ExtResource("3_bcbcq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0928004, -1.1165837, -0.1055274)
 
 [connection signal="area_entered" from="Gem" to="Gem" method="_on_area_entered"]
 [connection signal="body_entered" from="Gem" to="Gem" method="_on_body_entered"]
