@@ -8,6 +8,7 @@ export_presets.cfg
 Plataforma_Clinica/node_modules/
 Plataforma_Clinica/dist/
 Plataforma_Clinica/.vite/
+Plataforma_Clinica/.firebase/
 Plataforma_Clinica/package-lock.json
 
 # ── Credenciales — NUNCA subir ────────────────────────────────────────────────
