@@ -1,8 +1,10 @@
 [gd_scene format=3 uid="uid://kb21x47ltlyq"]
 
-[ext_resource type="Script" uid="uid://c166r68t6704b" path="res://vr_start.gd" id="1_bcbcq"]
+[ext_resource type="Script" path="res://vr_start.gd" id="1_bcbcq"]
 [ext_resource type="Script" uid="uid://cr327mldou4x7" path="res://gem.gd" id="2_2dftf"]
 [ext_resource type="PackedScene" uid="uid://drg3kxwnkuak0" path="res://models/sci-fi_train.glb" id="3_bcbcq"]
+[ext_resource type="Script" uid="uid://qbcbaj2gbxxk" path="res://scenes/gem_spawer.gd" id="4_eu7l1"]
+[ext_resource type="PackedScene" uid="uid://bw0klca1kuqdi" path="res://scenes/gem.tscn" id="5_p1v5b"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_c6gwx"]
 
@@ -51,6 +53,10 @@ surface_material_override/0 = SubResource("StandardMaterial3D_eu7l1")
 
 [node name="Sketchfab_Scene" parent="." unique_id=32728281 instance=ExtResource("3_bcbcq")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0928004, -0.69858927, -0.1055274)
+
+[node name="GemSpawner" type="Node3D" parent="." unique_id=290295990]
+script = ExtResource("4_eu7l1")
+gem_scene = ExtResource("5_p1v5b")
 
 [connection signal="area_entered" from="Gem" to="Gem" method="_on_area_entered"]
 [connection signal="body_entered" from="Gem" to="Gem" method="_on_body_entered"]

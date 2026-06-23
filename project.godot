@@ -19,6 +19,10 @@ config/icon="res://icon.svg"
 
 GameManager="*uid://c7175h2t6ufs2"
 
+[editor]
+
+version_control/autoload_on_startup=true
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
