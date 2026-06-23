@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://bw0klca1kuqdi"]
+
+[ext_resource type="Script" uid="uid://cr327mldou4x7" path="res://gem.gd" id="1_5cxma"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_bcbcq"]
+
+[sub_resource type="PrismMesh" id="PrismMesh_js7pq"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eu7l1"]
+albedo_color = Color(3.5394735, 4.05135, 0, 1)
+emission_enabled = true
+emission = Color(1, 1, 0, 1)
+emission_energy_multiplier = 3.0
+
+[node name="Gem" type="Area3D" unique_id=500355049]
+script = ExtResource("1_5cxma")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1222189191]
+transform = Transform3D(0.99972486, -0.023353036, 0.0021923732, 0.023343716, 0.9997187, 0.0041848845, -0.0022894882, -0.0041325535, 0.99998885, -8.493057, -4.366316, -0.1373452)
+shape = SubResource("SphereShape3D_bcbcq")
+debug_color = Color(0.9643615, 6.738305e-07, 0.49609244, 0.41960785)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1559468840]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -9.3906, -4.416, -0.06489527)
+mesh = SubResource("PrismMesh_js7pq")
+surface_material_override/0 = SubResource("StandardMaterial3D_eu7l1")
+
+[connection signal="area_entered" from="." to="." method="_on_area_entered"]
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]
