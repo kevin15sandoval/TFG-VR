@@ -20,12 +20,15 @@ emission_energy_multiplier = 3.0
 script = ExtResource("1_bcbcq")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=911772433]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.43177, -0.1195133, -0.56756413)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=273835610]
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1685417226]
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1252140784]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 3.3103178, 0, 0)
+current = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=656998741]
 
@@ -37,17 +40,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 script = ExtResource("2_2dftf")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Gem" unique_id=1180600561]
-transform = Transform3D(0.99972486, -0.023353036, 0.0021923732, 0.023343716, 0.9997187, 0.0041848845, -0.0022894882, -0.0041325535, 0.99998885, 2.6128936, 0, 0)
+transform = Transform3D(0.99972486, -0.023353036, 0.0021923732, 0.023343716, 0.9997187, 0.0041848845, -0.0022894882, -0.0041325535, 0.99998885, 2.6128936, -4.366316, 0)
 shape = SubResource("SphereShape3D_bcbcq")
 debug_color = Color(0.9643615, 6.738305e-07, 0.49609244, 0.41960785)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Gem" unique_id=748792103]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6128936, 9.2983246e-05, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6128936, -4.367144, 0)
 mesh = SubResource("PrismMesh_js7pq")
 surface_material_override/0 = SubResource("StandardMaterial3D_eu7l1")
 
 [node name="Sketchfab_Scene" parent="." unique_id=32728281 instance=ExtResource("3_bcbcq")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0928004, -1.1165837, -0.1055274)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0928004, -0.69858927, -0.1055274)
 
 [connection signal="area_entered" from="Gem" to="Gem" method="_on_area_entered"]
 [connection signal="body_entered" from="Gem" to="Gem" method="_on_body_entered"]
