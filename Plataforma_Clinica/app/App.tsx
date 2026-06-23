@@ -1116,8 +1116,7 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
     try {
       await publishActiveSession(config, patient, sessionId);
       setStatus("ready");
-      // Navegar a resultados tras 2s
-      setTimeout(() => onSessionSent(sessionId), 2000);
+      // NO navegamos automáticamente — el fisio pulsa cuando el paciente está jugando
     } catch {
       setStatus("error");
     }
@@ -1214,17 +1213,16 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
         </div>
       </Card>
 
-      {status === "idle" && (
-        <button onClick={handleSend}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-300/40 transition-all">
-          <Headset size={18} /> Enviar sesión a las gafas <ArrowRight size={16} />
-        </button>
-      )}
-      {status === "error" && (
-        <button onClick={() => setStatus("idle")}
-          className="w-full py-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-all">
-          <RotateCcw size={16} /> Reintentar
-        </button>
+      {status === "ready" && (
+        <div className="space-y-3">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
+            <CheckCircle size={16} /> Sesión enviada — el paciente ya puede jugar en las gafas
+          </div>
+          <button onClick={() => onSessionSent(`session_${Date.now()}`)}
+            className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-200 transition-all">
+            <CheckCircle size={18} /> El paciente terminó — Ver resultados
+          </button>
+        </div>
       )}
     </div>
   );
