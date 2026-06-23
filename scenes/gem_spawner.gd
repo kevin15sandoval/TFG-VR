@@ -15,40 +15,39 @@ var _queue_index: int = 0
 # Posiciones: start = donde aparece la gema, end = destino (hacia el paciente)
 
 const EXERCISES_LEFT := [
-	{"name": "Flexión",          "instruction": "Sube el brazo izquierdo",        "type": "normal", "points": 10, "start": Vector3(-0.3, 2.3, -3.5), "end": Vector3(-0.3, 1.6, -1.0)},
-	{"name": "Extensión",        "instruction": "Baja el brazo izquierdo",         "type": "green",  "points": 10, "start": Vector3(-0.3, 0.7, -3.5), "end": Vector3(-0.3, 1.2, -1.0)},
-	{"name": "Abducción",        "instruction": "Separa el brazo hacia la izq.",   "type": "purple", "points": 15, "start": Vector3(-1.8, 1.5, -3.5), "end": Vector3(-0.9, 1.5, -1.0)},
-	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",        "type": "golden", "points": 25, "start": Vector3(-0.8, 1.5, -3.5), "end": Vector3(-0.3, 1.5, -1.0)},
-	{"name": "Rotación externa", "instruction": "Gira el brazo izq. hacia fuera",  "type": "normal", "points": 10, "start": Vector3(-1.2, 2.0, -3.5), "end": Vector3(-0.8, 1.6, -1.0)},
-	{"name": "Rotación interna", "instruction": "Gira el brazo izq. hacia dentro", "type": "green",  "points": 10, "start": Vector3(-1.2, 1.1, -3.5), "end": Vector3(-0.5, 1.4, -1.0)},
-	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado izquierdo",  "type": "purple", "points": 15, "start": Vector3(-2.2, 1.5, -3.0), "end": Vector3(-1.2, 1.5, -1.0)},
-	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",    "type": "golden", "points": 25, "start": Vector3(-0.5, 2.8, -3.5), "end": Vector3(-0.5, 2.0, -1.0)},
+	{"name": "Flexión",          "instruction": "Sube el brazo izquierdo",        "type": "normal", "points": 10, "start": Vector3(-5.0, 2.3, -0.3),  "end": Vector3(2.0, 1.6,  -0.3)},
+	{"name": "Extensión",        "instruction": "Baja el brazo izquierdo",         "type": "green",  "points": 10, "start": Vector3(-5.0, 0.7, -0.3),  "end": Vector3(2.0, 1.2,  -0.3)},
+	{"name": "Abducción",        "instruction": "Separa el brazo hacia la izq.",   "type": "purple", "points": 15, "start": Vector3(-5.0, 1.5, -1.5),  "end": Vector3(2.0, 1.5,  -1.5)},
+	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",        "type": "golden", "points": 25, "start": Vector3(-5.0, 1.5,  0.0),  "end": Vector3(2.0, 1.5,   0.0)},
+	{"name": "Rotación externa", "instruction": "Gira el brazo izq. hacia fuera",  "type": "normal", "points": 10, "start": Vector3(-5.0, 2.0, -1.0),  "end": Vector3(2.0, 1.6,  -1.0)},
+	{"name": "Rotación interna", "instruction": "Gira el brazo izq. hacia dentro", "type": "green",  "points": 10, "start": Vector3(-5.0, 1.1, -0.8),  "end": Vector3(2.0, 1.4,  -0.8)},
+	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado izquierdo",  "type": "purple", "points": 15, "start": Vector3(-5.0, 1.5, -2.0),  "end": Vector3(2.0, 1.5,  -2.0)},
+	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",    "type": "golden", "points": 25, "start": Vector3(-5.0, 2.8, -0.5),  "end": Vector3(2.0, 2.0,  -0.5)},
 ]
 
 const EXERCISES_RIGHT := [
-	{"name": "Flexión",          "instruction": "Sube el brazo derecho",           "type": "normal", "points": 10, "start": Vector3(0.3, 2.3, -3.5),  "end": Vector3(0.3, 1.6, -1.0)},
-	{"name": "Extensión",        "instruction": "Baja el brazo derecho",            "type": "green",  "points": 10, "start": Vector3(0.3, 0.7, -3.5),  "end": Vector3(0.3, 1.2, -1.0)},
-	{"name": "Abducción",        "instruction": "Separa el brazo hacia la der.",    "type": "purple", "points": 15, "start": Vector3(1.8, 1.5, -3.5),  "end": Vector3(0.9, 1.5, -1.0)},
-	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",         "type": "golden", "points": 25, "start": Vector3(0.8, 1.5, -3.5),  "end": Vector3(0.3, 1.5, -1.0)},
-	{"name": "Rotación externa", "instruction": "Gira el brazo der. hacia fuera",   "type": "normal", "points": 10, "start": Vector3(1.2, 2.0, -3.5),  "end": Vector3(0.8, 1.6, -1.0)},
-	{"name": "Rotación interna", "instruction": "Gira el brazo der. hacia dentro",  "type": "green",  "points": 10, "start": Vector3(1.2, 1.1, -3.5),  "end": Vector3(0.5, 1.4, -1.0)},
-	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado derecho",     "type": "purple", "points": 15, "start": Vector3(2.2, 1.5, -3.0),  "end": Vector3(1.2, 1.5, -1.0)},
-	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",     "type": "golden", "points": 25, "start": Vector3(0.5, 2.8, -3.5),  "end": Vector3(0.5, 2.0, -1.0)},
+	{"name": "Flexión",          "instruction": "Sube el brazo derecho",           "type": "normal", "points": 10, "start": Vector3(-5.0, 2.3,  0.3),  "end": Vector3(2.0, 1.6,   0.3)},
+	{"name": "Extensión",        "instruction": "Baja el brazo derecho",            "type": "green",  "points": 10, "start": Vector3(-5.0, 0.7,  0.3),  "end": Vector3(2.0, 1.2,   0.3)},
+	{"name": "Abducción",        "instruction": "Separa el brazo hacia la der.",    "type": "purple", "points": 15, "start": Vector3(-5.0, 1.5,  1.5),  "end": Vector3(2.0, 1.5,   1.5)},
+	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",         "type": "golden", "points": 25, "start": Vector3(-5.0, 1.5,  0.0),  "end": Vector3(2.0, 1.5,   0.0)},
+	{"name": "Rotación externa", "instruction": "Gira el brazo der. hacia fuera",   "type": "normal", "points": 10, "start": Vector3(-5.0, 2.0,  1.0),  "end": Vector3(2.0, 1.6,   1.0)},
+	{"name": "Rotación interna", "instruction": "Gira el brazo der. hacia dentro",  "type": "green",  "points": 10, "start": Vector3(-5.0, 1.1,  0.8),  "end": Vector3(2.0, 1.4,   0.8)},
+	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado derecho",     "type": "purple", "points": 15, "start": Vector3(-5.0, 1.5,  2.0),  "end": Vector3(2.0, 1.5,   2.0)},
+	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",     "type": "golden", "points": 25, "start": Vector3(-5.0, 2.8,  0.5),  "end": Vector3(2.0, 2.0,   0.5)},
 ]
 
 const EXERCISES_BOTH := [
-	{"name": "Flexión bilateral",   "instruction": "Sube ambos brazos",            "type": "golden", "points": 30, "start": Vector3(0.0, 2.3, -3.5),  "end": Vector3(0.0, 1.6, -1.0)},
-	{"name": "Apertura bilateral",  "instruction": "Abre los brazos hacia los lados", "type": "purple", "points": 20, "start": Vector3(0.0, 1.5, -3.5), "end": Vector3(0.0, 1.5, -1.0)},
-	{"name": "Alcance izquierda",   "instruction": "Estira el brazo izquierdo",    "type": "normal", "points": 10, "start": Vector3(-1.8, 1.5, -3.5), "end": Vector3(-0.9, 1.5, -1.0)},
-	{"name": "Alcance derecha",     "instruction": "Estira el brazo derecho",      "type": "normal", "points": 10, "start": Vector3(1.8, 1.5, -3.5),  "end": Vector3(0.9, 1.5, -1.0)},
-	{"name": "Flexión alta izq.",   "instruction": "Sube el brazo izquierdo alto", "type": "green",  "points": 15, "start": Vector3(-0.5, 2.8, -3.5), "end": Vector3(-0.5, 2.0, -1.0)},
-	{"name": "Flexión alta der.",   "instruction": "Sube el brazo derecho alto",   "type": "green",  "points": 15, "start": Vector3(0.5, 2.8, -3.5),  "end": Vector3(0.5, 2.0, -1.0)},
+	{"name": "Flexión bilateral",   "instruction": "Sube ambos brazos",            "type": "golden", "points": 30, "start": Vector3(-5.0, 2.3,  0.0),  "end": Vector3(2.0, 1.6,   0.0)},
+	{"name": "Apertura bilateral",  "instruction": "Abre los brazos",              "type": "purple", "points": 20, "start": Vector3(-5.0, 1.5,  0.0),  "end": Vector3(2.0, 1.5,   0.0)},
+	{"name": "Alcance izquierda",   "instruction": "Estira el brazo izquierdo",    "type": "normal", "points": 10, "start": Vector3(-5.0, 1.5, -1.5),  "end": Vector3(2.0, 1.5,  -1.5)},
+	{"name": "Alcance derecha",     "instruction": "Estira el brazo derecho",      "type": "normal", "points": 10, "start": Vector3(-5.0, 1.5,  1.5),  "end": Vector3(2.0, 1.5,   1.5)},
+	{"name": "Flexión alta izq.",   "instruction": "Sube el brazo izquierdo alto", "type": "green",  "points": 15, "start": Vector3(-5.0, 2.8, -0.5),  "end": Vector3(2.0, 2.0,  -0.5)},
+	{"name": "Flexión alta der.",   "instruction": "Sube el brazo derecho alto",   "type": "green",  "points": 15, "start": Vector3(-5.0, 2.8,  0.5),  "end": Vector3(2.0, 2.0,   0.5)},
 ]
 
-# Gemas rojas = obstáculos a EVITAR (aparecen mezcladas en dificultad Media/Difícil)
 const RED_GEMS := [
-	{"name": "¡Evita!",  "instruction": "No toques esta gema roja",  "type": "red", "points": -15, "start": Vector3(0.0, 1.5, -3.0), "end": Vector3(0.0, 1.5, -0.8)},
-	{"name": "¡Peligro!", "instruction": "Esquiva la gema roja",     "type": "red", "points": -15, "start": Vector3(0.8, 1.8, -3.0), "end": Vector3(0.3, 1.6, -0.8)},
+	{"name": "¡Evita!",   "instruction": "No toques esta gema roja", "type": "red", "points": -15, "start": Vector3(-5.0, 1.5,  0.0), "end": Vector3(2.0, 1.5,  0.0)},
+	{"name": "¡Peligro!", "instruction": "Esquiva la gema roja",     "type": "red", "points": -15, "start": Vector3(-5.0, 1.8,  0.5), "end": Vector3(2.0, 1.6,  0.5)},
 ]
 
 func _ready() -> void:
