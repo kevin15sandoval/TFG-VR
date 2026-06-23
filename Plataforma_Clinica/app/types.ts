@@ -2,7 +2,8 @@
 
 export type Screen =
   | "dashboard" | "patients" | "patient-profile"
-  | "new-session" | "minigames" | "results" | "history" | "settings";
+  | "new-session" | "minigames" | "results" | "history"
+  | "settings" | "connect-device";
 
 export interface Patient {
   id: string;          // Firestore doc ID (string)

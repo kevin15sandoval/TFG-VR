@@ -159,3 +159,61 @@ export async function publishActiveSession(
 export async function clearActiveSession() {
   return deleteDoc(doc(db, COL_ACTIVE_SESSION, "current"));
 }
+
+// ── DISPOSITIVOS VR (vinculación Quest) ───────────────────────────────────────
+
+const COL_DEVICES = "dispositivos";
+
+/** Genera un código de 4 letras+números legible */
+function generateCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+/** Crea un documento de vinculación y devuelve el código */
+export async function createDeviceLink(): Promise<string> {
+  const code = generateCode();
+  await setDoc(doc(db, COL_DEVICES, code), {
+    code,
+    status:    "waiting",      // waiting → linked → playing → done
+    deviceId:  null,
+    sessionId: null,
+    createdAt: serverTimestamp(),
+  });
+  return code;
+}
+
+/** Suscripción en tiempo real al estado de un código de vinculación */
+export function subscribeDeviceLink(
+  code: string,
+  cb: (data: { status: string; deviceId: string | null }) => void
+) {
+  return onSnapshot(doc(db, COL_DEVICES, code), snap => {
+    if (!snap.exists()) return;
+    const d = snap.data();
+    cb({ status: d.status ?? "waiting", deviceId: d.deviceId ?? null });
+  });
+}
+
+/** Envía la config de sesión al dispositivo vinculado */
+export async function sendSessionToDevice(
+  code: string,
+  config: SessionConfig,
+  patient: Patient,
+  sessionId: string
+) {
+  // Escribe en sesion_activa (Godot lee esto) y actualiza el dispositivo
+  await publishActiveSession(config, patient, sessionId);
+  return updateDoc(doc(db, COL_DEVICES, code), {
+    status:    "session_ready",
+    sessionId,
+    sentAt:    serverTimestamp(),
+  });
+}
+
+/** Marca el dispositivo como desvinculado */
+export async function unlinkDevice(code: string) {
+  return deleteDoc(doc(db, COL_DEVICES, code));
+}

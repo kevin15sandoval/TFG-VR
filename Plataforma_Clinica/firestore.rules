@@ -7,16 +7,24 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // Sesiones — autenticados pueden leer/escribir, Godot escribe sin auth
+    // Sesiones — Godot escribe sin auth, web lee con auth
     match /sesiones/{docId} {
       allow read: if request.auth != null;
-      allow write: if true;  // Godot escribe resultados sin autenticación
+      allow write: if true;
     }
 
-    // Sesión activa — la web escribe, Godot lee (sin auth desde las gafas)
+    // Sesión activa — web escribe (auth), Godot APK lee sin auth
     match /sesion_activa/{docId} {
-      allow read: if true;   // Godot lee sin autenticación
-      allow write: if request.auth != null;  // Solo la web escribe
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Dispositivos — web crea/elimina (auth), Godot APK actualiza sin auth
+    match /dispositivos/{code} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if true;   // Godot vincula y actualiza estado
+      allow delete: if request.auth != null;
     }
   }
 }

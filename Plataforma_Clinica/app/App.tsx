@@ -20,6 +20,7 @@ import {
   subscribePatients, subscribeSessions,
   addPatient, updatePatient, deletePatient,
   addSession, seedIfEmpty, publishActiveSession,
+  createDeviceLink, subscribeDeviceLink, sendSessionToDevice,
 } from "./db";
 
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
@@ -1095,6 +1096,182 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
   );
 }
 
+// ─── SCREEN: CONNECT DEVICE ──────────────────────────────────────────────────
+
+function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
+  config: SessionConfig; patients: Patient[];
+  onSessionSent: (sessionId: string) => void; onBack: () => void;
+}) {
+  const [code, setCode] = useState<string | null>(null);
+  const [status, setStatus] = useState<"generating" | "waiting" | "linked" | "sending" | "ready" | "error">("generating");
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const patient = patients.find(p => p.id === config.patientId);
+
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    createDeviceLink().then(c => {
+      setCode(c);
+      setStatus("waiting");
+      unsub = subscribeDeviceLink(c, data => {
+        if (data.status === "linked") {
+          setDeviceId(data.deviceId);
+          setStatus("linked");
+        }
+        if (data.status === "session_ready") setStatus("ready");
+      });
+    }).catch(() => setStatus("error"));
+    return () => { if (unsub) unsub(); };
+  }, []);
+
+  async function handleSendSession() {
+    if (!code || !patient) return;
+    setStatus("sending");
+    const sessionId = `session_${Date.now()}`;
+    try {
+      await sendSessionToDevice(code, config, patient, sessionId);
+      setStatus("ready");
+      onSessionSent(sessionId);
+    } catch { setStatus("error"); }
+  }
+
+  const game = MINIGAMES.find(g => g.id === config.selectedGame);
+
+  return (
+    <div className="p-6 md:p-8 max-w-2xl mx-auto">
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
+          <ArrowLeft size={16} />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Conectar Meta Quest 3</h1>
+          <p className="text-slate-500 text-sm">Vincula las gafas antes de iniciar la sesión</p>
+        </div>
+      </div>
+
+      {/* Resumen sesión */}
+      {patient && game && (
+        <Card className="p-4 mb-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <AvatarIcon initials={patient.initials} colorIdx={patient.colorIdx} />
+            <div className="flex-1">
+              <div className="font-bold text-slate-800 text-sm">{patient.name}</div>
+              <div className="text-xs text-slate-400">{patient.diagnosis}</div>
+            </div>
+            <div className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold", game.bg, game.border)}>
+              <game.Icon size={13} className={game.iconColor} /> {game.name}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Badge color="blue">{config.duration} min</Badge>
+              <Badge color="amber">{config.difficulty}</Badge>
+              <Badge color={config.therapySide === "Izquierdo" ? "blue" : config.therapySide === "Derecho" ? "purple" : "amber"}>{config.therapySide}</Badge>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Código de vinculación */}
+      <Card className="p-8 text-center mb-6">
+        {status === "generating" && (
+          <div className="py-4">
+            <Loader2 size={32} className="animate-spin text-blue-500 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">Generando código de vinculación...</p>
+          </div>
+        )}
+
+        {(status === "waiting" || status === "linked" || status === "sending" || status === "ready") && code && (
+          <>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Código de vinculación</p>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              {code.split("").map((char, i) => (
+                <div key={i} className={cx(
+                  "w-16 h-20 rounded-2xl flex items-center justify-center text-4xl font-black border-2 transition-all",
+                  status === "linked" || status === "ready"
+                    ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                    : "bg-slate-50 border-slate-200 text-slate-800"
+                )}>
+                  {char}
+                </div>
+              ))}
+            </div>
+
+            {status === "waiting" && (
+              <>
+                <div className="flex items-center justify-center gap-2 text-sm text-slate-500 mb-2">
+                  <Loader2 size={14} className="animate-spin" /> Esperando que las gafas introduzcan el código...
+                </div>
+                <p className="text-xs text-slate-400">En las gafas Quest, abre la app NeuroVR Rehab e introduce este código</p>
+              </>
+            )}
+
+            {status === "linked" && (
+              <div className="flex items-center justify-center gap-2 text-emerald-600 font-semibold text-sm">
+                <CheckCircle size={18} /> ¡Gafas vinculadas! Listas para recibir la sesión
+              </div>
+            )}
+
+            {status === "sending" && (
+              <div className="flex items-center justify-center gap-2 text-blue-600 text-sm">
+                <Loader2 size={14} className="animate-spin" /> Enviando sesión a las gafas...
+              </div>
+            )}
+
+            {status === "ready" && (
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm">
+                  <CheckCircle size={18} /> ¡Sesión enviada! El juego arrancará en las gafas
+                </div>
+                <p className="text-xs text-slate-400">El paciente ya puede ponerse las gafas</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {status === "error" && (
+          <div className="text-rose-500 text-sm">
+            <X size={24} className="mx-auto mb-2" />
+            Error de conexión. Comprueba internet e inténtalo de nuevo.
+          </div>
+        )}
+      </Card>
+
+      {/* Instrucciones */}
+      <Card className="p-5 mb-6">
+        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+          <Headset size={15} className="text-violet-500" /> Cómo vincular las gafas
+        </h3>
+        <div className="space-y-2">
+          {[
+            "1. Enciende las gafas Meta Quest 3",
+            "2. Abre la app NeuroVR Rehab",
+            "3. Selecciona 'Conectar con plataforma'",
+            `4. Introduce el código ${code ?? "----"}`,
+            "5. Las gafas quedarán vinculadas automáticamente",
+          ].map(step => (
+            <div key={step} className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              {step}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Botón enviar */}
+      {status === "linked" && (
+        <button onClick={handleSendSession}
+          className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-300/40 transition-all">
+          <Headset size={18} /> Enviar sesión a las gafas <ArrowRight size={16} />
+        </button>
+      )}
+      {status === "ready" && (
+        <button onClick={() => onSessionSent(`session_${Date.now()}`)}
+          className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-200 transition-all">
+          <CheckCircle size={18} /> Ver pantalla de espera
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── SCREEN: MINIGAMES ────────────────────────────────────────────────────────
 
 function MinigamesScreen({ onStartSession }: { onStartSession: (gameId: string) => void }) {
@@ -1578,18 +1755,8 @@ export default function App({ user }: { user: FirebaseUser }) {
 
   async function handleLaunch(config: SessionConfig) {
     setLastConfig(config);
-    // Publica config en Firestore para que las gafas Quest la lean
-    const patient = patients.find(p => p.id === config.patientId);
-    if (patient) {
-      const sessionId = `session_${Date.now()}`;
-      try {
-        await publishActiveSession(config, patient, sessionId);
-        showToast("Sesión publicada — conecta las gafas Quest");
-      } catch {
-        showToast("Error al publicar sesión en Firebase", "error");
-      }
-    }
-    setScreen("results");
+    // Va a la pantalla de vinculación de dispositivo
+    setScreen("connect-device");
   }
 
   async function handleSaveSession() {
@@ -1674,6 +1841,18 @@ export default function App({ user }: { user: FirebaseUser }) {
             initialGame={pendingGame} onLaunch={handleLaunch} />
         )}
         {screen === "minigames" && <MinigamesScreen onStartSession={handleStartFromMinigames} />}
+        {screen === "connect-device" && (
+          <ConnectDeviceScreen
+            config={lastConfig}
+            patients={patients}
+            onBack={() => setScreen("new-session")}
+            onSessionSent={(sessionId) => {
+              setLastConfig(c => ({ ...c }));
+              showToast("Sesión enviada a las gafas ✓");
+              setTimeout(() => setScreen("results"), 1500);
+            }}
+          />
+        )}
         {screen === "results" && (
           <ResultsScreen config={lastConfig} patients={patients}
             onNewSession={() => navigate("new-session")} onSave={handleSaveSession} />
