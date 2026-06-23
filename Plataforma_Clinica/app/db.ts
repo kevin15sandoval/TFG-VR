@@ -1,19 +1,20 @@
 // ─── CAPA DE DATOS — FIRESTORE ────────────────────────────────────────────────
 // Todas las operaciones CRUD contra Firebase Firestore.
-// Colecciones:  "pacientes"  y  "sesiones"
+// Colecciones:  "pacientes",  "sesiones",  "sesion_activa"
 
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc,
+  collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
   onSnapshot, query, orderBy, serverTimestamp,
   Timestamp, writeBatch, getDocs, where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Patient, SessionRecord } from "./types";
+import type { Patient, SessionRecord, SessionConfig } from "./types";
 
 // ── Colecciones ───────────────────────────────────────────────────────────────
 
-const COL_PATIENTS = "pacientes";
-const COL_SESSIONS = "sesiones";
+const COL_PATIENTS       = "pacientes";
+const COL_SESSIONS       = "sesiones";
+const COL_ACTIVE_SESSION = "sesion_activa";   // Godot lee esto al arrancar
 
 // ── PACIENTES ─────────────────────────────────────────────────────────────────
 
@@ -131,4 +132,30 @@ export async function seedIfEmpty(
   } finally {
     _seedRunning = false;
   }
+}
+
+// ── SESIÓN ACTIVA (para Godot) ────────────────────────────────────────────────
+
+/** Escribe la config de sesión en Firestore para que Godot la lea al arrancar */
+export async function publishActiveSession(
+  config: SessionConfig,
+  patient: Patient,
+  sessionId: string
+) {
+  return setDoc(doc(db, COL_ACTIVE_SESSION, "current"), {
+    patientId:    patient.id,
+    patientName:  patient.name,
+    sessionId,
+    duration:     config.duration * 60,     // Godot usa segundos
+    difficulty:   config.difficulty,
+    therapySide:  config.therapySide,
+    sessionType:  config.sessionType,
+    gameId:       config.selectedGame,
+    publishedAt:  serverTimestamp(),
+  });
+}
+
+/** Elimina la sesión activa (al cancelar o terminar) */
+export async function clearActiveSession() {
+  return deleteDoc(doc(db, COL_ACTIVE_SESSION, "current"));
 }

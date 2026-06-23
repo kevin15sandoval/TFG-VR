@@ -19,7 +19,7 @@ import type { Patient, SessionRecord, SessionConfig, Screen } from "./types";
 import {
   subscribePatients, subscribeSessions,
   addPatient, updatePatient, deletePatient,
-  addSession, seedIfEmpty,
+  addSession, seedIfEmpty, publishActiveSession,
 } from "./db";
 
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
@@ -1576,8 +1576,19 @@ export default function App({ user }: { user: FirebaseUser }) {
     setScreen("new-session");
   }
 
-  function handleLaunch(config: SessionConfig) {
+  async function handleLaunch(config: SessionConfig) {
     setLastConfig(config);
+    // Publica config en Firestore para que las gafas Quest la lean
+    const patient = patients.find(p => p.id === config.patientId);
+    if (patient) {
+      const sessionId = `session_${Date.now()}`;
+      try {
+        await publishActiveSession(config, patient, sessionId);
+        showToast("Sesión publicada — conecta las gafas Quest");
+      } catch {
+        showToast("Error al publicar sesión en Firebase", "error");
+      }
+    }
     setScreen("results");
   }
 
