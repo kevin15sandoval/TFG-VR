@@ -117,13 +117,21 @@ func _process(delta: float) -> void:
 func _on_body_entered(body: Node) -> void:
 	if collected:
 		return
-	# Las manos VR en Godot OpenXR son XRController3D o tienen grupo "hand"
-	if body is XRController3D or body.is_in_group("hand") or body.is_in_group("xr_hand"):
+	# Detectar XRController3D (los controladores padre de las manos)
+	if body is XRController3D:
+		_catch()
+	# También detectar nodos que sean hijos de controladores
+	var parent = body.get_parent()
+	if parent and parent is XRController3D:
 		_catch()
 
 func _on_area_entered(area: Node) -> void:
 	if collected:
 		return
+	# Detectar áreas de las manos (LeftHandArea, RightHandArea)
+	if area.name in ["LeftHandArea", "RightHandArea"]:
+		_catch()
+	# También detectar por grupo si está configurado
 	if area.is_in_group("hand") or area.is_in_group("xr_hand"):
 		_catch()
 

@@ -10,6 +10,34 @@
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_c6gwx"]
 
+[sub_resource type="SphereMesh" id="SphereMesh_lefthand"]
+radius = 0.08
+height = 0.16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lefthand"]
+albedo_color = Color(0.2, 0.6, 1.0, 0.8)
+emission_enabled = true
+emission = Color(0.2, 0.6, 1.0, 1)
+emission_energy_multiplier = 1.5
+transparency = 1
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_lefthand"]
+radius = 0.1
+
+[sub_resource type="SphereMesh" id="SphereMesh_righthand"]
+radius = 0.08
+height = 0.16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_righthand"]
+albedo_color = Color(1.0, 0.4, 0.2, 0.8)
+emission_enabled = true
+emission = Color(1.0, 0.4, 0.2, 1)
+emission_energy_multiplier = 1.5
+transparency = 1
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_righthand"]
+radius = 0.1
+
 [node name="Node3D" type="Node3D" unique_id=668133747]
 script = ExtResource("1_bcbcq")
 
@@ -25,6 +53,38 @@ environment = SubResource("Environment_p1v5b")
 transform = Transform3D(0.025949992, -6.7031375e-05, 0.99966323, 0.0025830844, 0.99999666, 1.2475192e-10, -0.9996599, 0.0025822145, 0.02595008, 3.6179173, 0.024764597, -0.1434173)
 current = true
 fov = 82.1773
+
+[node name="LeftHand" type="XRController3D" parent="XROrigin3D"]
+tracker = &"left_hand"
+pose = &"grip"
+
+[node name="LeftHandMesh" type="MeshInstance3D" parent="XROrigin3D/LeftHand"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("SphereMesh_lefthand")
+surface_material_override/0 = SubResource("StandardMaterial3D_lefthand")
+
+[node name="LeftHandArea" type="Area3D" parent="XROrigin3D/LeftHand"]
+collision_layer = 2
+collision_mask = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="XROrigin3D/LeftHand/LeftHandArea"]
+shape = SubResource("SphereShape3D_lefthand")
+
+[node name="RightHand" type="XRController3D" parent="XROrigin3D"]
+tracker = &"right_hand"
+pose = &"grip"
+
+[node name="RightHandMesh" type="MeshInstance3D" parent="XROrigin3D/RightHand"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("SphereMesh_righthand")
+surface_material_override/0 = SubResource("StandardMaterial3D_righthand")
+
+[node name="RightHandArea" type="Area3D" parent="XROrigin3D/RightHand"]
+collision_layer = 2
+collision_mask = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="XROrigin3D/RightHand/RightHandArea"]
+shape = SubResource("SphereShape3D_righthand")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=656998741]
 
