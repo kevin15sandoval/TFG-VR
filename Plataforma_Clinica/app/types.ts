@@ -1,7 +1,7 @@
 // ─── TIPOS COMPARTIDOS ────────────────────────────────────────────────────────
 
 export type Screen =
-  | "dashboard" | "patients" | "patient-profile"
+  | "dashboard" | "patients" | "patient-profile" | "session-detail"
   | "new-session" | "minigames" | "results" | "history"
   | "settings" | "connect-device";
 
@@ -21,9 +21,9 @@ export interface Patient {
 }
 
 export interface MovementSummary {
-  name: string;
-  completed: number;
-  avg_time_s: number;
+  exercise: string;
+  count: number;
+  type: string;
 }
 
 export interface ZonesWorked {

@@ -945,10 +945,10 @@ function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onL
   );
 }
 
-// ─── SCREEN: PATIENT PROFILE ──────────────────────────────────────────────────
+// ─── SCREEN: SESSION DETAIL (pantalla completa) ───────────────────────────────
 
-function SessionDetailModal({ session, onClose, onSaveNotes }: {
-  session: SessionRecord; onClose: () => void;
+function SessionDetailScreen({ session, onBack, onSaveNotes }: {
+  session: SessionRecord; onBack: () => void;
   onSaveNotes: (id: string, notes: string) => void;
 }) {
   const [notes, setNotes] = useState(session.notes ?? "");
@@ -957,165 +957,287 @@ function SessionDetailModal({ session, onClose, onSaveNotes }: {
   async function handleSave() {
     setSaving(true);
     onSaveNotes(session.id, notes);
-    setTimeout(() => { setSaving(false); onClose(); }, 600);
+    setTimeout(() => { setSaving(false); }, 600);
   }
 
   const game = MINIGAMES.find(g => g.id === session.gameId);
-  const hasVRData = session.fromVR && session.movementsSummary && session.movementsSummary.length > 0;
+  const hasVRData = session.movementsSummary && session.movementsSummary.length > 0;
 
   // Interpretación clínica según movimientos
   function getClinicalInterpretation(): string {
     if (!session.movementsSummary || session.movementsSummary.length === 0) return "";
-    const best = [...session.movementsSummary].sort((a, b) => b.completed - a.completed)[0];
-    const slowest = [...session.movementsSummary].sort((a, b) => b.avg_time_s - a.avg_time_s)[0];
-    const fastest = [...session.movementsSummary].sort((a, b) => a.avg_time_s - b.avg_time_s)[0];
-    return `Movimiento más trabajado: ${best.name} (${best.completed} reps). ` +
-      `Tiempo de respuesta más lento en ${slowest.name} (${slowest.avg_time_s}s), ` +
-      `más rápido en ${fastest.name} (${fastest.avg_time_s}s).`;
+    const totalMovements = session.movementsSummary.reduce((sum, m) => sum + m.count, 0);
+    const byType: Record<string, number> = {};
+    session.movementsSummary.forEach(m => {
+      byType[m.type] = (byType[m.type] || 0) + m.count;
+    });
+    const dominant = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+    
+    let interpretation = `Se realizaron ${totalMovements} movimientos en total. `;
+    interpretation += `El tipo de movimiento predominante fue ${dominant[0]} (${dominant[1]} repeticiones). `;
+    
+    if (session.avgTimePerGem) {
+      if (session.avgTimePerGem < 5) {
+        interpretation += "El paciente muestra una excelente capacidad de respuesta motora con tiempos de reacción rápidos. ";
+      } else if (session.avgTimePerGem < 8) {
+        interpretation += "Tiempo de respuesta dentro del rango esperado, indicando un desempeño adecuado. ";
+      } else if (session.avgTimePerGem < 12) {
+        interpretation += "Se observan tiempos de respuesta elevados que pueden indicar fatiga o dificultad en la ejecución. ";
+      } else {
+        interpretation += "Tiempos de respuesta significativamente elevados — requiere evaluación detallada y posible ajuste de dificultad. ";
+      }
+    }
+    
+    return interpretation;
   }
 
+  // Calcular gráfico de tipos de movimiento
+  const movementsByType = hasVRData ? (() => {
+    const byType: Record<string, number> = {};
+    session.movementsSummary!.forEach(m => {
+      byType[m.type] = (byType[m.type] || 0) + m.count;
+    });
+    return Object.entries(byType).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+  })() : [];
+
   return (
-    <Modal title={`Sesión — ${session.date} · ${session.game}`} onClose={onClose}>
-      <div className="space-y-5">
-
-        {/* Métricas básicas */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Puntuación", value: session.score.toLocaleString(), color: "text-blue-600", bg: "bg-blue-50" },
-            { label: "Precisión", value: `${session.accuracy}%`, color: session.accuracy >= 80 ? "text-emerald-600" : session.accuracy >= 65 ? "text-amber-600" : "text-rose-600", bg: session.accuracy >= 80 ? "bg-emerald-50" : session.accuracy >= 65 ? "bg-amber-50" : "bg-rose-50" },
-            { label: "Duración", value: `${session.duration} min`, color: "text-violet-600", bg: "bg-violet-50" },
-          ].map(({ label, value, color, bg }) => (
-            <div key={label} className={cx("rounded-xl px-3 py-3 text-center", bg)}>
-              <div className="text-xs text-slate-500 mb-1">{label}</div>
-              <div className={cx("text-xl font-black", color)}>{value}</div>
-            </div>
-          ))}
+    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-7">
+        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
+          <ArrowLeft size={16} />
+        </button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-slate-800">Detalle de Sesión</h1>
+          <p className="text-slate-500 text-sm">{session.date} · {session.game}</p>
         </div>
+        <button onClick={handleSave} disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 cursor-pointer transition-all">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          Guardar notas
+        </button>
+      </div>
 
-        {/* Config de sesión */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: "Lado trabajado", value: session.side },
-            { label: "Dificultad", value: session.difficulty },
-            { label: "Tipo sesión", value: session.sessionType },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
-              <div className="text-xs text-slate-400 mb-0.5">{label}</div>
-              <div className="text-sm font-bold text-slate-700">{value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* MÉTRICAS CLÍNICAS VR */}
-        {hasVRData && (
-          <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Activity size={12} className="text-blue-500" /> Análisis clínico de movimiento
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Columna izquierda: KPIs y configuración */}
+        <div className="space-y-6">
+          {/* KPIs principales */}
+          <Card className="p-5">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <Activity size={14} className="text-blue-500" /> Resultados de la sesión
             </h3>
-
-            {/* Movimientos por tipo */}
-            <div className="space-y-2 mb-4">
-              {session.movementsSummary!.map(m => {
-                const maxCompleted = Math.max(...session.movementsSummary!.map(x => x.completed));
-                const pct = Math.round((m.completed / maxCompleted) * 100);
-                return (
-                  <div key={m.name} className="bg-slate-50 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-slate-700">{m.name}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400">{m.completed} reps</span>
-                        <span className="text-xs font-semibold text-blue-600">{m.avg_time_s}s/rep</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
+            <div className="space-y-3">
+              {[
+                { label: "Puntuación", value: session.score.toLocaleString(), color: "text-blue-600", bg: "bg-blue-50", Icon: Trophy },
+                { label: "Precisión", value: `${session.accuracy}%`, color: session.accuracy >= 80 ? "text-emerald-600" : session.accuracy >= 65 ? "text-amber-600" : "text-rose-600", bg: session.accuracy >= 80 ? "bg-emerald-50" : session.accuracy >= 65 ? "bg-amber-50" : "bg-rose-50", Icon: Target },
+                { label: "Duración", value: `${session.duration} min`, color: "text-violet-600", bg: "bg-violet-50", Icon: Timer },
+              ].map(({ label, value, color, bg, Icon }) => (
+                <div key={label} className={cx("rounded-xl px-4 py-3 flex items-center justify-between", bg)}>
+                  <div className="flex items-center gap-2">
+                    <Icon size={16} className={color} />
+                    <span className="text-sm text-slate-600">{label}</span>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Zonas de trabajo */}
-            {session.zonesWorked && (
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-slate-500 mb-2">Distribución de zonas de alcance</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {Object.entries(session.zonesWorked).map(([zone, count]) => (
-                    <div key={zone} className="bg-white border border-slate-200 rounded-xl p-2 text-center">
-                      <div className="text-lg font-black text-slate-800">{count as number}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">{zone}</div>
-                    </div>
-                  ))}
+                  <div className={cx("text-2xl font-black", color)}>{value}</div>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
+          </Card>
 
-            {/* Tiempo medio por movimiento */}
-            {session.avgTimePerGem && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-blue-700 font-semibold">
-                    <Timer size={14} /> Tiempo medio por movimiento
+          {/* Configuración de sesión */}
+          <Card className="p-5">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <Settings size={14} className="text-slate-400" /> Configuración
+            </h3>
+            <div className="space-y-2.5">
+              {[
+                { label: "Lado trabajado", value: session.side, Icon: Hand },
+                { label: "Dificultad", value: session.difficulty, Icon: Zap },
+                { label: "Tipo de sesión", value: session.sessionType, Icon: Target },
+              ].map(({ label, value, Icon }) => (
+                <div key={label} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Icon size={12} className="text-slate-400" />
+                    {label}
                   </div>
-                  <span className="text-lg font-black text-blue-700">{session.avgTimePerGem}s</span>
+                  <span className="text-sm font-bold text-slate-700">{value}</span>
                 </div>
-                <p className="text-xs text-blue-500 mt-1">
-                  {session.avgTimePerGem < 4 ? "Respuesta rápida — buena capacidad de reacción motora" :
-                   session.avgTimePerGem < 7 ? "Tiempo de respuesta dentro de lo esperado" :
-                   "Tiempo elevado — posible fatiga o dificultad en el movimiento"}
-                </p>
-              </div>
-            )}
-
-            {/* Interpretación clínica automática */}
-            <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-              <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1.5">
-                <Award size={12} /> Interpretación clínica automática
-              </p>
-              <p className="text-xs text-amber-600 leading-relaxed">{getClinicalInterpretation()}</p>
+              ))}
             </div>
-          </div>
-        )}
+          </Card>
 
-        {/* Si no hay datos VR */}
-        {!hasVRData && (
-          <div className="bg-slate-50 rounded-xl px-4 py-3 text-center">
-            <p className="text-xs text-slate-400">
-              Las métricas clínicas detalladas estarán disponibles cuando la sesión se realice con el headset Meta Quest 3 conectado.
-            </p>
-          </div>
-        )}
-
-        {/* Notas del fisioterapeuta */}
-        <div>
-          <label className="text-xs font-semibold text-slate-600 mb-1.5 block flex items-center gap-1.5">
-            <Pencil size={11} /> Notas del fisioterapeuta
-          </label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-            placeholder="Observaciones, tolerancia al ejercicio, incidencias, objetivos para próxima sesión..."
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none transition-all" />
+          {/* Métricas VR adicionales */}
+          {hasVRData && session.totalMovements && (
+            <Card className="p-5">
+              <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <BarChart3 size={14} className="text-emerald-500" /> Métricas de rendimiento
+              </h3>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                  <span className="text-xs text-slate-500">Total movimientos</span>
+                  <span className="text-sm font-bold text-slate-700">{session.totalMovements}</span>
+                </div>
+                {session.gemsRedAvoided !== undefined && (
+                  <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                    <span className="text-xs text-slate-500">Gemas rojas evitadas</span>
+                    <span className="text-sm font-bold text-emerald-600">{session.gemsRedAvoided}</span>
+                  </div>
+                )}
+                {session.avgTimePerGem && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-xs text-slate-500">Tiempo medio/movimiento</span>
+                    <span className="text-lg font-black text-blue-600">{session.avgTimePerGem}s</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
 
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Cerrar</button>
-          <button onClick={handleSave} disabled={saving}
-            className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold cursor-pointer flex items-center justify-center gap-2">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Guardar notas
-          </button>
+        {/* Columna derecha: Análisis clínico detallado */}
+        <div className="lg:col-span-2 space-y-6">
+          {hasVRData ? (
+            <>
+              {/* Interpretación clínica */}
+              <Card className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100">
+                <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+                  <Award size={16} className="text-amber-600" /> Interpretación Clínica Automática
+                </h3>
+                <p className="text-sm text-amber-700 leading-relaxed">{getClinicalInterpretation()}</p>
+              </Card>
+
+              {/* Gráfico de tipos de movimiento */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <BarChart3 size={14} className="text-blue-500" /> Repeticiones por Tipo de Movimiento
+                </h3>
+                <div className="space-y-3">
+                  {movementsByType.map(({ type, count }) => {
+                    const maxCount = movementsByType[0].count;
+                    const pct = Math.round((count / maxCount) * 100);
+                    const colors: Record<string, { bar: string; text: string; bg: string }> = {
+                      "Flexión": { bar: "bg-blue-500", text: "text-blue-600", bg: "bg-blue-50" },
+                      "Extensión": { bar: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-50" },
+                      "Abducción": { bar: "bg-purple-500", text: "text-purple-600", bg: "bg-purple-50" },
+                      "Aducción": { bar: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-50" },
+                      "Rotación Externa": { bar: "bg-rose-500", text: "text-rose-600", bg: "bg-rose-50" },
+                      "Rotación Interna": { bar: "bg-indigo-500", text: "text-indigo-600", bg: "bg-indigo-50" },
+                    };
+                    const color = colors[type] || { bar: "bg-slate-500", text: "text-slate-600", bg: "bg-slate-50" };
+                    
+                    return (
+                      <div key={type} className={cx("rounded-xl p-4", color.bg)}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-slate-700">{type}</span>
+                          <span className={cx("text-lg font-black", color.text)}>{count} reps</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/50 rounded-full overflow-hidden">
+                          <div className={cx("h-full rounded-full transition-all", color.bar)} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Detalle por ejercicio */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <Activity size={14} className="text-violet-500" /> Detalle por Ejercicio
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-400 uppercase">Ejercicio</th>
+                        <th className="text-center py-2 px-2 text-xs font-semibold text-slate-400 uppercase">Tipo</th>
+                        <th className="text-right py-2 px-2 text-xs font-semibold text-slate-400 uppercase">Repeticiones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {session.movementsSummary!.map((m, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="py-3 px-2 text-sm font-medium text-slate-700">{m.exercise}</td>
+                          <td className="py-3 px-2 text-center">
+                            <Badge color="gray">{m.type}</Badge>
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono text-sm font-bold text-slate-700">{m.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+
+              {/* Zonas de alcance trabajadas */}
+              {session.zonesWorked && (
+                <Card className="p-6">
+                  <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <Layers size={14} className="text-cyan-500" /> Distribución de Zonas de Alcance
+                  </h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    {Object.entries(session.zonesWorked).map(([zone, count]) => {
+                      const colors: Record<string, { bg: string; text: string; icon: string }> = {
+                        "Alto": { bg: "bg-sky-50", text: "text-sky-700", icon: "text-sky-500" },
+                        "Medio": { bg: "bg-emerald-50", text: "text-emerald-700", icon: "text-emerald-500" },
+                        "Lateral": { bg: "bg-purple-50", text: "text-purple-700", icon: "text-purple-500" },
+                        "Bajo": { bg: "bg-amber-50", text: "text-amber-700", icon: "text-amber-500" },
+                      };
+                      const color = colors[zone] || { bg: "bg-slate-50", text: "text-slate-700", icon: "text-slate-500" };
+                      
+                      return (
+                        <div key={zone} className={cx("rounded-xl p-5 text-center border", color.bg, `border-${color.icon.replace('text-', '')}-200`)}>
+                          <div className={cx("text-4xl font-black mb-2", color.text)}>{count as number}</div>
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{zone}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 bg-white rounded-lg p-3 border border-slate-100">
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Esta distribución indica las áreas del espacio de trabajo donde el paciente realizó los movimientos.
+                      Una distribución equilibrada sugiere un buen rango de movilidad.
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </>
+          ) : (
+            /* No hay datos VR */
+            <Card className="p-8 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <Activity size={32} className="text-slate-300" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-700 mb-2">Sin métricas clínicas detalladas</h3>
+              <p className="text-sm text-slate-500 max-w-md mx-auto">
+                Las métricas clínicas detalladas estarán disponibles cuando la sesión se realice con el headset Meta Quest 3 conectado.
+              </p>
+            </Card>
+          )}
+
+          {/* Notas del fisioterapeuta */}
+          <Card className="p-6">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <Pencil size={14} className="text-blue-500" /> Notas del Fisioterapeuta
+            </h3>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={5}
+              placeholder="Observaciones sobre la sesión, tolerancia al ejercicio, incidencias, progreso observado, objetivos para la próxima sesión..."
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none transition-all" />
+          </Card>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
-function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdit, onDelete, onUpdateSessionNotes }: {
+// ─── SCREEN: PATIENT PROFILE ──────────────────────────────────────────────────
+
+function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdit, onDelete, onUpdateSessionNotes, onViewSessionDetail }: {
   patient: Patient; sessions: SessionRecord[];
   onBack: () => void; onStartSession: (p: Patient) => void;
   onEdit: () => void; onDelete: () => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => void;
+  onViewSessionDetail: (session: SessionRecord) => void;
 }) {
-  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
 
   const patientSessions = useMemo(() =>
     sessions.filter(s => s.patientId === patient.id).sort((a, b) => b.id > a.id ? 1 : -1),
@@ -1282,7 +1404,7 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {pagSess.paged.map(row => (
-                    <tr key={row.id} className="hover:bg-blue-50/40 transition-colors cursor-pointer" onClick={() => setSelectedSession(row)}>
+                    <tr key={row.id} className="hover:bg-blue-50/40 transition-colors cursor-pointer" onClick={() => onViewSessionDetail(row)}>
                       <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
                       <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{row.duration} min</td>
@@ -1306,15 +1428,6 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
           </>
         )}
       </Card>
-
-      {/* Modal detalle de sesión */}
-      {selectedSession && (
-        <SessionDetailModal
-          session={selectedSession}
-          onClose={() => setSelectedSession(null)}
-          onSaveNotes={onUpdateSessionNotes}
-        />
-      )}
     </div>
   );
 }
@@ -1886,6 +1999,7 @@ export default function App({ user }: { user: FirebaseUser }) {
   const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [profilePatient, setProfilePatient] = useState<Patient | null>(null);
+  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
   const [editFromProfile, setEditFromProfile] = useState(false);
 
   // ── Suscripción en tiempo real a Firestore ────────────────────────────────
@@ -1948,6 +2062,11 @@ export default function App({ user }: { user: FirebaseUser }) {
   function handleViewProfile(p: Patient) {
     setProfilePatient(p);
     setScreen("patient-profile");
+  }
+
+  function handleViewSessionDetail(session: SessionRecord) {
+    setSelectedSession(session);
+    setScreen("session-detail");
   }
 
   function handleStartFromMinigames(gameId: string) {
@@ -2073,6 +2192,17 @@ export default function App({ user }: { user: FirebaseUser }) {
               navigate("patients");
             }}
             onUpdateSessionNotes={handleUpdateSessionNotes}
+            onViewSessionDetail={handleViewSessionDetail}
+          />
+        )}
+        {screen === "session-detail" && selectedSession && (
+          <SessionDetailScreen
+            session={selectedSession}
+            onBack={() => {
+              setSelectedSession(null);
+              navigate("patient-profile");
+            }}
+            onSaveNotes={handleUpdateSessionNotes}
           />
         )}
         {screen === "settings" && <SettingsScreen user={user} />}
