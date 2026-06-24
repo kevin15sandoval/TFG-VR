@@ -20,6 +20,19 @@ export interface Patient {
   notes: string;
 }
 
+export interface MovementSummary {
+  name: string;
+  completed: number;
+  avg_time_s: number;
+}
+
+export interface ZonesWorked {
+  Alto: number;
+  Medio: number;
+  Lateral: number;
+  Bajo: number;
+}
+
 export interface SessionRecord {
   id: string;
   patientId: string;
@@ -32,13 +45,20 @@ export interface SessionRecord {
   side: string;
   difficulty: string;
   sessionType: string;
-  notes?: string;        // Comentarios del fisioterapeuta post-sesión
+  notes?: string;
+  // Métricas clínicas reales (vienen de Godot)
   gemsNormal?: number;
   gemsGolden?: number;
   gemsGreen?: number;
   gemsPurple?: number;
   gemsRed?: number;
+  gemsRedAvoided?: number;
   totalGems?: number;
+  avgTimePerGem?: number;
+  movementsSummary?: MovementSummary[];
+  zonesWorked?: ZonesWorked;
+  totalMovements?: number;
+  fromVR?: boolean;
 }
 
 export interface SessionConfig {

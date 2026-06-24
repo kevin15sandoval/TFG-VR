@@ -15,6 +15,7 @@ import {
   LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import { generatePatientReport } from "./pdfReport";
 import type { Patient, SessionRecord, SessionConfig, Screen } from "./types";
 import {
   subscribePatients, subscribeSessions,
@@ -959,18 +960,44 @@ function SessionDetailModal({ session, onClose, onSaveNotes }: {
     setTimeout(() => { setSaving(false); onClose(); }, 600);
   }
 
+  const game = MINIGAMES.find(g => g.id === session.gameId);
+  const hasVRData = session.fromVR && session.movementsSummary && session.movementsSummary.length > 0;
+
+  // Interpretación clínica según movimientos
+  function getClinicalInterpretation(): string {
+    if (!session.movementsSummary || session.movementsSummary.length === 0) return "";
+    const best = [...session.movementsSummary].sort((a, b) => b.completed - a.completed)[0];
+    const slowest = [...session.movementsSummary].sort((a, b) => b.avg_time_s - a.avg_time_s)[0];
+    const fastest = [...session.movementsSummary].sort((a, b) => a.avg_time_s - b.avg_time_s)[0];
+    return `Movimiento más trabajado: ${best.name} (${best.completed} reps). ` +
+      `Tiempo de respuesta más lento en ${slowest.name} (${slowest.avg_time_s}s), ` +
+      `más rápido en ${fastest.name} (${fastest.avg_time_s}s).`;
+  }
+
   return (
-    <Modal title={`Sesión — ${session.date}`} onClose={onClose}>
-      <div className="space-y-4">
-        {/* Métricas */}
-        <div className="grid grid-cols-2 gap-3">
+    <Modal title={`Sesión — ${session.date} · ${session.game}`} onClose={onClose}>
+      <div className="space-y-5">
+
+        {/* Métricas básicas */}
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Ejercicio", value: session.game },
-            { label: "Duración", value: `${session.duration} min` },
-            { label: "Puntuación", value: session.score.toLocaleString() },
-            { label: "Precisión", value: `${session.accuracy}%` },
-            { label: "Lado", value: session.side },
+            { label: "Puntuación", value: session.score.toLocaleString(), color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "Precisión", value: `${session.accuracy}%`, color: session.accuracy >= 80 ? "text-emerald-600" : session.accuracy >= 65 ? "text-amber-600" : "text-rose-600", bg: session.accuracy >= 80 ? "bg-emerald-50" : session.accuracy >= 65 ? "bg-amber-50" : "bg-rose-50" },
+            { label: "Duración", value: `${session.duration} min`, color: "text-violet-600", bg: "bg-violet-50" },
+          ].map(({ label, value, color, bg }) => (
+            <div key={label} className={cx("rounded-xl px-3 py-3 text-center", bg)}>
+              <div className="text-xs text-slate-500 mb-1">{label}</div>
+              <div className={cx("text-xl font-black", color)}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Config de sesión */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Lado trabajado", value: session.side },
             { label: "Dificultad", value: session.difficulty },
+            { label: "Tipo sesión", value: session.sessionType },
           ].map(({ label, value }) => (
             <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
               <div className="text-xs text-slate-400 mb-0.5">{label}</div>
@@ -978,34 +1005,97 @@ function SessionDetailModal({ session, onClose, onSaveNotes }: {
             </div>
           ))}
         </div>
-        {/* Gemas si las hay */}
-        {session.totalGems != null && session.totalGems > 0 && (
-          <div className="bg-slate-50 rounded-xl p-3">
-            <p className="text-xs font-semibold text-slate-500 mb-2">Desglose de gemas</p>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {[
-                { label: "Normales", val: session.gemsNormal ?? 0, color: "bg-blue-100 text-blue-700" },
-                { label: "Doradas", val: session.gemsGolden ?? 0, color: "bg-amber-100 text-amber-700" },
-                { label: "Verdes", val: session.gemsGreen ?? 0, color: "bg-emerald-100 text-emerald-700" },
-                { label: "Moradas", val: session.gemsPurple ?? 0, color: "bg-violet-100 text-violet-700" },
-                { label: "Rojas", val: session.gemsRed ?? 0, color: "bg-rose-100 text-rose-700" },
-                { label: "Total", val: session.totalGems, color: "bg-slate-200 text-slate-700" },
-              ].map(({ label, val, color }) => (
-                <div key={label} className={cx("rounded-lg px-2 py-1.5 text-center font-semibold", color)}>
-                  <div className="text-base font-black">{val}</div>
-                  <div className="text-[10px]">{label}</div>
+
+        {/* MÉTRICAS CLÍNICAS VR */}
+        {hasVRData && (
+          <div>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Activity size={12} className="text-blue-500" /> Análisis clínico de movimiento
+            </h3>
+
+            {/* Movimientos por tipo */}
+            <div className="space-y-2 mb-4">
+              {session.movementsSummary!.map(m => {
+                const maxCompleted = Math.max(...session.movementsSummary!.map(x => x.completed));
+                const pct = Math.round((m.completed / maxCompleted) * 100);
+                return (
+                  <div key={m.name} className="bg-slate-50 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-slate-700">{m.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400">{m.completed} reps</span>
+                        <span className="text-xs font-semibold text-blue-600">{m.avg_time_s}s/rep</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Zonas de trabajo */}
+            {session.zonesWorked && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-slate-500 mb-2">Distribución de zonas de alcance</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {Object.entries(session.zonesWorked).map(([zone, count]) => (
+                    <div key={zone} className="bg-white border border-slate-200 rounded-xl p-2 text-center">
+                      <div className="text-lg font-black text-slate-800">{count as number}</div>
+                      <div className="text-[10px] text-slate-400 font-medium">{zone}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Tiempo medio por movimiento */}
+            {session.avgTimePerGem && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-blue-700 font-semibold">
+                    <Timer size={14} /> Tiempo medio por movimiento
+                  </div>
+                  <span className="text-lg font-black text-blue-700">{session.avgTimePerGem}s</span>
+                </div>
+                <p className="text-xs text-blue-500 mt-1">
+                  {session.avgTimePerGem < 4 ? "Respuesta rápida — buena capacidad de reacción motora" :
+                   session.avgTimePerGem < 7 ? "Tiempo de respuesta dentro de lo esperado" :
+                   "Tiempo elevado — posible fatiga o dificultad en el movimiento"}
+                </p>
+              </div>
+            )}
+
+            {/* Interpretación clínica automática */}
+            <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+              <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1.5">
+                <Award size={12} /> Interpretación clínica automática
+              </p>
+              <p className="text-xs text-amber-600 leading-relaxed">{getClinicalInterpretation()}</p>
             </div>
           </div>
         )}
-        {/* Comentarios del fisio */}
+
+        {/* Si no hay datos VR */}
+        {!hasVRData && (
+          <div className="bg-slate-50 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs text-slate-400">
+              Las métricas clínicas detalladas estarán disponibles cuando la sesión se realice con el headset Meta Quest 3 conectado.
+            </p>
+          </div>
+        )}
+
+        {/* Notas del fisioterapeuta */}
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Comentarios del fisioterapeuta</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4}
-            placeholder="Observaciones sobre la sesión, tolerancia, incidencias..."
+          <label className="text-xs font-semibold text-slate-600 mb-1.5 block flex items-center gap-1.5">
+            <Pencil size={11} /> Notas del fisioterapeuta
+          </label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+            placeholder="Observaciones, tolerancia al ejercicio, incidencias, objetivos para próxima sesión..."
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none transition-all" />
         </div>
+
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Cerrar</button>
           <button onClick={handleSave} disabled={saving}
@@ -1059,6 +1149,10 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
           <p className="text-slate-500 text-sm">{patient.diagnosis} · {totalSessions} sesiones registradas</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => generatePatientReport(patient, patientSessions)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all">
+            <Download size={14} /> Exportar PDF
+          </button>
           <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all">
             <Pencil size={14} /> Editar
           </button>

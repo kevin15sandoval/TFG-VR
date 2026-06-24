@@ -134,13 +134,13 @@ func _spawn_next() -> void:
 	print("[Spawner] Ejercicio: ", exercise["name"], " | Tipo: ", exercise["type"])
 
 func _on_gem_caught(gem) -> void:
-	GameManager.collect_gem(gem.gem_type, gem.points)
+	GameManager.on_gem_spawned()
+	GameManager.collect_gem(gem.gem_type, gem.points, gem.exercise_name)
 	_active_gems.erase(gem)
 
 func _on_gem_missed(gem) -> void:
 	if gem.gem_type == "red":
-		# Evitar una gema roja = puntos positivos
-		GameManager.collect_gem("red_avoided", 5)
+		GameManager.collect_gem("red_avoided", 5, "")
 	_active_gems.erase(gem)
 
 func _clear_all_gems() -> void:

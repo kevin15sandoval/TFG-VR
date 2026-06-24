@@ -72,6 +72,19 @@ func save_results(results: Dictionary) -> void:
 	var url = BASE_URL + "/" + COL_RESULTS
 	var headers = ["Content-Type: application/json"]
 
+	# Construir movements_summary como array Firestore
+	var movements_array = {"arrayValue": {"values": []}}
+	for m in results.get("movements_summary", []):
+		movements_array["arrayValue"]["values"].append({
+			"mapValue": {"fields": {
+				"name":       {"stringValue": str(m.get("name", ""))},
+				"completed":  {"integerValue": str(m.get("completed", 0))},
+				"avg_time_s": {"doubleValue": float(m.get("avg_time_s", 0.0))},
+			}}
+		})
+
+	var zones = results.get("zones_worked", {"Alto": 0, "Medio": 0, "Lateral": 0, "Bajo": 0})
+
 	var body := {
 		"fields": {
 			"patientId":       {"stringValue": str(results.get("patient_id", ""))},
@@ -90,10 +103,20 @@ func save_results(results: Dictionary) -> void:
 			"gemsGolden":      {"integerValue": str(results.get("golden_gems", 0))},
 			"gemsGreen":       {"integerValue": str(results.get("green_gems", 0))},
 			"gemsPurple":      {"integerValue": str(results.get("purple_gems", 0))},
-			"gemsRed":         {"integerValue": str(results.get("red_gems", 0))},
+			"gemsRed":         {"integerValue": str(results.get("red_gems_hit", 0))},
+			"gemsRedAvoided":  {"integerValue": str(results.get("red_gems_avoided", 0))},
 			"totalGems":       {"integerValue": str(results.get("gems_collected", 0))},
 			"avgTimePerGem":   {"doubleValue": results.get("avg_time_per_gem", 0.0)},
+			"totalMovements":  {"integerValue": str(results.get("total_movements", 0))},
+			"movementsSummary": movements_array,
+			"zonesWorked": {"mapValue": {"fields": {
+				"Alto":    {"integerValue": str(zones.get("Alto", 0))},
+				"Medio":   {"integerValue": str(zones.get("Medio", 0))},
+				"Lateral": {"integerValue": str(zones.get("Lateral", 0))},
+				"Bajo":    {"integerValue": str(zones.get("Bajo", 0))},
+			}}},
 			"fromVR":          {"booleanValue": true},
+			"notes":           {"stringValue": ""},
 		}
 	}
 

@@ -14,6 +14,8 @@ Plataforma_Clinica/package-lock.json
 Plataforma_Clinica/.env
 Plataforma_Clinica/.env.local
 Plataforma_Clinica/.env.*.local
+Plataforma_Clinica/serviceAccount.json
+Plataforma_Clinica/*-adminsdk-*.json
 
 # ── Editor ────────────────────────────────────────────────────────────────────
 .vscode/
