@@ -76,6 +76,22 @@ export function subscribeSessions(cb: (sessions: SessionRecord[]) => void) {
       } as unknown as SessionRecord;
     });
     cb(sessions);
+    
+    // Auto-limpiar sesión activa si detectamos nueva sesión desde VR
+    // (el juego terminó y guardó resultados)
+    const latestFromVR = sessions.find(s => s.fromVR === true);
+    if (latestFromVR) {
+      // Verificar si es reciente (últimos 10 segundos)
+      const now = Date.now();
+      const sessionTime = latestFromVR.createdAt instanceof Timestamp 
+        ? latestFromVR.createdAt.toMillis() 
+        : now;
+      
+      if (now - sessionTime < 10000) {  // Menos de 10 segundos
+        console.log("[DB] Nueva sesión VR detectada, limpiando sesión activa...");
+        clearActiveSession().catch(console.error);
+      }
+    }
   });
 }
 

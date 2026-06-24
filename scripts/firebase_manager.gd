@@ -2,6 +2,7 @@ extends Node
 # ─────────────────────────────────────────────────────────────────────────────
 # FirebaseManager — Comunicación con Firestore via REST API
 # Lee la configuración de sesión activa y guarda resultados al terminar
+# NUEVO: Sistema de polling para detectar nuevas sesiones automáticamente
 # ─────────────────────────────────────────────────────────────────────────────
 
 const PROJECT_ID := "tfg-vr"
@@ -16,6 +17,17 @@ signal config_loaded(config: Dictionary)
 signal config_error(msg: String)
 signal results_saved()
 signal results_error(msg: String)
+signal new_session_detected(config: Dictionary)  # Nueva señal para detección automática
+
+var _http_load: HTTPRequest
+var _http_save: HTTPRequest
+var _http_poll: HTTPRequest
+
+# Sistema de polling
+var _polling_enabled := false
+var _poll_interval := 3.0  # Revisar cada 3 segundos
+var _last_session_id := ""  # Para detectar nuevas sesiones
+var _poll_timer := 0.0
 
 var _http_load: HTTPRequest
 var _http_save: HTTPRequest
@@ -28,6 +40,71 @@ func _ready() -> void:
 	_http_save = HTTPRequest.new()
 	add_child(_http_save)
 	_http_save.request_completed.connect(_on_results_saved)
+
+	_http_poll = HTTPRequest.new()
+	add_child(_http_poll)
+	_http_poll.request_completed.connect(_on_poll_response)
+
+func _process(delta: float) -> void:
+	if not _polling_enabled:
+		return
+	
+	_poll_timer += delta
+	if _poll_timer >= _poll_interval:
+		_poll_timer = 0.0
+		_poll_for_new_session()
+
+# ─── POLLING AUTOMÁTICO ──────────────────────────────────────────────────────
+
+## Activa el polling para detectar nuevas sesiones automáticamente
+func start_polling() -> void:
+	print("[Firebase] Iniciando polling cada ", _poll_interval, "s")
+	_polling_enabled = true
+	_poll_timer = 0.0
+
+## Detiene el polling
+func stop_polling() -> void:
+	print("[Firebase] Deteniendo polling")
+	_polling_enabled = false
+
+func _poll_for_new_session() -> void:
+	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
+	var err = _http_poll.request(url, [], HTTPClient.METHOD_GET)
+	if err != OK:
+		print("[Firebase] Error en polling: ", err)
+
+func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		# Sin sesión activa, seguir esperando
+		return
+
+	var json = JSON.new()
+	var parse_err = json.parse(body.get_string_from_utf8())
+	if parse_err != OK:
+		return
+
+	var data = json.get_data()
+	var fields = data.get("fields", {})
+	
+	var session_id = _get_string(fields, "sessionId")
+	
+	# Si es una sesión nueva (diferente a la última que procesamos)
+	if session_id != "" and session_id != _last_session_id:
+		print("[Firebase] 🎮 Nueva sesión detectada: ", session_id)
+		_last_session_id = session_id
+		
+		var config := {
+			"patient_id":    _get_string(fields, "patientId"),
+			"patient_name":  _get_string(fields, "patientName"),
+			"duration":      _get_int(fields,    "duration",    180),
+			"difficulty":    _get_string(fields, "difficulty",  "Media"),
+			"therapy_side":  _get_string(fields, "therapySide", "Izquierdo"),
+			"session_type":  _get_string(fields, "sessionType", "Alcance"),
+			"game_id":       _get_string(fields, "gameId",      "gems"),
+			"session_id":    session_id,
+		}
+		
+		emit_signal("new_session_detected", config)
 
 # ─── LEER CONFIG DE SESIÓN ───────────────────────────────────────────────────
 
