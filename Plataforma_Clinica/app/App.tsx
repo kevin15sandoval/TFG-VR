@@ -19,7 +19,7 @@ import type { Patient, SessionRecord, SessionConfig, Screen } from "./types";
 import {
   subscribePatients, subscribeSessions,
   addPatient, updatePatient, deletePatient,
-  addSession, seedIfEmpty, publishActiveSession,
+  addSession, updateSession, seedIfEmpty, publishActiveSession,
   createDeviceLink, subscribeDeviceLink, sendSessionToDevice,
 } from "./db";
 
@@ -912,16 +912,284 @@ function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onL
 
 // ─── SCREEN: PATIENT PROFILE ──────────────────────────────────────────────────
 
-function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdit, onDelete }: {
+function SessionDetailModal({ session, onClose, onSaveNotes }: {
+  session: SessionRecord; onClose: () => void;
+  onSaveNotes: (id: string, notes: string) => void;
+}) {
+  const [notes, setNotes] = useState(session.notes ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    onSaveNotes(session.id, notes);
+    setTimeout(() => { setSaving(false); onClose(); }, 600);
+  }
+
+  return (
+    <Modal title={`Sesión — ${session.date}`} onClose={onClose}>
+      <div className="space-y-4">
+        {/* Métricas */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "Ejercicio", value: session.game },
+            { label: "Duración", value: `${session.duration} min` },
+            { label: "Puntuación", value: session.score.toLocaleString() },
+            { label: "Precisión", value: `${session.accuracy}%` },
+            { label: "Lado", value: session.side },
+            { label: "Dificultad", value: session.difficulty },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
+              <div className="text-xs text-slate-400 mb-0.5">{label}</div>
+              <div className="text-sm font-bold text-slate-700">{value}</div>
+            </div>
+          ))}
+        </div>
+        {/* Gemas si las hay */}
+        {session.totalGems != null && session.totalGems > 0 && (
+          <div className="bg-slate-50 rounded-xl p-3">
+            <p className="text-xs font-semibold text-slate-500 mb-2">Desglose de gemas</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {[
+                { label: "Normales", val: session.gemsNormal ?? 0, color: "bg-blue-100 text-blue-700" },
+                { label: "Doradas", val: session.gemsGolden ?? 0, color: "bg-amber-100 text-amber-700" },
+                { label: "Verdes", val: session.gemsGreen ?? 0, color: "bg-emerald-100 text-emerald-700" },
+                { label: "Moradas", val: session.gemsPurple ?? 0, color: "bg-violet-100 text-violet-700" },
+                { label: "Rojas", val: session.gemsRed ?? 0, color: "bg-rose-100 text-rose-700" },
+                { label: "Total", val: session.totalGems, color: "bg-slate-200 text-slate-700" },
+              ].map(({ label, val, color }) => (
+                <div key={label} className={cx("rounded-lg px-2 py-1.5 text-center font-semibold", color)}>
+                  <div className="text-base font-black">{val}</div>
+                  <div className="text-[10px]">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Comentarios del fisio */}
+        <div>
+          <label className="text-xs font-semibold text-slate-500 mb-1 block">Comentarios del fisioterapeuta</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4}
+            placeholder="Observaciones sobre la sesión, tolerancia, incidencias..."
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none transition-all" />
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold cursor-pointer flex items-center justify-center gap-2">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            Guardar notas
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdit, onDelete, onUpdateSessionNotes }: {
   patient: Patient; sessions: SessionRecord[];
   onBack: () => void; onStartSession: (p: Patient) => void;
   onEdit: () => void; onDelete: () => void;
+  onUpdateSessionNotes: (sessionId: string, notes: string) => void;
 }) {
+  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
+
   const patientSessions = useMemo(() =>
     sessions.filter(s => s.patientId === patient.id).sort((a, b) => b.id > a.id ? 1 : -1),
     [sessions, patient.id]
   );
   const pagSess = usePagination(patientSessions, 10);
+
+  // Métricas calculadas siempre desde las sesiones reales de Firestore
+  const totalSessions = patientSessions.length;
+  const bestScore = totalSessions ? Math.max(...patientSessions.map(s => s.score)) : 0;
+  const avgAccuracy = totalSessions
+    ? Math.round(patientSessions.reduce((a, s) => a + s.accuracy, 0) / totalSessions) : 0;
+  const totalMinutes = patientSessions.reduce((a, s) => a + s.duration, 0);
+  const lastSessionDate = patientSessions[0]?.date ?? patient.lastSession;
+
+  const chartData = patientSessions.slice().reverse().map((s, i) => ({
+    s: `S${i + 1}`, score: s.score, precision: s.accuracy,
+  }));
+
+  const sideColor = patient.affectedSide === "Izquierdo" ? "blue" : patient.affectedSide === "Derecho" ? "purple" : "amber";
+
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      {/* Header — usa datos dinámicos de Firestore */}
+      <div className="flex items-center gap-3 mb-7">
+        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
+          <ArrowLeft size={16} />
+        </button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-slate-800">Perfil del paciente</h1>
+          <p className="text-slate-500 text-sm">{patient.diagnosis} · {totalSessions} sesiones registradas</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all">
+            <Pencil size={14} /> Editar
+          </button>
+          <button onClick={() => onStartSession(patient)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-200 cursor-pointer transition-all">
+            <PlayCircle size={14} /> Iniciar sesión
+          </button>
+        </div>
+      </div>
+
+      {/* Ficha principal con datos dinámicos */}
+      <div className="grid lg:grid-cols-3 gap-5 mb-6">
+        <Card className="lg:col-span-2 p-6">
+          <div className="flex items-start gap-5">
+            <AvatarIcon initials={patient.initials} colorIdx={patient.colorIdx} size="lg" />
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-slate-800 mb-1">{patient.name}</h2>
+              <p className="text-sm text-slate-500 mb-3">{patient.diagnosis}</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Badge color="gray">{patient.age} años</Badge>
+                <Badge color={sideColor}>Lado {patient.affectedSide}</Badge>
+                <Badge color={patient.status === "activo" ? "green" : "gray"}>{patient.status}</Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Última sesión",   value: lastSessionDate },
+                  { label: "Total sesiones",  value: String(totalSessions) },
+                  { label: "Tiempo total",    value: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` },
+                  { label: "Precisión media", value: totalSessions ? `${avgAccuracy}%` : "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
+                    <div className="text-xs text-slate-400 mb-0.5">{label}</div>
+                    <div className="text-sm font-bold text-slate-700">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Progreso */}
+        <Card className="p-6">
+          <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <TrendingUp size={14} className="text-emerald-500" /> Progreso de rehabilitación
+          </h3>
+          <div className="flex items-center justify-center mb-4">
+            <div className="relative w-28 h-28">
+              <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                <circle cx="50" cy="50" r="40" fill="none"
+                  stroke={patient.progress >= 70 ? "#10B981" : patient.progress >= 40 ? "#F59E0B" : "#F43F5E"}
+                  strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={`${patient.progress * 2.51} 251`} />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-black text-slate-800">{patient.progress}%</span>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: "Mejor puntuación", value: bestScore ? bestScore.toLocaleString() : "—", Icon: Trophy, color: "text-amber-500" },
+              { label: "Total sesiones",   value: String(totalSessions), Icon: Activity, color: "text-blue-500" },
+            ].map(({ label, value, Icon, color }) => (
+              <div key={label} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                <div className={cx("flex items-center gap-2 text-xs text-slate-400")}><Icon size={12} className={color} /> {label}</div>
+                <span className="text-xs font-bold text-slate-700">{value}</span>
+              </div>
+            ))}
+          </div>
+          {patient.notes && (
+            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-xs font-semibold text-amber-700 mb-1">Notas clínicas</p>
+              <p className="text-xs text-amber-600 leading-relaxed">{patient.notes}</p>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Gráfico evolución */}
+      {chartData.length > 1 && (
+        <Card className="p-5 mb-5">
+          <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <BarChart3 size={14} className="text-blue-500" /> Evolución de puntuación y precisión
+          </h3>
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5FB" />
+                <XAxis dataKey="s" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="score" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={50} />
+                <YAxis yAxisId="prec" orientation="right" domain={[40, 100]} tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={35} unit="%" />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", fontSize: "12px" }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
+                <Line yAxisId="score" type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5} dot={{ fill: "#3B82F6", r: 3 }} name="Puntuación" />
+                <Line yAxisId="prec" type="monotone" dataKey="precision" stroke="#10B981" strokeWidth={2} strokeDasharray="5 3" dot={false} name="Precisión %" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
+
+      {/* Tabla de sesiones — clic para abrir detalle */}
+      <Card>
+        <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <Calendar size={14} className="text-slate-400" /> Historial de sesiones ({totalSessions})
+          </h3>
+          <button onClick={onDelete} className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 font-semibold cursor-pointer transition-colors">
+            <Trash2 size={12} /> Eliminar paciente
+          </button>
+        </div>
+        {totalSessions === 0 ? (
+          <div className="py-12 text-center text-slate-400">
+            <Activity size={28} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Sin sesiones registradas todavía</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-50">
+                    {["Fecha", "Ejercicio", "Duración", "Lado", "Dificultad", "Puntuación", "Precisión", "Notas"].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {pagSess.paged.map(row => (
+                    <tr key={row.id} className="hover:bg-blue-50/40 transition-colors cursor-pointer" onClick={() => setSelectedSession(row)}>
+                      <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
+                      <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{row.duration} min</td>
+                      <td className="px-4 py-3"><Badge color={row.side === "Izquierdo" ? "blue" : row.side === "Derecho" ? "purple" : "amber"}>{row.side}</Badge></td>
+                      <td className="px-4 py-3"><Badge color={row.difficulty === "Fácil" ? "green" : row.difficulty === "Media" ? "amber" : "red"}>{row.difficulty}</Badge></td>
+                      <td className="px-4 py-3 text-xs font-bold text-slate-700 font-mono">{row.score.toLocaleString()}</td>
+                      <td className="px-4 py-3"><Badge color={row.accuracy >= 80 ? "green" : row.accuracy >= 65 ? "amber" : "red"}>{row.accuracy}%</Badge></td>
+                      <td className="px-4 py-3">
+                        {row.notes ? (
+                          <span className="text-xs text-amber-600 font-medium truncate max-w-[120px] block">{row.notes}</span>
+                        ) : (
+                          <span className="text-xs text-slate-300 italic">Añadir nota</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalSessions > 0 && <Paginacion {...pagSess} />}
+          </>
+        )}
+      </Card>
+
+      {/* Modal detalle de sesión */}
+      {selectedSession && (
+        <SessionDetailModal
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+          onSaveNotes={onUpdateSessionNotes}
+        />
+      )}
+    </div>
+  );
+}
 
   const bestScore = patientSessions.length ? Math.max(...patientSessions.map(s => s.score)) : 0;
   const avgAccuracy = patientSessions.length
@@ -1708,6 +1976,13 @@ export default function App({ user }: { user: FirebaseUser }) {
     } catch { showToast("Error al eliminar el paciente", "error"); }
   }
 
+  async function handleUpdateSessionNotes(sessionId: string, notes: string) {
+    try {
+      await updateSession(sessionId, { notes });
+      showToast("Nota guardada");
+    } catch { showToast("Error al guardar la nota", "error"); }
+  }
+
   // ── SESSION FLOW ──────────────────────────────────────────────────────────
 
   function handleSelectPatient(p: Patient) {
@@ -1739,20 +2014,20 @@ export default function App({ user }: { user: FirebaseUser }) {
     const baseScore = lastConfig.difficulty === "Fácil" ? 3500 : lastConfig.difficulty === "Media" ? 6000 : 8500;
     const score = baseScore + Math.floor(lastConfig.duration * 120);
     const accuracy = lastConfig.difficulty === "Fácil" ? 75 : lastConfig.difficulty === "Media" ? 82 : 70;
+    const today = formatDate(new Date());
 
     try {
-      // Guardar sesión en Firestore
       await addSession({
         patientId: lastConfig.patientId,
-        date: formatDate(new Date("2026-06-22")),
+        date: today,
         game: game.name, gameId: game.id,
         duration: lastConfig.duration, score, accuracy,
         side: lastConfig.therapySide,
         difficulty: lastConfig.difficulty,
         sessionType: lastConfig.sessionType,
+        notes: "",
       });
 
-      // Actualizar progreso del paciente
       const patientSessions = sessions.filter(s => s.patientId === lastConfig.patientId);
       const newCount = patientSessions.length + 1;
       const avgAcc = (patientSessions.reduce((a, s) => a + s.accuracy, 0) + accuracy) / newCount;
@@ -1760,12 +2035,12 @@ export default function App({ user }: { user: FirebaseUser }) {
 
       await updatePatient(lastConfig.patientId, {
         sessions: newCount,
-        lastSession: formatDate(new Date("2026-06-22")),
+        lastSession: today,
         progress: newProgress,
       });
 
       showToast("Sesión guardada correctamente");
-      navigate("history");
+      navigate("patient-profile");
     } catch { showToast("Error al guardar la sesión", "error"); }
   }
 
@@ -1842,6 +2117,7 @@ export default function App({ user }: { user: FirebaseUser }) {
               await handleDeletePatient(profilePatient.id);
               navigate("patients");
             }}
+            onUpdateSessionNotes={handleUpdateSessionNotes}
           />
         )}
         {screen === "settings" && <SettingsScreen user={user} />}

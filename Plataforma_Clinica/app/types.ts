@@ -21,8 +21,8 @@ export interface Patient {
 }
 
 export interface SessionRecord {
-  id: string;          // Firestore doc ID (string)
-  patientId: string;   // Referencia al ID del paciente en Firestore
+  id: string;
+  patientId: string;
   date: string;
   game: string;
   gameId: string;
@@ -32,6 +32,13 @@ export interface SessionRecord {
   side: string;
   difficulty: string;
   sessionType: string;
+  notes?: string;        // Comentarios del fisioterapeuta post-sesión
+  gemsNormal?: number;
+  gemsGolden?: number;
+  gemsGreen?: number;
+  gemsPurple?: number;
+  gemsRed?: number;
+  totalGems?: number;
 }
 
 export interface SessionConfig {

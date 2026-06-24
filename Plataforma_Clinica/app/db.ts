@@ -87,6 +87,14 @@ export async function addSession(data: Omit<SessionRecord, "id">) {
   });
 }
 
+/** Actualizar campos de una sesión (ej: notas del fisio) */
+export async function updateSession(id: string, data: Partial<Omit<SessionRecord, "id">>) {
+  return updateDoc(doc(db, COL_SESSIONS, id), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** Eliminar una sesión */
 export async function deleteSession(id: string) {
   return deleteDoc(doc(db, COL_SESSIONS, String(id)));
