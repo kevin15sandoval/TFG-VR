@@ -39,16 +39,50 @@ const SEED_PATIENTS: Omit<Patient, "id">[] = [
 
 // Las sesiones de seed se insertan con IDs temporales; seedIfEmpty los remapea
 const SEED_SESSIONS: Omit<SessionRecord, "id">[] = [
-  { patientId: "1", date: "20 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 8450,  accuracy: 84, side: "Izquierdo", difficulty: "Media",  sessionType: "Alcance" },
-  { patientId: "2", date: "19 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4210,  accuracy: 71, side: "Derecho",   difficulty: "Fácil",  sessionType: "Precisión" },
-  { patientId: "3", date: "18 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 10, score: 12300, accuracy: 91, side: "Ambos",     difficulty: "Media",  sessionType: "Coordinación" },
-  { patientId: "4", date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 3120,  accuracy: 58, side: "Derecho",   difficulty: "Difícil",sessionType: "Movilidad de tronco" },
-  { patientId: "5", date: "15 jun 2026", game: "Evitar obstáculos",   gameId: "avoid",   duration: 3,  score: 5680,  accuracy: 77, side: "Izquierdo", difficulty: "Difícil",sessionType: "Equilibrio" },
-  { patientId: "1", date: "18 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 5200,  accuracy: 79, side: "Izquierdo", difficulty: "Media",  sessionType: "Precisión" },
-  { patientId: "1", date: "15 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 7100,  accuracy: 81, side: "Izquierdo", difficulty: "Media",  sessionType: "Coordinación" },
-  { patientId: "1", date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800,  accuracy: 76, side: "Ambos",     difficulty: "Difícil",sessionType: "Movilidad de tronco" },
-  { patientId: "2", date: "15 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3800,  accuracy: 65, side: "Derecho",   difficulty: "Fácil",  sessionType: "Alcance" },
-  { patientId: "3", date: "15 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 11200, accuracy: 89, side: "Ambos",     difficulty: "Difícil",sessionType: "Alcance" },
+  // Carmen (idx 1) — 24 sesiones
+  { patientId: "1", date: "22 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 8450,  accuracy: 84, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
+  { patientId: "1", date: "20 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 7800,  accuracy: 81, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  { patientId: "1", date: "18 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 5200,  accuracy: 79, side: "Izquierdo", difficulty: "Media",   sessionType: "Precisión", notes: "" },
+  { patientId: "1", date: "15 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 7100,  accuracy: 81, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
+  { patientId: "1", date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800,  accuracy: 76, side: "Ambos",     difficulty: "Difícil", sessionType: "Movilidad de tronco", notes: "Buena tolerancia hoy" },
+  { patientId: "1", date: "10 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 7200,  accuracy: 83, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  { patientId: "1", date: "8 jun 2026",  game: "Evitar obstáculos",   gameId: "avoid",   duration: 3,  score: 5900,  accuracy: 78, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio", notes: "" },
+  { patientId: "1", date: "5 jun 2026",  game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 6700,  accuracy: 77, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
+  { patientId: "1", date: "2 jun 2026",  game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4800,  accuracy: 74, side: "Izquierdo", difficulty: "Media",   sessionType: "Precisión", notes: "" },
+  { patientId: "1", date: "29 may 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 6100,  accuracy: 75, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  // José (idx 2) — 12 sesiones
+  { patientId: "2", date: "19 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4210,  accuracy: 71, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "" },
+  { patientId: "2", date: "17 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3800,  accuracy: 65, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
+  { patientId: "2", date: "15 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 3,  score: 3200,  accuracy: 62, side: "Derecho",   difficulty: "Fácil",   sessionType: "Coordinación", notes: "" },
+  { patientId: "2", date: "12 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 3600,  accuracy: 67, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "" },
+  { patientId: "2", date: "10 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3400,  accuracy: 64, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
+  // María (idx 3) — 38 sesiones (simplificamos con 10)
+  { patientId: "3", date: "18 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 10, score: 12300, accuracy: 91, side: "Ambos",     difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  { patientId: "3", date: "16 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 11200, accuracy: 89, side: "Ambos",     difficulty: "Difícil", sessionType: "Alcance", notes: "Excelente sesión" },
+  { patientId: "3", date: "14 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 11800, accuracy: 90, side: "Ambos",     difficulty: "Difícil", sessionType: "Movilidad de tronco", notes: "" },
+  { patientId: "3", date: "12 jun 2026", game: "Evitar obstáculos",   gameId: "avoid",   duration: 5,  score: 10500, accuracy: 88, side: "Ambos",     difficulty: "Difícil", sessionType: "Equilibrio", notes: "" },
+  { patientId: "3", date: "10 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 9800,  accuracy: 86, side: "Ambos",     difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  // Antonio (idx 4) — 8 sesiones
+  { patientId: "4", date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 3120,  accuracy: 58, side: "Derecho",   difficulty: "Difícil", sessionType: "Movilidad de tronco", notes: "" },
+  { patientId: "4", date: "14 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 2800,  accuracy: 55, side: "Derecho",   difficulty: "Media",   sessionType: "Alcance", notes: "" },
+  { patientId: "4", date: "11 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 2400,  accuracy: 52, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "Requiere descansos frecuentes" },
+  { patientId: "4", date: "8 jun 2026",  game: "Seguir luces",        gameId: "lights",  duration: 3,  score: 2000,  accuracy: 49, side: "Derecho",   difficulty: "Fácil",   sessionType: "Coordinación", notes: "" },
+  { patientId: "4", date: "5 jun 2026",  game: "Recolectar gemas",    gameId: "gems",    duration: 3,  score: 1800,  accuracy: 46, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
+  { patientId: "4", date: "2 jun 2026",  game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 1500,  accuracy: 43, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "" },
+  { patientId: "4", date: "30 may 2026", game: "Seguir luces",        gameId: "lights",  duration: 3,  score: 1200,  accuracy: 42, side: "Derecho",   difficulty: "Fácil",   sessionType: "Coordinación", notes: "" },
+  { patientId: "4", date: "27 may 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 3,  score: 900,   accuracy: 40, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "Primera sesión" },
+  // Isabel (idx 5) — 19 sesiones
+  { patientId: "5", date: "15 jun 2026", game: "Evitar obstáculos",   gameId: "avoid",   duration: 3,  score: 5680,  accuracy: 77, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio", notes: "" },
+  { patientId: "5", date: "13 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 5200,  accuracy: 75, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
+  { patientId: "5", date: "11 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 4900,  accuracy: 73, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  { patientId: "5", date: "8 jun 2026",  game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 4600,  accuracy: 71, side: "Izquierdo", difficulty: "Media",   sessionType: "Movilidad de tronco", notes: "" },
+  { patientId: "5", date: "5 jun 2026",  game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4100,  accuracy: 68, side: "Izquierdo", difficulty: "Media",   sessionType: "Precisión", notes: "" },
+  // Francisco (idx 6) — 15 sesiones
+  { patientId: "6", date: "14 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 5100,  accuracy: 72, side: "Derecho",   difficulty: "Media",   sessionType: "Alcance", notes: "" },
+  { patientId: "6", date: "12 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4800,  accuracy: 70, side: "Derecho",   difficulty: "Media",   sessionType: "Precisión", notes: "" },
+  { patientId: "6", date: "10 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 4500,  accuracy: 68, side: "Derecho",   difficulty: "Media",   sessionType: "Coordinación", notes: "" },
+  { patientId: "6", date: "8 jun 2026",  game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 4200,  accuracy: 66, side: "Derecho",   difficulty: "Media",   sessionType: "Movilidad de tronco", notes: "" },
+  { patientId: "6", date: "5 jun 2026",  game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3900,  accuracy: 64, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
 ];
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
@@ -1212,7 +1246,7 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-slate-800">Perfil del paciente</h1>
-          <p className="text-slate-500 text-sm">{patient.diagnosis} · {patient.sessions} sesiones registradas</p>
+          <p className="text-slate-500 text-sm">{patient.diagnosis} · {totalSessions} sesiones registradas</p>
         </div>
         <div className="flex gap-2">
           <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all">
