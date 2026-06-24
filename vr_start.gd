@@ -20,6 +20,8 @@ var hud_combo: Label3D = null
 
 var _combo_count: int = 0
 var _last_gem_time: float = 0.0
+var _ambient_audio: AudioStreamPlayer = null
+var _countdown_label: Label3D = null
 
 func _ready() -> void:
 	print("=== NeuroVR Rehab — Sistema de Auto-Arranque ===")
@@ -27,6 +29,8 @@ func _ready() -> void:
 	_init_openxr()
 	_create_waiting_ui()
 	_create_game_hud()
+	_create_countdown_ui()
+	_setup_ambient_audio()
 
 	# Conectar señales del GameManager
 	GameManager.session_started.connect(_on_session_started)
@@ -130,6 +134,119 @@ func _create_game_hud() -> void:
 	hud_combo.visible = false
 	add_child(hud_combo)
 
+# ─── COUNTDOWN ANIMADO ────────────────────────────────────────────────────────
+
+func _create_countdown_ui() -> void:
+	_countdown_label = Label3D.new()
+	_countdown_label.position = Vector3(0, 1.6, -2.0)
+	_countdown_label.font_size = 128
+	_countdown_label.modulate = Color(1.0, 1.0, 0.0)  # Amarillo
+	_countdown_label.outline_size = 16
+	_countdown_label.outline_modulate = Color.BLACK
+	_countdown_label.visible = false
+	add_child(_countdown_label)
+
+func _show_countdown() -> void:
+	if not _countdown_label:
+		return
+	
+	_countdown_label.visible = true
+	
+	for i in range(3, 0, -1):
+		_countdown_label.text = str(i)
+		_countdown_label.modulate = Color(1.0, 0.3, 0.0) if i == 1 else Color(1.0, 1.0, 0.0)
+		
+		# Animación de pulso
+		var tween = create_tween()
+		tween.tween_property(_countdown_label, "scale", Vector3.ONE * 2.0, 0.3).from(Vector3.ZERO)
+		tween.tween_property(_countdown_label, "scale", Vector3.ONE * 1.5, 0.3)
+		
+		# Sonido de countdown
+		_play_countdown_beep(i)
+		
+		await get_tree().create_timer(1.0).timeout
+	
+	# ¡GO!
+	_countdown_label.text = "¡GO!"
+	_countdown_label.modulate = Color(0.2, 1.0, 0.2)  # Verde
+	var final_tween = create_tween()
+	final_tween.tween_property(_countdown_label, "scale", Vector3.ONE * 3.0, 0.2).from(Vector3.ZERO)
+	final_tween.tween_property(_countdown_label, "modulate:a", 0.0, 0.5).set_delay(0.3)
+	
+	_play_countdown_beep(0)  # Beep especial para GO
+	
+	await get_tree().create_timer(1.0).timeout
+	_countdown_label.visible = false
+
+func _play_countdown_beep(number: int) -> void:
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 15.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		var hz = 600.0 if number > 0 else 1000.0  # GO! es más agudo
+		var frames = int(generator.mix_rate * 0.15)
+		
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var amplitude = 0.4 * (1.0 - t / 0.15)
+			var sample = sin(t * hz * TAU) * amplitude
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.2).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
+
+# ─── AUDIO AMBIENTE ───────────────────────────────────────────────────────────
+
+func _setup_ambient_audio() -> void:
+	_ambient_audio = AudioStreamPlayer.new()
+	add_child(_ambient_audio)
+	_ambient_audio.volume_db = -15.0  # Volumen bajo para no molestar
+	
+	# Generar tono ambiental procedural (onda espacial continua)
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 2.0
+	_ambient_audio.stream = generator
+	_ambient_audio.play()
+	
+	# Generar audio ambiente en background
+	_generate_ambient_loop()
+
+func _generate_ambient_loop() -> void:
+	await get_tree().process_frame
+	if not _ambient_audio or not _ambient_audio.playing:
+		return
+	
+	var playback = _ambient_audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if not playback:
+		return
+	
+	# Generar onda ambiente continua (tono bajo relajante)
+	while _ambient_audio and _ambient_audio.playing:
+		var frames_available = playback.get_frames_available()
+		if frames_available > 0:
+			for i in range(min(frames_available, 100)):
+				var t = Time.get_ticks_msec() / 1000.0 + float(i) / 44100.0
+				# Combinación de frecuencias bajas para ambiente espacial
+				var sample = sin(t * 110.0 * TAU) * 0.1  # Nota A baja
+				sample += sin(t * 165.0 * TAU) * 0.08   # Nota E
+				sample += sin(t * 220.0 * TAU) * 0.05   # Nota A media
+				sample *= 0.3  # Volumen muy bajo
+				playback.push_frame(Vector2(sample, sample))
+		
+		await get_tree().process_frame()
+
 func _show_waiting_message() -> void:
 	if label_status:
 		label_status.text = "🏥 SALA DE ESPERA"
@@ -171,9 +288,13 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	firebase_manager.stop_polling()  # Detener polling
 	_hide_waiting_ui()
 	
-	# Aplicar configuración y arrancar
+	# Aplicar configuración
 	GameManager.apply_config(config)
-	await get_tree().create_timer(1.5).timeout  # Pequeña pausa para que el paciente se prepare
+	
+	# Mostrar countdown animado
+	await _show_countdown()
+	
+	# Arrancar sesión
 	GameManager.start_session()
 
 func _on_config_loaded(config: Dictionary) -> void:
