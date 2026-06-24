@@ -963,30 +963,113 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
   const game = MINIGAMES.find(g => g.id === session.gameId);
   const hasVRData = session.movementsSummary && session.movementsSummary.length > 0;
 
+  // CÁLCULOS DE MÉTRICAS AVANZADAS
+  const totalMovements = hasVRData ? session.movementsSummary!.reduce((sum, m) => sum + m.count, 0) : 0;
+  
+  // Ratio de eficiencia (puntos por minuto)
+  const efficiencyRatio = session.duration > 0 ? Math.round(session.score / session.duration) : 0;
+  
+  // Balance de trabajo (simetría entre tipos de movimiento opuestos)
+  const movementBalance = hasVRData ? (() => {
+    const byType: Record<string, number> = {};
+    session.movementsSummary!.forEach(m => {
+      byType[m.type] = (byType[m.type] || 0) + m.count;
+    });
+    const flexion = byType["Flexión"] || 0;
+    const extension = byType["Extensión"] || 0;
+    const abduccion = byType["Abducción"] || 0;
+    const aduccion = byType["Aducción"] || 0;
+    
+    const flexExtBalance = flexion + extension > 0 ? Math.round((Math.min(flexion, extension) / Math.max(flexion, extension)) * 100) : 100;
+    const abdAddBalance = abduccion + aduccion > 0 ? Math.round((Math.min(abduccion, aduccion) / Math.max(abduccion, aduccion)) * 100) : 100;
+    
+    return {
+      flexionExtension: flexExtBalance,
+      abduccionAduccion: abdAddBalance,
+      overall: Math.round((flexExtBalance + abdAddBalance) / 2)
+    };
+  })() : null;
+
+  // Distribución de carga (qué zonas se trabajaron más)
+  const workloadDistribution = hasVRData && session.zonesWorked ? (() => {
+    const total = Object.values(session.zonesWorked).reduce((a, b) => a + b, 0);
+    return Object.entries(session.zonesWorked).map(([zone, count]) => ({
+      zone,
+      count,
+      percentage: Math.round((count / total) * 100)
+    })).sort((a, b) => b.count - a.count);
+  })() : null;
+
   // Interpretación clínica según movimientos
   function getClinicalInterpretation(): string {
     if (!session.movementsSummary || session.movementsSummary.length === 0) return "";
-    const totalMovements = session.movementsSummary.reduce((sum, m) => sum + m.count, 0);
+    
     const byType: Record<string, number> = {};
     session.movementsSummary.forEach(m => {
       byType[m.type] = (byType[m.type] || 0) + m.count;
     });
     const dominant = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
     
-    let interpretation = `Se realizaron ${totalMovements} movimientos en total. `;
-    interpretation += `El tipo de movimiento predominante fue ${dominant[0]} (${dominant[1]} repeticiones). `;
+    let interpretation = `**Volumen de trabajo:** Se realizaron ${totalMovements} movimientos en total durante ${session.duration} minutos. `;
+    interpretation += `El tipo de movimiento predominante fue ${dominant[0]} con ${dominant[1]} repeticiones (${Math.round((dominant[1]/totalMovements)*100)}% del total). `;
     
-    if (session.avgTimePerGem) {
-      if (session.avgTimePerGem < 5) {
-        interpretation += "El paciente muestra una excelente capacidad de respuesta motora con tiempos de reacción rápidos. ";
-      } else if (session.avgTimePerGem < 8) {
-        interpretation += "Tiempo de respuesta dentro del rango esperado, indicando un desempeño adecuado. ";
-      } else if (session.avgTimePerGem < 12) {
-        interpretation += "Se observan tiempos de respuesta elevados que pueden indicar fatiga o dificultad en la ejecución. ";
+    // Análisis de balance
+    if (movementBalance) {
+      if (movementBalance.overall >= 80) {
+        interpretation += `**Balance muscular:** Excelente equilibrio entre movimientos agonistas y antagonistas (${movementBalance.overall}%). `;
+      } else if (movementBalance.overall >= 60) {
+        interpretation += `**Balance muscular:** Balance aceptable (${movementBalance.overall}%), pero se recomienda trabajar más los movimientos menos frecuentes. `;
       } else {
-        interpretation += "Tiempos de respuesta significativamente elevados — requiere evaluación detallada y posible ajuste de dificultad. ";
+        interpretation += `**Balance muscular:** Desbalance significativo detectado (${movementBalance.overall}%). Se recomienda enfatizar los movimientos opuestos en próximas sesiones. `;
       }
     }
+    
+    // Análisis de tiempo de respuesta
+    if (session.avgTimePerGem) {
+      if (session.avgTimePerGem < 5) {
+        interpretation += `**Velocidad:** Respuesta motora excelente (${session.avgTimePerGem}s/mov). Indica buena capacidad de reacción y control motor. `;
+      } else if (session.avgTimePerGem < 8) {
+        interpretation += `**Velocidad:** Tiempo de respuesta adecuado (${session.avgTimePerGem}s/mov) dentro del rango esperado para este nivel. `;
+      } else if (session.avgTimePerGem < 12) {
+        interpretation += `**Velocidad:** Tiempos elevados (${session.avgTimePerGem}s/mov) sugieren posible fatiga o dificultad. Considerar pausas más frecuentes. `;
+      } else {
+        interpretation += `**Velocidad:** Tiempos significativamente elevados (${session.avgTimePerGem}s/mov). Requiere evaluación y posible ajuste de dificultad. `;
+      }
+    }
+    
+    // Análisis de precisión
+    if (session.accuracy >= 85) {
+      interpretation += `**Precisión:** Excelente control motor (${session.accuracy}%). El paciente está listo para aumentar la dificultad. `;
+    } else if (session.accuracy >= 70) {
+      interpretation += `**Precisión:** Control motor adecuado (${session.accuracy}%). Mantener este nivel antes de progresar. `;
+    } else {
+      interpretation += `**Precisión:** Precisión por debajo del objetivo (${session.accuracy}%). Considerar reducir velocidad o dificultad temporalmente. `;
+    }
+    
+    // Recomendaciones
+    interpretation += "\n\n**Recomendaciones:** ";
+    const recommendations = [];
+    
+    if (session.avgTimePerGem && session.avgTimePerGem > 10) {
+      recommendations.push("Incorporar ejercicios de velocidad de reacción");
+    }
+    if (movementBalance && movementBalance.overall < 70) {
+      recommendations.push("Enfatizar movimientos opuestos para mejorar balance");
+    }
+    if (session.accuracy < 70) {
+      recommendations.push("Reducir velocidad para mejorar precisión");
+    }
+    if (workloadDistribution) {
+      const lowZones = workloadDistribution.filter(z => z.percentage < 15);
+      if (lowZones.length > 0) {
+        recommendations.push(`Trabajar más las zonas: ${lowZones.map(z => z.zone).join(", ")}`);
+      }
+    }
+    if (session.accuracy >= 85 && session.avgTimePerGem && session.avgTimePerGem < 7) {
+      recommendations.push("Paciente listo para nivel de dificultad superior");
+    }
+    
+    interpretation += recommendations.length > 0 ? recommendations.join("; ") + "." : "Continuar con el plan actual.";
     
     return interpretation;
   }
@@ -1083,11 +1166,63 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
                   </div>
                 )}
                 {session.avgTimePerGem && (
-                  <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center justify-between py-2 border-b border-slate-50">
                     <span className="text-xs text-slate-500">Tiempo medio/movimiento</span>
                     <span className="text-lg font-black text-blue-600">{session.avgTimePerGem}s</span>
                   </div>
                 )}
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs text-slate-500">Ratio de eficiencia</span>
+                  <span className="text-sm font-bold text-purple-600">{efficiencyRatio} pts/min</span>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Balance Muscular */}
+          {hasVRData && movementBalance && (
+            <Card className="p-5">
+              <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <Target size={14} className="text-cyan-500" /> Balance Muscular
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-slate-500">Flexión/Extensión</span>
+                    <span className="text-xs font-bold text-slate-700">{movementBalance.flexionExtension}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className={cx("h-full rounded-full transition-all", 
+                        movementBalance.flexionExtension >= 80 ? "bg-emerald-500" : 
+                        movementBalance.flexionExtension >= 60 ? "bg-amber-500" : "bg-rose-500"
+                      )} 
+                      style={{ width: `${movementBalance.flexionExtension}%` }} 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-slate-500">Abducción/Aducción</span>
+                    <span className="text-xs font-bold text-slate-700">{movementBalance.abduccionAduccion}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className={cx("h-full rounded-full transition-all",
+                        movementBalance.abduccionAduccion >= 80 ? "bg-emerald-500" : 
+                        movementBalance.abduccionAduccion >= 60 ? "bg-amber-500" : "bg-rose-500"
+                      )} 
+                      style={{ width: `${movementBalance.abduccionAduccion}%` }} 
+                    />
+                  </div>
+                </div>
+                <div className={cx("mt-3 p-3 rounded-lg text-center",
+                  movementBalance.overall >= 80 ? "bg-emerald-50 text-emerald-700" :
+                  movementBalance.overall >= 60 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"
+                )}>
+                  <div className="text-xs font-semibold mb-1">Balance General</div>
+                  <div className="text-2xl font-black">{movementBalance.overall}%</div>
+                </div>
               </div>
             </Card>
           )}
@@ -1102,7 +1237,7 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
                 <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
                   <Award size={16} className="text-amber-600" /> Interpretación Clínica Automática
                 </h3>
-                <p className="text-sm text-amber-700 leading-relaxed">{getClinicalInterpretation()}</p>
+                <div className="text-sm text-amber-700 leading-relaxed whitespace-pre-line">{getClinicalInterpretation()}</div>
               </Card>
 
               {/* Gráfico de tipos de movimiento */}
@@ -1169,33 +1304,39 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
               </Card>
 
               {/* Zonas de alcance trabajadas */}
-              {session.zonesWorked && (
+              {session.zonesWorked && workloadDistribution && (
                 <Card className="p-6">
                   <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                     <Layers size={14} className="text-cyan-500" /> Distribución de Zonas de Alcance
                   </h3>
-                  <div className="grid grid-cols-4 gap-4">
-                    {Object.entries(session.zonesWorked).map(([zone, count]) => {
-                      const colors: Record<string, { bg: string; text: string; icon: string }> = {
-                        "Alto": { bg: "bg-sky-50", text: "text-sky-700", icon: "text-sky-500" },
-                        "Medio": { bg: "bg-emerald-50", text: "text-emerald-700", icon: "text-emerald-500" },
-                        "Lateral": { bg: "bg-purple-50", text: "text-purple-700", icon: "text-purple-500" },
-                        "Bajo": { bg: "bg-amber-50", text: "text-amber-700", icon: "text-amber-500" },
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    {workloadDistribution.map(({ zone, count, percentage }) => {
+                      const colors: Record<string, { bg: string; text: string; border: string }> = {
+                        "Alto": { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200" },
+                        "Medio": { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+                        "Lateral": { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+                        "Bajo": { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
                       };
-                      const color = colors[zone] || { bg: "bg-slate-50", text: "text-slate-700", icon: "text-slate-500" };
+                      const color = colors[zone] || { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
                       
                       return (
-                        <div key={zone} className={cx("rounded-xl p-5 text-center border", color.bg, `border-${color.icon.replace('text-', '')}-200`)}>
-                          <div className={cx("text-4xl font-black mb-2", color.text)}>{count as number}</div>
-                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{zone}</div>
+                        <div key={zone} className={cx("rounded-xl p-5 text-center border-2", color.bg, color.border)}>
+                          <div className={cx("text-4xl font-black mb-1", color.text)}>{count}</div>
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{zone}</div>
+                          <div className={cx("text-lg font-bold", color.text)}>{percentage}%</div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="mt-4 bg-white rounded-lg p-3 border border-slate-100">
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Esta distribución indica las áreas del espacio de trabajo donde el paciente realizó los movimientos.
-                      Una distribución equilibrada sugiere un buen rango de movilidad.
+                  <div className="bg-white rounded-lg p-4 border border-slate-100">
+                    <p className="text-xs text-slate-500 leading-relaxed mb-2">
+                      <strong>Análisis de distribución:</strong> {
+                        workloadDistribution[0].percentage > 50 
+                          ? `Concentración excesiva en zona ${workloadDistribution[0].zone} (${workloadDistribution[0].percentage}%). Se recomienda mayor variedad.`
+                          : workloadDistribution[workloadDistribution.length - 1].percentage < 15
+                          ? `Zona ${workloadDistribution[workloadDistribution.length - 1].zone} poco trabajada (${workloadDistribution[workloadDistribution.length - 1].percentage}%). Considerar más énfasis.`
+                          : "Distribución equilibrada entre las diferentes zonas de alcance."
+                      }
                     </p>
                   </div>
                 </Card>
