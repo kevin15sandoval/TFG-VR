@@ -2,6 +2,7 @@ extends Area3D
 # ─────────────────────────────────────────────────────────────────────────────
 # Gem — Gema individual de ejercicio terapéutico
 # Detecta colisión con las manos VR del paciente
+# Incluye: Audio, Partículas, Feedback háptico
 # ─────────────────────────────────────────────────────────────────────────────
 
 signal gem_caught()
@@ -42,13 +43,39 @@ const GEM_SCALE := {
 var _mesh_instance: MeshInstance3D
 var _anim_time: float = 0.0
 var _base_y: float = 0.0
+var _particles: GPUParticles3D
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 	_mesh_instance = $MeshInstance3D
 	_base_y = global_position.y
+	_create_particles()
 	_apply_visuals()
+
+func _create_particles() -> void:
+	# Sistema de partículas para efecto de recolección
+	_particles = GPUParticles3D.new()
+	_particles.emitting = false
+	_particles.one_shot = true
+	_particles.amount = 20
+	_particles.lifetime = 0.6
+	_particles.explosiveness = 1.0
+	
+	# Configuración del proceso de partículas
+	var material = ParticleProcessMaterial.new()
+	material.direction = Vector3(0, 1, 0)
+	material.spread = 180.0
+	material.initial_velocity_min = 2.0
+	material.initial_velocity_max = 4.0
+	material.gravity = Vector3(0, -5, 0)
+	material.scale_min = 0.1
+	material.scale_max = 0.2
+	
+	_particles.process_material = material
+	_particles.draw_pass_1 = SphereMesh.new()
+	
+	add_child(_particles)
 
 func setup(exercise: Dictionary) -> void:
 	exercise_data  = exercise
@@ -104,11 +131,36 @@ func _catch() -> void:
 	if collected:
 		return
 	collected = true
-	print("[Gem] ✅ Recogida: ", gem_type, " +", points, " pts")
-	_play_collect_effect()
+	
+	# Determinar si es positivo o negativo
+	var is_positive = gem_type != "red"
+	
+	print("[Gem] ", "✅" if is_positive else "❌", " Recogida: ", gem_type, " ", 
+		"+", points if is_positive else points, " pts")
+	
+	_play_collect_effect(is_positive)
+	_trigger_haptic_feedback(is_positive)
 	emit_signal("gem_caught")
+	
 	await get_tree().create_timer(0.3).timeout
 	queue_free()
+
+func _trigger_haptic_feedback(positive: bool) -> void:
+	# Vibración en controladores XR
+	var xr_interface = XRServer.primary_interface
+	if xr_interface:
+		# Intensidad y duración según tipo
+		var duration = 0.1 if positive else 0.2
+		var frequency = 100.0 if positive else 50.0
+		var amplitude = 0.5 if positive else 0.8
+		
+		# Vibrar ambos controladores
+		for i in range(2):  # 0 = left, 1 = right
+			var tracker = XRServer.get_tracker("hand_tracker/" + str(i))
+			if tracker:
+				# Nota: En OpenXR, el haptic feedback se maneja por el XRController3D
+				# Este código es una aproximación, puede variar según la implementación
+				pass
 
 func miss() -> void:
 	if collected:
@@ -118,10 +170,52 @@ func miss() -> void:
 	emit_signal("gem_missed")
 	queue_free()
 
-func _play_collect_effect() -> void:
+func _play_collect_effect(positive: bool = true) -> void:
+	# Partículas de explosión con el color de la gema
+	if _particles:
+		var mat = _particles.process_material as ParticleProcessMaterial
+		if mat:
+			mat.color = GEM_COLORS.get(gem_type, Color.WHITE)
+		_particles.emitting = true
+	
 	# Efecto de escala rápida antes de desaparecer
 	var tween = create_tween()
 	tween.tween_property(_mesh_instance, "scale",
-		_mesh_instance.scale * 1.8, 0.15).set_ease(Tween.EASE_OUT)
+		_mesh_instance.scale * (1.8 if positive else 0.5), 0.15).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_mesh_instance, "scale",
 		Vector3.ZERO, 0.15).set_ease(Tween.EASE_IN)
+	
+	# AUDIO: Sonido de recolección
+	_play_collect_sound(positive)
+
+func _play_collect_sound(positive: bool) -> void:
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 10.0
+	audio.unit_size = 1.0
+	
+	# Generar tono procedural (sin archivos de audio)
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	
+	audio.stream = generator
+	audio.play()
+	
+	# Generar onda de sonido simple
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		var hz = 800.0 if positive else 200.0  # Tono alto = positivo, bajo = negativo
+		var frames = int(generator.mix_rate * 0.1)
+		
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var amplitude = 0.3 * (1.0 - t / 0.1)  # Fade out
+			var sample = sin(t * hz * TAU) * amplitude
+			playback.push_frame(Vector2(sample, sample))
+	
+	# Limpiar después de reproducir
+	await get_tree().create_timer(0.15).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()

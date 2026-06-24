@@ -2,6 +2,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 # VRStart — Sistema de auto-arranque con sala de espera
 # El juego espera en modo polling hasta que el fisioterapeuta inicie una sesión
+# Incluye HUD con score, timer y feedback visual
 # ─────────────────────────────────────────────────────────────────────────────
 
 var firebase_manager: Node = null
@@ -11,11 +12,21 @@ var waiting_mode := true  # Modo sala de espera activo
 @onready var label_status: Label3D = null
 @onready var label_info: Label3D = null
 
+# HUD Labels para juego
+var hud_score: Label3D = null
+var hud_timer: Label3D = null
+var hud_instruction: Label3D = null
+var hud_combo: Label3D = null
+
+var _combo_count: int = 0
+var _last_gem_time: float = 0.0
+
 func _ready() -> void:
 	print("=== NeuroVR Rehab — Sistema de Auto-Arranque ===")
 	await get_tree().process_frame
 	_init_openxr()
 	_create_waiting_ui()
+	_create_game_hud()
 
 	# Conectar señales del GameManager
 	GameManager.session_started.connect(_on_session_started)
@@ -64,13 +75,60 @@ func _create_waiting_ui() -> void:
 	label_status.position = Vector3(0, 2, -3)
 	label_status.font_size = 64
 	label_status.modulate = Color(0.2, 0.8, 1.0)  # Azul claro
+	label_status.outline_size = 8
+	label_status.outline_modulate = Color.BLACK
 	add_child(label_status)
 	
 	label_info = Label3D.new()
 	label_info.position = Vector3(0, 1.5, -3)
 	label_info.font_size = 32
 	label_info.modulate = Color(0.8, 0.8, 0.8)
+	label_info.outline_size = 4
+	label_info.outline_modulate = Color.BLACK
 	add_child(label_info)
+
+# ─── HUD DEL JUEGO ────────────────────────────────────────────────────────────
+
+func _create_game_hud() -> void:
+	# Score (arriba izquierda)
+	hud_score = Label3D.new()
+	hud_score.position = Vector3(-1.5, 2.5, -2.5)
+	hud_score.font_size = 48
+	hud_score.modulate = Color(1.0, 0.9, 0.0)  # Dorado
+	hud_score.outline_size = 6
+	hud_score.outline_modulate = Color.BLACK
+	hud_score.visible = false
+	add_child(hud_score)
+	
+	# Timer (arriba derecha)
+	hud_timer = Label3D.new()
+	hud_timer.position = Vector3(1.5, 2.5, -2.5)
+	hud_timer.font_size = 48
+	hud_timer.modulate = Color(0.2, 1.0, 0.4)  # Verde
+	hud_timer.outline_size = 6
+	hud_timer.outline_modulate = Color.BLACK
+	hud_timer.visible = false
+	add_child(hud_timer)
+	
+	# Instrucción actual (abajo centro)
+	hud_instruction = Label3D.new()
+	hud_instruction.position = Vector3(0, 0.3, -2.0)
+	hud_instruction.font_size = 28
+	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
+	hud_instruction.outline_size = 4
+	hud_instruction.outline_modulate = Color.BLACK
+	hud_instruction.visible = false
+	add_child(hud_instruction)
+	
+	# Combo multiplier (centro)
+	hud_combo = Label3D.new()
+	hud_combo.position = Vector3(0, 1.8, -2.5)
+	hud_combo.font_size = 56
+	hud_combo.modulate = Color(1.0, 0.4, 0.0)  # Naranja
+	hud_combo.outline_size = 8
+	hud_combo.outline_modulate = Color.BLACK
+	hud_combo.visible = false
+	add_child(hud_combo)
 
 func _show_waiting_message() -> void:
 	if label_status:
@@ -79,12 +137,31 @@ func _show_waiting_message() -> void:
 	if label_info:
 		label_info.text = "El fisioterapeuta iniciará tu sesión en breve..."
 		label_info.visible = true
+	_hide_game_hud()
 
 func _hide_waiting_ui() -> void:
 	if label_status:
 		label_status.visible = false
 	if label_info:
 		label_info.visible = false
+
+func _show_game_hud() -> void:
+	if hud_score:
+		hud_score.visible = true
+	if hud_timer:
+		hud_timer.visible = true
+	if hud_instruction:
+		hud_instruction.visible = true
+
+func _hide_game_hud() -> void:
+	if hud_score:
+		hud_score.visible = false
+	if hud_timer:
+		hud_timer.visible = false
+	if hud_instruction:
+		hud_instruction.visible = false
+	if hud_combo:
+		hud_combo.visible = false
 
 # ─── DETECCIÓN AUTOMÁTICA DE NUEVA SESIÓN ─────────────────────────────────────
 
@@ -127,6 +204,9 @@ func _on_config_error(_msg: String) -> void:
 
 func _on_session_started() -> void:
 	print("[VR] ▶ Sesión iniciada | ", GameManager.difficulty, " | ", GameManager.therapy_side)
+	_combo_count = 0
+	_last_gem_time = 0.0
+	
 	if label_status:
 		label_status.text = "¡SESIÓN ACTIVA!"
 		label_status.modulate = Color(0.2, 1.0, 0.2)  # Verde
@@ -134,20 +214,64 @@ func _on_session_started() -> void:
 		label_status.visible = false
 	if label_info:
 		label_info.visible = false
+	
+	_show_game_hud()
 
 func _on_gem_collected(gem_type: String, points: int, total: int) -> void:
 	print("[VR] Gema: ", gem_type, " +", points, " → ", total, " pts")
+	
+	# Actualizar score HUD
+	if hud_score:
+		hud_score.text = "⭐ " + str(total)
+		# Animación de pulso
+		var tween = create_tween()
+		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
+		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
+	
+	# Sistema de combos
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - _last_gem_time < 2.0 and gem_type != "red":  # Menos de 2s entre gemas
+		_combo_count += 1
+		if _combo_count >= 3:
+			_show_combo()
+	else:
+		_combo_count = 1
+	
+	_last_gem_time = current_time
+
+func _show_combo() -> void:
+	if hud_combo:
+		hud_combo.text = "x" + str(_combo_count) + " COMBO!"
+		hud_combo.visible = true
+		hud_combo.modulate = Color(1.0, 0.4, 0.0)
+		
+		# Animación de aparición y desaparición
+		var tween = create_tween()
+		tween.tween_property(hud_combo, "scale", Vector3.ONE * 1.5, 0.2).from(Vector3.ZERO)
+		tween.tween_property(hud_combo, "modulate:a", 0.0, 0.5).set_delay(1.0)
+		tween.tween_callback(func(): hud_combo.visible = false)
 
 func _on_timer_updated(remaining: float) -> void:
 	var m = int(remaining) / 60
 	var s = int(remaining) % 60
-	# Actualizar UI si existe
-	if has_node("UI/LabelTimer"):
-		$UI/LabelTimer.text = "%02d:%02d" % [m, s]
+	
+	# Actualizar HUD timer
+	if hud_timer:
+		hud_timer.text = "⏱ %02d:%02d" % [m, s]
+		
+		# Cambiar color cuando queda poco tiempo
+		if remaining < 30:
+			hud_timer.modulate = Color(1.0, 0.2, 0.2)  # Rojo
+		elif remaining < 60:
+			hud_timer.modulate = Color(1.0, 0.8, 0.0)  # Amarillo
+		else:
+			hud_timer.modulate = Color(0.2, 1.0, 0.4)  # Verde
 
 func _on_session_finished(results: Dictionary) -> void:
 	print("[VR] 🏁 Sesión terminada — Puntos: ", results.get("score", 0))
 	firebase_manager.save_results(results)
+	
+	_hide_game_hud()
 	
 	# Mostrar mensaje de finalización
 	if label_status:
@@ -156,7 +280,7 @@ func _on_session_finished(results: Dictionary) -> void:
 		label_status.modulate = Color(0.2, 1.0, 0.4)
 	if label_info:
 		label_info.visible = true
-		label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts"
+		label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Precisión: " + str(results.get("accuracy", 0)) + "%"
 	
 	# Volver a sala de espera después de 5 segundos
 	await get_tree().create_timer(5.0).timeout
