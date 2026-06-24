@@ -214,25 +214,43 @@ const GAME_SPECIFICATIONS: Record<string, any> = {
       advanced: "Precisión >85%, Tiempo <7s/mov. Introducir distractores y objetivos más pequeños.",
     },
     clinicalNotes: `
-**Dosificación recomendada:**
-- Frecuencia: 3-5 sesiones/semana
-- Duración: 5-10 minutos por sesión
-- Progresión: Aumentar dificultad cada 2-3 sesiones si se mantiene precisión >80%
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Dosificación recomendada:</div>
+    <ul class="notes-list">
+      <li>Frecuencia: 3-5 sesiones/semana</li>
+      <li>Duración: 5-10 minutos por sesión</li>
+      <li>Progresión: Aumentar dificultad cada 2-3 sesiones si se mantiene precisión >80%</li>
+    </ul>
+  </div>
 
-**Indicadores de fatiga:**
-- Aumento progresivo del tiempo de respuesta (>20% respecto al inicio)
-- Disminución de precisión (>15% respecto a sesiones previas)
-- Aparición de compensaciones (elevación escapular excesiva, inclinación de tronco)
+  <div class="notes-section">
+    <div class="section-title">Indicadores de fatiga:</div>
+    <ul class="notes-list">
+      <li>Aumento progresivo del tiempo de respuesta (>20% respecto al inicio)</li>
+      <li>Disminución de precisión (>15% respecto a sesiones previas)</li>
+      <li>Aparición de compensaciones (elevación escapular excesiva, inclinación de tronco)</li>
+    </ul>
+  </div>
 
-**Ajustes según patología:**
-- Ictus: Énfasis en lado afecto, progresión lenta, pausas frecuentes
-- Hemiparesia: Priorizar control sobre velocidad, integrar lado sano gradualmente
-- Lesión de plexo braquial: Evitar rangos extremos inicialmente, enfatizar zona media
+  <div class="notes-section">
+    <div class="section-title">Ajustes según patología:</div>
+    <ul class="notes-list">
+      <li><strong>Ictus:</strong> Énfasis en lado afecto, progresión lenta, pausas frecuentes</li>
+      <li><strong>Hemiparesia:</strong> Priorizar control sobre velocidad, integrar lado sano gradualmente</li>
+      <li><strong>Lesión de plexo braquial:</strong> Evitar rangos extremos inicialmente, enfatizar zona media</li>
+    </ul>
+  </div>
 
-**Integración con otras terapias:**
-- Complementa bien con: Estiramientos pasivos, movilizaciones glenohu merales, fortalecimiento resistido
-- Realizar después de: Calentamiento, movilizaciones articulares
-- Realizar antes de: Ejercicios de fuerza máxima, actividades de alta demanda
+  <div class="notes-section">
+    <div class="section-title">Integración con otras terapias:</div>
+    <ul class="notes-list">
+      <li><strong>Complementa bien con:</strong> Estiramientos pasivos, movilizaciones glenohumerales, fortalecimiento resistido</li>
+      <li><strong>Realizar después de:</strong> Calentamiento, movilizaciones articulares</li>
+      <li><strong>Realizar antes de:</strong> Ejercicios de fuerza máxima, actividades de alta demanda</li>
+    </ul>
+  </div>
+</div>
     `.trim(),
   },
 };
@@ -1097,44 +1115,44 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
     });
     const dominant = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
     
-    let interpretation = `**Volumen de trabajo:** Se realizaron ${totalMovements} movimientos en total durante ${session.duration} minutos. `;
+    let interpretation = `<strong>Volumen de trabajo:</strong> Se realizaron ${totalMovements} movimientos en total durante ${session.duration} minutos. `;
     interpretation += `El tipo de movimiento predominante fue ${dominant[0]} con ${dominant[1]} repeticiones (${Math.round((dominant[1]/totalMovements)*100)}% del total). `;
     
     // Análisis de balance
     if (movementBalance) {
       if (movementBalance.overall >= 80) {
-        interpretation += `**Balance muscular:** Excelente equilibrio entre movimientos agonistas y antagonistas (${movementBalance.overall}%). `;
+        interpretation += `<strong>Balance muscular:</strong> Excelente equilibrio entre movimientos agonistas y antagonistas (${movementBalance.overall}%). `;
       } else if (movementBalance.overall >= 60) {
-        interpretation += `**Balance muscular:** Balance aceptable (${movementBalance.overall}%), pero se recomienda trabajar más los movimientos menos frecuentes. `;
+        interpretation += `<strong>Balance muscular:</strong> Balance aceptable (${movementBalance.overall}%), pero se recomienda trabajar más los movimientos menos frecuentes. `;
       } else {
-        interpretation += `**Balance muscular:** Desbalance significativo detectado (${movementBalance.overall}%). Se recomienda enfatizar los movimientos opuestos en próximas sesiones. `;
+        interpretation += `<strong>Balance muscular:</strong> Desbalance significativo detectado (${movementBalance.overall}%). Se recomienda enfatizar los movimientos opuestos en próximas sesiones. `;
       }
     }
     
     // Análisis de tiempo de respuesta
     if (session.avgTimePerGem) {
       if (session.avgTimePerGem < 5) {
-        interpretation += `**Velocidad:** Respuesta motora excelente (${session.avgTimePerGem}s/mov). Indica buena capacidad de reacción y control motor. `;
+        interpretation += `<strong>Velocidad:</strong> Respuesta motora excelente (${session.avgTimePerGem}s/mov). Indica buena capacidad de reacción y control motor. `;
       } else if (session.avgTimePerGem < 8) {
-        interpretation += `**Velocidad:** Tiempo de respuesta adecuado (${session.avgTimePerGem}s/mov) dentro del rango esperado para este nivel. `;
+        interpretation += `<strong>Velocidad:</strong> Tiempo de respuesta adecuado (${session.avgTimePerGem}s/mov) dentro del rango esperado para este nivel. `;
       } else if (session.avgTimePerGem < 12) {
-        interpretation += `**Velocidad:** Tiempos elevados (${session.avgTimePerGem}s/mov) sugieren posible fatiga o dificultad. Considerar pausas más frecuentes. `;
+        interpretation += `<strong>Velocidad:</strong> Tiempos elevados (${session.avgTimePerGem}s/mov) sugieren posible fatiga o dificultad. Considerar pausas más frecuentes. `;
       } else {
-        interpretation += `**Velocidad:** Tiempos significativamente elevados (${session.avgTimePerGem}s/mov). Requiere evaluación y posible ajuste de dificultad. `;
+        interpretation += `<strong>Velocidad:</strong> Tiempos significativamente elevados (${session.avgTimePerGem}s/mov). Requiere evaluación y posible ajuste de dificultad. `;
       }
     }
     
     // Análisis de precisión
     if (session.accuracy >= 85) {
-      interpretation += `**Precisión:** Excelente control motor (${session.accuracy}%). El paciente está listo para aumentar la dificultad. `;
+      interpretation += `<strong>Precisión:</strong> Excelente control motor (${session.accuracy}%). El paciente está listo para aumentar la dificultad. `;
     } else if (session.accuracy >= 70) {
-      interpretation += `**Precisión:** Control motor adecuado (${session.accuracy}%). Mantener este nivel antes de progresar. `;
+      interpretation += `<strong>Precisión:</strong> Control motor adecuado (${session.accuracy}%). Mantener este nivel antes de progresar. `;
     } else {
-      interpretation += `**Precisión:** Precisión por debajo del objetivo (${session.accuracy}%). Considerar reducir velocidad o dificultad temporalmente. `;
+      interpretation += `<strong>Precisión:</strong> Precisión por debajo del objetivo (${session.accuracy}%). Considerar reducir velocidad o dificultad temporalmente. `;
     }
     
     // Recomendaciones
-    interpretation += "\n\n**Recomendaciones:** ";
+    interpretation += "<br><br><strong>Recomendaciones:</strong> ";
     const recommendations = [];
     
     if (session.avgTimePerGem && session.avgTimePerGem > 10) {
@@ -1324,7 +1342,10 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
                 <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
                   <Award size={16} className="text-amber-600" /> Interpretación Clínica Automática
                 </h3>
-                <div className="text-sm text-amber-700 leading-relaxed whitespace-pre-line">{getClinicalInterpretation()}</div>
+                <div 
+                  className="text-sm text-amber-700 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: getClinicalInterpretation() }}
+                />
               </Card>
 
               {/* Gráfico de tipos de movimiento */}
@@ -1631,9 +1652,51 @@ function GameSpecificationScreen({ gameId, onBack }: { gameId: string; onBack: (
             <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
               <Pencil size={14} className="text-blue-500" /> Notas Clínicas y Recomendaciones
             </h3>
-            <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-line space-y-3">
-              {spec.clinicalNotes}
-            </div>
+            <div 
+              className="clinical-notes text-sm text-slate-600 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: spec.clinicalNotes }}
+              style={{
+                '--section-title-color': '#1e293b',
+                '--section-title-weight': '600',
+                '--list-item-spacing': '0.5rem',
+              } as any}
+            />
+            <style jsx>{`
+              .clinical-notes :global(.notes-section) {
+                margin-bottom: 1.5rem;
+              }
+              .clinical-notes :global(.notes-section:last-child) {
+                margin-bottom: 0;
+              }
+              .clinical-notes :global(.section-title) {
+                color: var(--section-title-color);
+                font-weight: var(--section-title-weight);
+                margin-bottom: 0.75rem;
+                font-size: 0.875rem;
+              }
+              .clinical-notes :global(.notes-list) {
+                list-style: none;
+                padding-left: 0;
+                margin: 0;
+              }
+              .clinical-notes :global(.notes-list li) {
+                padding-left: 1.25rem;
+                margin-bottom: var(--list-item-spacing);
+                position: relative;
+                line-height: 1.6;
+              }
+              .clinical-notes :global(.notes-list li:before) {
+                content: "•";
+                position: absolute;
+                left: 0;
+                color: #3b82f6;
+                font-weight: bold;
+              }
+              .clinical-notes :global(strong) {
+                color: #1e293b;
+                font-weight: 600;
+              }
+            `}</style>
           </Card>
         </div>
       </div>
