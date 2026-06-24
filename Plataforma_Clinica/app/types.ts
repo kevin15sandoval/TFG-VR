@@ -2,8 +2,30 @@
 
 export type Screen =
   | "dashboard" | "patients" | "patient-profile" | "session-detail"
-  | "new-session" | "minigames" | "results" | "history"
+  | "new-session" | "minigames" | "game-spec" | "results" | "history"
   | "settings" | "connect-device";
+
+export interface GameSpecification {
+  id: string;
+  name: string;
+  description: string;
+  targetMuscles: string[];
+  primaryMovements: string[];
+  secondaryMovements: string[];
+  workZones: {
+    zone: string;
+    percentage: number;
+    description: string;
+  }[];
+  therapeuticBenefits: string[];
+  contraindications: string[];
+  progressionCriteria: {
+    beginner: string;
+    intermediate: string;
+    advanced: string;
+  };
+  clinicalNotes: string;
+}
 
 export interface Patient {
   id: string;          // Firestore doc ID (string)

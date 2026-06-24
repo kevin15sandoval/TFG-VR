@@ -159,6 +159,84 @@ const MINIGAMES = [
   { id: "avoid", name: "Evitar obstáculos", description: "Control inhibitorio y precisión del movimiento", Icon: Shield, difficulty: "Difícil", diffColor: "red", area: "Control inhibitorio · Precisión", bg: "bg-rose-50", iconBg: "bg-rose-100", iconColor: "text-rose-600", border: "border-rose-200" },
 ];
 
+// Especificaciones clínicas de los juegos
+const GAME_SPECIFICATIONS: Record<string, any> = {
+  gems: {
+    id: "gems",
+    name: "Recolectar gemas",
+    description: "Ejercicio de alcance funcional multidireccional con componente de coordinación visomotora",
+    targetMuscles: [
+      { name: "Deltoides anterior", activation: 90, description: "Flexión y elevación del brazo" },
+      { name: "Deltoides medio", activation: 85, description: "Abducción del hombro" },
+      { name: "Deltoides posterior", activation: 70, description: "Extensión y estabilización" },
+      { name: "Trapecio superior", activation: 75, description: "Elevación escapular" },
+      { name: "Serrato anterior", activation: 80, description: "Rotación escapular ascendente" },
+      { name: "Tríceps braquial", activation: 65, description: "Extensión de codo en alcance" },
+      { name: "Bíceps braquial", activation: 60, description: "Control excéntrico" },
+      { name: "Músculos del manguito rotador", activation: 75, description: "Estabilización glenohumeral" },
+    ],
+    primaryMovements: [
+      "Flexión de hombro (0-180°)",
+      "Abducción de hombro (0-180°)",
+      "Extensión de codo",
+      "Alcance funcional multidireccional",
+    ],
+    secondaryMovements: [
+      "Rotación externa/interna de hombro",
+      "Aducción horizontal",
+      "Prono-supinación de antebrazo",
+      "Estabilización de tronco",
+    ],
+    workZones: [
+      { zone: "Alto", percentage: 35, description: "Flexión de hombro >120°. Trabaja rango final de movimiento y fuerza anti-gravitatoria." },
+      { zone: "Medio", percentage: 40, description: "Flexión 60-120°. Rango funcional principal para AVDs. Mayor volumen de trabajo." },
+      { zone: "Lateral", percentage: 15, description: "Abducción >60°. Enfatiza deltoides medio y estabilizadores escapulares." },
+      { zone: "Bajo", percentage: 10, description: "Alcance por debajo de hombro. Trabaja extensión y control excéntrico." },
+    ],
+    therapeuticBenefits: [
+      "Mejora del rango de movimiento activo del hombro",
+      "Fortalecimiento de musculatura estabilizadora escapular",
+      "Desarrollo de coordinación ojo-mano",
+      "Entrenamiento de alcance funcional para AVDs",
+      "Mejora de la propiocepción y control motor",
+      "Incremento de resistencia muscular en miembro superior",
+    ],
+    contraindications: [
+      "Luxación glenohumeral reciente (<6 semanas)",
+      "Fractura no consolidada de miembro superior",
+      "Tendinopatía aguda del manguito rotador",
+      "Síndrome de pinzamiento subacromial severo sin tratamiento",
+      "Dolor que aumenta con el movimiento (>7/10)",
+    ],
+    progressionCriteria: {
+      beginner: "Precisión <70%, Tiempo >12s/mov. Iniciar con velocidad lenta y menor cantidad de objetivos.",
+      intermediate: "Precisión 70-85%, Tiempo 7-12s/mov. Aumentar velocidad y cantidad de objetivos.",
+      advanced: "Precisión >85%, Tiempo <7s/mov. Introducir distractores y objetivos más pequeños.",
+    },
+    clinicalNotes: `
+**Dosificación recomendada:**
+- Frecuencia: 3-5 sesiones/semana
+- Duración: 5-10 minutos por sesión
+- Progresión: Aumentar dificultad cada 2-3 sesiones si se mantiene precisión >80%
+
+**Indicadores de fatiga:**
+- Aumento progresivo del tiempo de respuesta (>20% respecto al inicio)
+- Disminución de precisión (>15% respecto a sesiones previas)
+- Aparición de compensaciones (elevación escapular excesiva, inclinación de tronco)
+
+**Ajustes según patología:**
+- Ictus: Énfasis en lado afecto, progresión lenta, pausas frecuentes
+- Hemiparesia: Priorizar control sobre velocidad, integrar lado sano gradualmente
+- Lesión de plexo braquial: Evitar rangos extremos inicialmente, enfatizar zona media
+
+**Integración con otras terapias:**
+- Complementa bien con: Estiramientos pasivos, movilizaciones glenohu merales, fortalecimiento resistido
+- Realizar después de: Calentamiento, movilizaciones articulares
+- Realizar antes de: Ejercicios de fuerza máxima, actividades de alta demanda
+    `.trim(),
+  },
+};
+
 const AVATAR_COLORS = [
   "bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700",
   "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700",
@@ -1379,6 +1457,190 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
   );
 }
 
+// ─── SCREEN: GAME SPECIFICATION ───────────────────────────────────────────────
+
+function GameSpecificationScreen({ gameId, onBack }: { gameId: string; onBack: () => void }) {
+  const spec = GAME_SPECIFICATIONS[gameId];
+  const game = MINIGAMES.find(g => g.id === gameId);
+  
+  if (!spec || !game) return null;
+
+  return (
+    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-7">
+        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
+          <ArrowLeft size={16} />
+        </button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-slate-800">Especificaciones Clínicas</h1>
+          <p className="text-slate-500 text-sm">{spec.name} · {spec.description}</p>
+        </div>
+        <div className={cx("flex items-center gap-2 px-4 py-2 rounded-xl border-2", game.bg, game.border)}>
+          <game.Icon size={18} className={game.iconColor} />
+          <span className="text-sm font-bold text-slate-700">{game.name}</span>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Columna izquierda */}
+        <div className="space-y-6">
+          {/* Músculos trabajados */}
+          <Card className="p-5">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <Activity size={14} className="text-rose-500" /> Músculos Trabajados
+            </h3>
+            <div className="space-y-3">
+              {spec.targetMuscles.map((muscle: any, idx: number) => (
+                <div key={idx} className="bg-slate-50 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-slate-700">{muscle.name}</span>
+                    <span className={cx("text-xs font-bold px-2 py-0.5 rounded-full", 
+                      muscle.activation >= 80 ? "bg-emerald-100 text-emerald-700" :
+                      muscle.activation >= 60 ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                    )}>
+                      {muscle.activation}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mb-1.5">
+                    <div 
+                      className={cx("h-full rounded-full",
+                        muscle.activation >= 80 ? "bg-emerald-500" :
+                        muscle.activation >= 60 ? "bg-amber-500" : "bg-slate-400"
+                      )} 
+                      style={{ width: `${muscle.activation}%` }} 
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-tight">{muscle.description}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Distribución de zonas */}
+          <Card className="p-5">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <Layers size={14} className="text-cyan-500" /> Distribución Típica de Zonas
+            </h3>
+            <div className="space-y-3">
+              {spec.workZones.map((zone: any, idx: number) => {
+                const colors: Record<string, string> = {
+                  "Alto": "text-sky-600",
+                  "Medio": "text-emerald-600",
+                  "Lateral": "text-purple-600",
+                  "Bajo": "text-amber-600",
+                };
+                return (
+                  <div key={idx} className="bg-slate-50 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-700">{zone.zone}</span>
+                      <span className={cx("text-lg font-black", colors[zone.zone])}>{zone.percentage}%</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">{zone.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        {/* Columna central y derecha */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Movimientos */}
+          <Card className="p-6">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <Move size={14} className="text-blue-500" /> Movimientos Trabajados
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-xs font-semibold text-blue-600 mb-2 uppercase tracking-wide">Movimientos Primarios</h4>
+                <ul className="space-y-1.5">
+                  {spec.primaryMovements.map((mov: string, idx: number) => (
+                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                      <CheckCircle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span>{mov}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-violet-600 mb-2 uppercase tracking-wide">Movimientos Secundarios</h4>
+                <ul className="space-y-1.5">
+                  {spec.secondaryMovements.map((mov: string, idx: number) => (
+                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                      <ChevronRight size={14} className="text-violet-500 mt-0.5 flex-shrink-0" />
+                      <span>{mov}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Card>
+
+          {/* Beneficios terapéuticos */}
+          <Card className="p-6 bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100">
+            <h3 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+              <Award size={14} className="text-emerald-600" /> Beneficios Terapéuticos
+            </h3>
+            <ul className="grid md:grid-cols-2 gap-2">
+              {spec.therapeuticBenefits.map((benefit: string, idx: number) => (
+                <li key={idx} className="text-sm text-emerald-700 flex items-start gap-2">
+                  <CheckCircle size={14} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{benefit}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          {/* Criterios de progresión */}
+          <Card className="p-6">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <TrendingUp size={14} className="text-violet-500" /> Criterios de Progresión
+            </h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              {[
+                { level: "Principiante", criteria: spec.progressionCriteria.beginner, color: "bg-green-50 border-green-200 text-green-700" },
+                { level: "Intermedio", criteria: spec.progressionCriteria.intermediate, color: "bg-amber-50 border-amber-200 text-amber-700" },
+                { level: "Avanzado", criteria: spec.progressionCriteria.advanced, color: "bg-rose-50 border-rose-200 text-rose-700" },
+              ].map(({ level, criteria, color }, idx) => (
+                <div key={idx} className={cx("rounded-xl p-4 border-2", color)}>
+                  <h4 className="text-xs font-bold mb-2 uppercase tracking-wide">{level}</h4>
+                  <p className="text-xs leading-relaxed">{criteria}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Contraindicaciones */}
+          <Card className="p-6 bg-rose-50 border-rose-100">
+            <h3 className="text-sm font-bold text-rose-800 mb-3 flex items-center gap-2">
+              <Shield size={14} className="text-rose-600" /> Contraindicaciones y Precauciones
+            </h3>
+            <ul className="space-y-2">
+              {spec.contraindications.map((contra: string, idx: number) => (
+                <li key={idx} className="text-sm text-rose-700 flex items-start gap-2">
+                  <X size={14} className="text-rose-600 mt-0.5 flex-shrink-0" />
+                  <span>{contra}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          {/* Notas clínicas */}
+          <Card className="p-6">
+            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <Pencil size={14} className="text-blue-500" /> Notas Clínicas y Recomendaciones
+            </h3>
+            <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-line space-y-3">
+              {spec.clinicalNotes}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── SCREEN: PATIENT PROFILE ──────────────────────────────────────────────────
 
 function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdit, onDelete, onUpdateSessionNotes, onViewSessionDetail }: {
@@ -1733,7 +1995,10 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
 
 // ─── SCREEN: MINIGAMES ────────────────────────────────────────────────────────
 
-function MinigamesScreen({ onStartSession }: { onStartSession: (gameId: string) => void }) {
+function MinigamesScreen({ onStartSession, onViewSpec }: { 
+  onStartSession: (gameId: string) => void;
+  onViewSpec: (gameId: string) => void;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
 
   return (
@@ -1748,27 +2013,42 @@ function MinigamesScreen({ onStartSession }: { onStartSession: (gameId: string) 
         </button>
       </div>
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {MINIGAMES.map(g => (
-          <Card key={g.id} className={cx("overflow-hidden hover:shadow-md transition-shadow duration-200", selected === g.id ? "ring-2 ring-blue-500" : "")}>
-            <div className={cx("h-2 w-full", g.iconBg)} />
-            <div className="p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div className={cx("w-12 h-12 rounded-xl flex items-center justify-center", g.iconBg)}><g.Icon size={24} className={g.iconColor} /></div>
-                <Badge color={g.diffColor as "amber" | "red" | "green"}>Dificultad {g.difficulty}</Badge>
+        {MINIGAMES.map(g => {
+          const hasSpec = GAME_SPECIFICATIONS[g.id];
+          return (
+            <Card key={g.id} className={cx("overflow-hidden hover:shadow-md transition-shadow duration-200", selected === g.id ? "ring-2 ring-blue-500" : "")}>
+              <div className={cx("h-2 w-full", g.iconBg)} />
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className={cx("w-12 h-12 rounded-xl flex items-center justify-center", g.iconBg)}><g.Icon size={24} className={g.iconColor} /></div>
+                  <Badge color={g.diffColor as "amber" | "red" | "green"}>Dificultad {g.difficulty}</Badge>
+                </div>
+                <h3 className="font-bold text-slate-800 mb-1.5">{g.name}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed mb-4">{g.description}</p>
+                <div className="bg-slate-50 rounded-lg px-3 py-2 mb-4">
+                  <p className="text-xs text-slate-400 font-medium mb-0.5">Área terapéutica</p>
+                  <p className="text-xs font-semibold text-slate-700">{g.area}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setSelected(g.id === selected ? null : g.id)}
+                    className={cx("flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer", 
+                      selected === g.id ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600")}>
+                    {selected === g.id ? "✓ Seleccionado" : "Seleccionar"}
+                  </button>
+                  {hasSpec && (
+                    <button 
+                      onClick={() => onViewSpec(g.id)}
+                      className="px-3 py-2.5 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer transition-all"
+                      title="Ver especificaciones clínicas"
+                    >
+                      <Eye size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <h3 className="font-bold text-slate-800 mb-1.5">{g.name}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed mb-4">{g.description}</p>
-              <div className="bg-slate-50 rounded-lg px-3 py-2 mb-4">
-                <p className="text-xs text-slate-400 font-medium mb-0.5">Área terapéutica</p>
-                <p className="text-xs font-semibold text-slate-700">{g.area}</p>
-              </div>
-              <button onClick={() => setSelected(g.id === selected ? null : g.id)}
-                className={cx("w-full py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer", selected === g.id ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600")}>
-                {selected === g.id ? "✓ Seleccionado" : "Seleccionar"}
-              </button>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
       {selected && (
         <div className="mt-6 p-5 bg-blue-50 border-2 border-blue-200 rounded-xl flex items-center justify-between">
@@ -2150,6 +2430,7 @@ export default function App({ user }: { user: FirebaseUser }) {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [profilePatient, setProfilePatient] = useState<Patient | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
+  const [selectedGameSpec, setSelectedGameSpec] = useState<string | null>(null);
   const [editFromProfile, setEditFromProfile] = useState(false);
 
   // ── Suscripción en tiempo real a Firestore ────────────────────────────────
@@ -2217,6 +2498,11 @@ export default function App({ user }: { user: FirebaseUser }) {
   function handleViewSessionDetail(session: SessionRecord) {
     setSelectedSession(session);
     setScreen("session-detail");
+  }
+
+  function handleViewGameSpec(gameId: string) {
+    setSelectedGameSpec(gameId);
+    setScreen("game-spec");
   }
 
   function handleStartFromMinigames(gameId: string) {
@@ -2314,7 +2600,7 @@ export default function App({ user }: { user: FirebaseUser }) {
             patients={patients} sessions={sessions} initialPatient={pendingPatient}
             initialGame={pendingGame} onLaunch={handleLaunch} />
         )}
-        {screen === "minigames" && <MinigamesScreen onStartSession={handleStartFromMinigames} />}
+        {screen === "minigames" && <MinigamesScreen onStartSession={handleStartFromMinigames} onViewSpec={handleViewGameSpec} />}
         {screen === "connect-device" && (
           <ConnectDeviceScreen
             config={lastConfig}
@@ -2355,6 +2641,15 @@ export default function App({ user }: { user: FirebaseUser }) {
               navigate("patient-profile");
             }}
             onSaveNotes={handleUpdateSessionNotes}
+          />
+        )}
+        {screen === "game-spec" && selectedGameSpec && (
+          <GameSpecificationScreen
+            gameId={selectedGameSpec}
+            onBack={() => {
+              setSelectedGameSpec(null);
+              navigate("minigames");
+            }}
           />
         )}
         {screen === "settings" && <SettingsScreen user={user} />}
