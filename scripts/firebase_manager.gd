@@ -29,9 +29,6 @@ var _poll_interval := 3.0  # Revisar cada 3 segundos
 var _last_session_id := ""  # Para detectar nuevas sesiones
 var _poll_timer := 0.0
 
-var _http_load: HTTPRequest
-var _http_save: HTTPRequest
-
 func _ready() -> void:
 	_http_load = HTTPRequest.new()
 	add_child(_http_load)

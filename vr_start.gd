@@ -25,7 +25,7 @@ var _countdown_label: Label3D = null
 
 func _ready() -> void:
 	print("=== NeuroVR Rehab — Sistema de Auto-Arranque ===")
-	await get_tree().process_frame
+	await get_tree().process_frame.emit()
 	_init_openxr()
 	_create_waiting_ui()
 	_create_game_hud()
