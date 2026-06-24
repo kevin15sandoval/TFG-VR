@@ -606,19 +606,28 @@ function DashboardScreen({ patients, sessions, onNewSession, onViewHistory, onPa
 
 // ─── SCREEN: PATIENTS (CRUD) ──────────────────────────────────────────────────
 
-function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete, onViewProfile }: {
+function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete, onViewProfile, initialEditTarget, onEditComplete }: {
   patients: Patient[];
   onSelectPatient: (p: Patient) => void;
   onAdd: (p: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) => void;
   onEdit: (id: string, p: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) => void;
   onDelete: (id: string) => void;
   onViewProfile: (p: Patient) => void;
+  initialEditTarget?: Patient | null;
+  onEditComplete?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [editTarget, setEditTarget] = useState<Patient | null>(null);
+  const [editTarget, setEditTarget] = useState<Patient | null>(initialEditTarget || null);
   const [deleteTarget, setDeleteTarget] = useState<Patient | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "activo" | "inactivo">("all");
+
+  // Si viene initialEditTarget, abrir el modal automáticamente
+  useEffect(() => {
+    if (initialEditTarget) {
+      setEditTarget(initialEditTarget);
+    }
+  }, [initialEditTarget]);
 
   const usedColors = patients.map(p => p.colorIdx);
 
@@ -710,8 +719,8 @@ function PatientsScreen({ patients, onSelectPatient, onAdd, onEdit, onDelete, on
         </Modal>
       )}
       {editTarget && (
-        <Modal title="Editar paciente" onClose={() => setEditTarget(null)}>
-          <PatientForm initial={editTarget} usedColorIdxs={usedColors} onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); }} onClose={() => setEditTarget(null)} />
+        <Modal title="Editar paciente" onClose={() => { setEditTarget(null); onEditComplete?.(); }}>
+          <PatientForm initial={editTarget} usedColorIdxs={usedColors} onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); onEditComplete?.(); }} onClose={() => { setEditTarget(null); onEditComplete?.(); }} />
         </Modal>
       )}
       {deleteTarget && (
@@ -2296,7 +2305,9 @@ export default function App({ user }: { user: FirebaseUser }) {
         {screen === "patients" && (
           <PatientsScreen patients={patients} onSelectPatient={handleSelectPatient}
             onAdd={handleAddPatient} onEdit={handleEditPatient} onDelete={handleDeletePatient}
-            onViewProfile={handleViewProfile} />
+            onViewProfile={handleViewProfile} 
+            initialEditTarget={editFromProfile ? profilePatient : null}
+            onEditComplete={() => { setEditFromProfile(false); setProfilePatient(null); }} />
         )}
         {screen === "new-session" && (
           <NewSessionScreen key={`${pendingPatient?.id ?? "fresh"}-${pendingGame}`}
