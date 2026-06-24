@@ -66,13 +66,18 @@ func stop_polling() -> void:
 
 func _poll_for_new_session() -> void:
 	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
+	print("[Firebase] 🔍 Polling sesión activa: ", url)
 	var err = _http_poll.request(url, [], HTTPClient.METHOD_GET)
 	if err != OK:
-		print("[Firebase] Error en polling: ", err)
+		print("[Firebase] ❌ Error en polling: ", err)
 
 func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) -> void:
+	print("[Firebase] 📡 Poll response - Result: ", result, " Code: ", code)
+	
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
 		# Sin sesión activa, seguir esperando
+		if code != 404:  # Solo loguear si no es "no encontrado"
+			print("[Firebase] ⏳ Sin sesión activa aún (código ", code, ")")
 		return
 
 	var json = JSON.new()

@@ -308,20 +308,23 @@ func _on_config_loaded(config: Dictionary) -> void:
 func _on_config_error(_msg: String) -> void:
 	# En modo sala de espera, no hacer nada, seguir esperando
 	# Solo usar defaults si estamos en modo desarrollo/pruebas
-	if OS.is_debug_build():
-		print("[VR] [DEBUG] Sin config — iniciando con defaults")
-		GameManager.apply_config({
-			"patient_id":    "test",
-			"patient_name":  "Prueba",
-			"session_id":    "offline_" + str(Time.get_ticks_msec()),
-			"duration":      180,
-			"difficulty":    "Media",
-			"therapy_side":  "Izquierdo",
-			"session_type":  "Alcance",
-			"game_id":       "gems",
-		})
-		await get_tree().create_timer(0.5).timeout
-		GameManager.start_session()
+	print("[VR] [AUTO-START] Iniciando sesión de prueba en 3 segundos...")
+	GameManager.apply_config({
+		"patient_id":    "test",
+		"patient_name":  "Prueba Local",
+		"session_id":    "offline_" + str(Time.get_ticks_msec()),
+		"duration":      180,
+		"difficulty":    "Media",
+		"therapy_side":  "Izquierdo",
+		"session_type":  "Alcance",
+		"game_id":       "gems",
+	})
+	
+	# Mostrar countdown y arrancar
+	_hide_waiting_ui()
+	await get_tree().create_timer(1.0).timeout
+	await _show_countdown()
+	GameManager.start_session()
 
 func _on_session_started() -> void:
 	print("[VR] ▶ Sesión iniciada | ", GameManager.difficulty, " | ", GameManager.therapy_side)
