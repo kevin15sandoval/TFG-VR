@@ -76,6 +76,7 @@ func _process(_delta: float) -> void:
 	# Actualizar posición del jugador en el manager
 	if city_manager and _xr_camera:
 		city_manager.update_player_position(_xr_camera.global_position)
+		city_manager.update_head_rotation(_xr_camera.global_transform)
 
 func _init_openxr() -> void:
 	var xr = XRServer.find_interface("OpenXR")
@@ -366,7 +367,19 @@ func _update_asymmetry_display() -> void:
 			hud_asymmetry.modulate = Color(0.2, 1.0, 0.4)
 
 func _on_timer_updated(remaining: float) -> void:
-	if hud_timer:
+	if not hud_timer or not city_manager:
+		return
+	
+	# Mostrar diferente en fase de reconocimiento
+	if city_manager.recognition_phase:
+		var m = int(remaining) / 60
+		var s = int(remaining) % 60
+		hud_timer.text = "🔍 RECONOCIENDO %02d:%02d" % [m, s]
+		hud_timer.modulate = Color(0.2, 0.8, 1.0)  # Azul
+		
+		if hud_instruction:
+			hud_instruction.text = "Observa el entorno. El ejercicio comenzará pronto..."
+	else:
 		var m = int(remaining) / 60
 		var s = int(remaining) % 60
 		hud_timer.text = "⏱ %02d:%02d" % [m, s]
@@ -375,6 +388,8 @@ func _on_timer_updated(remaining: float) -> void:
 			hud_timer.modulate = Color(1.0, 0.2, 0.2)
 		elif remaining < 60:
 			hud_timer.modulate = Color(1.0, 0.8, 0.0)
+		else:
+			hud_timer.modulate = Color(0.2, 1.0, 0.4)
 
 func _on_game_finished(results: Dictionary) -> void:
 	print("[CityVR] 🏁 Juego terminado")

@@ -11,6 +11,9 @@ signal sequence_error(expected: int, touched: int)
 signal timer_updated(remaining: float)
 
 var game_active: bool = false
+var recognition_phase: bool = true
+var recognition_time: float = 15.0  # 15 segundos de reconocimiento
+var recognition_timer: float = 0.0
 var score: int = 0
 var targets_collected: int = 0
 var total_targets: int = 0
@@ -35,6 +38,17 @@ var rotation_180_count: int = 0
 var last_target_angle: float = 0.0
 
 var player_position: Vector3 = Vector3.ZERO
+
+# Métricas biomecánicas profesionales
+var head_rotation_angles: Array[float] = []  # Ángulos de rotación de cabeza
+var max_head_rotation_left: float = 0.0
+var max_head_rotation_right: float = 0.0
+var max_head_elevation: float = 0.0  # Mirar arriba
+var max_head_depression: float = 0.0  # Mirar abajo
+var total_head_displacement: float = 0.0  # Desplazamiento total de cabeza
+var avg_gaze_stability: float = 0.0  # Estabilidad de mirada
+var visual_search_times: Array[float] = []  # Tiempos de búsqueda visual
+var interrupted_gazes: int = 0  # Veces que perdió fijación
 
 # Referencias
 var _targets: Array = []
@@ -61,6 +75,8 @@ func start_game() -> void:
 		return
 	
 	game_active = true
+	recognition_phase = true
+	recognition_timer = 0.0
 	score = 0
 	targets_collected = 0
 	current_sequence_number = 1
@@ -79,6 +95,16 @@ func start_game() -> void:
 	rotation_180_count = 0
 	last_target_angle = 0.0
 	
+	# Limpiar métricas biomecánicas
+	head_rotation_angles.clear()
+	max_head_rotation_left = 0.0
+	max_head_rotation_right = 0.0
+	max_head_elevation = 0.0
+	max_head_depression = 0.0
+	total_head_displacement = 0.0
+	visual_search_times.clear()
+	interrupted_gazes = 0
+	
 	if GameManager:
 		difficulty = GameManager.difficulty
 		game_duration = GameManager.session_duration
@@ -87,23 +113,37 @@ func start_game() -> void:
 	_timer.start()
 	
 	game_started.emit()
-	print("[CityManager] ⏱️ Juego iniciado | Dificultad: ", difficulty, " | Duración: ", game_duration, "s")
+	print("[CityManager] ⏱️ Fase de reconocimiento iniciada (15 segundos)")
+	print("[CityManager] 🎮 Dificultad: ", difficulty, " | Duración total: ", game_duration, "s")
 
 func _on_timer_tick() -> void:
 	if not game_active:
 		return
 	
 	var elapsed = Time.get_ticks_msec() / 1000.0 - start_time
-	var remaining = max(0.0, game_duration - elapsed)
 	
+	# Fase de reconocimiento
+	if recognition_phase:
+		recognition_timer = elapsed
+		var remaining_recognition = max(0.0, recognition_time - elapsed)
+		timer_updated.emit(remaining_recognition)
+		
+		if remaining_recognition <= 0:
+			recognition_phase = false
+			start_time = Time.get_ticks_msec() / 1000.0  # Reset timer para fase de juego
+			print("[CityManager] ✅ Fase de reconocimiento completada. ¡Ahora comienza el ejercicio!")
+		return
+	
+	# Fase de juego normal
+	var remaining = max(0.0, game_duration - elapsed)
 	timer_updated.emit(remaining)
 	
 	if remaining <= 0:
 		end_game()
 
 func collect_target(target_id: int, points: int, target_position: Vector3, sequence_number: int) -> void:
-	if not game_active:
-		return
+	if not game_active or recognition_phase:
+		return  # No se pueden recoger durante reconocimiento
 	
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var reaction_time = current_time - start_time
@@ -195,6 +235,16 @@ func end_game() -> void:
 	
 	var completion = 100.0 * float(targets_collected) / float(max(1, total_targets))
 	
+	# Calcular métricas biomecánicas profesionales
+	var cervical_rom_left = abs(max_head_rotation_left)  # Rango de movimiento cervical
+	var cervical_rom_right = abs(max_head_rotation_right)
+	var cervical_rom_extension = abs(max_head_elevation)  # Extensión (mirar arriba)
+	var cervical_rom_flexion = abs(max_head_depression)  # Flexión (mirar abajo)
+	var total_cervical_rom = cervical_rom_left + cervical_rom_right + cervical_rom_extension + cervical_rom_flexion
+	
+	var avg_visual_search_time = _calculate_average(visual_search_times)
+	var gaze_interruption_rate = float(interrupted_gazes) / float(max(1, targets_collected + interrupted_gazes)) * 100.0
+	
 	var results = {
 		"game_type": "urban_attention_quest",
 		"score": score,
@@ -205,7 +255,7 @@ func end_game() -> void:
 		"time_elapsed": elapsed,
 		"difficulty": difficulty,
 		
-		# Métricas de negligencia espacial
+		# === MÉTRICAS CLÍNICAS DE NEGLIGENCIA ===
 		"left_side_targets": left_side_targets,
 		"right_side_targets": right_side_targets,
 		"asymmetry_percentage": asymmetry,
@@ -213,22 +263,56 @@ func end_game() -> void:
 		"left_avg_reaction": left_avg,
 		"right_avg_reaction": right_avg,
 		
-		# Métricas espaciales
-		"front_targets": front_targets,
-		"back_targets": back_targets,
-		"high_targets": high_targets,
-		"low_targets": low_targets,
-		"rotation_180_count": rotation_180_count,
+		# === MÉTRICAS BIOMECÁNICAS PROFESIONALES ===
+		"cervical_rom_degrees": {
+			"rotation_left": cervical_rom_left,
+			"rotation_right": cervical_rom_right,
+			"extension_up": cervical_rom_extension,
+			"flexion_down": cervical_rom_flexion,
+			"total_rom": total_cervical_rom
+		},
+		"head_displacement_meters": total_head_displacement,
 		
-		# Métricas generales
+		# === MÉTRICAS DE BÚSQUEDA VISUAL ===
+		"visual_search_metrics": {
+			"avg_search_time_seconds": avg_visual_search_time,
+			"gaze_interruption_rate_percent": gaze_interruption_rate,
+			"interrupted_gazes_count": interrupted_gazes,
+			"gaze_stability_score": max(0, 100 - gaze_interruption_rate)
+		},
+		
+		# === MÉTRICAS ESPACIALES ===
+		"spatial_distribution": {
+			"front_targets": front_targets,
+			"back_targets": back_targets,
+			"high_targets": high_targets,
+			"low_targets": low_targets,
+			"rotation_180_count": rotation_180_count
+		},
+		
+		# === MÉTRICAS TEMPORALES ===
 		"avg_reaction_time": avg_reaction_time,
 		"target_times": target_times,
 		
-		# Scores clínicos
-		"spatial_awareness_score": spatial_awareness_score,
-		"orientation_score": orientation_score,
-		"processing_speed_score": processing_speed_score,
-		"neglect_clinical_score": neglect_score,
+		# === SCORES CLÍNICOS FUNCIONALES (0-100) ===
+		"clinical_scores": {
+			"spatial_awareness": spatial_awareness_score,
+			"orientation": orientation_score,
+			"processing_speed": processing_speed_score,
+			"neglect_clinical": neglect_score,
+			"cervical_mobility": _calculate_cervical_mobility_score(total_cervical_rom),
+			"visual_search_efficiency": _calculate_visual_search_score(avg_visual_search_time),
+			"gaze_stability": max(0, 100 - gaze_interruption_rate)
+		},
+		
+		# === RECOMENDACIONES CLÍNICAS ===
+		"clinical_recommendations": _generate_clinical_recommendations(
+			asymmetry, 
+			neglect_score, 
+			total_cervical_rom, 
+			gaze_interruption_rate,
+			rotation_180_count
+		)
 	}
 	
 	game_finished.emit(results)
@@ -292,6 +376,32 @@ func register_target(target: Node) -> void:
 func update_player_position(pos: Vector3) -> void:
 	player_position = pos
 
+func update_head_rotation(camera_transform: Transform3D) -> void:
+	# Registrar ángulos de rotación de cabeza para métricas biomecánicas
+	var euler = camera_transform.basis.get_euler()
+	
+	# Rotación horizontal (yaw) - izquierda/derecha
+	var yaw_deg = rad_to_deg(euler.y)
+	if yaw_deg < 0:  # Rotación izquierda
+		max_head_rotation_left = max(max_head_rotation_left, abs(yaw_deg))
+	else:  # Rotación derecha
+		max_head_rotation_right = max(max_head_rotation_right, yaw_deg)
+	
+	# Rotación vertical (pitch) - arriba/abajo
+	var pitch_deg = rad_to_deg(euler.x)
+	if pitch_deg > 0:  # Mirar abajo (flexión)
+		max_head_depression = max(max_head_depression, pitch_deg)
+	else:  # Mirar arriba (extensión)
+		max_head_elevation = max(max_head_elevation, abs(pitch_deg))
+	
+	head_rotation_angles.append(yaw_deg)
+
+func register_gaze_interruption() -> void:
+	interrupted_gazes += 1
+
+func register_visual_search_time(search_time: float) -> void:
+	visual_search_times.append(search_time)
+
 func _on_game_finished(_results: Dictionary) -> void:
 	pass
 
@@ -303,3 +413,73 @@ func get_remaining_time() -> float:
 
 func get_next_sequence_number() -> int:
 	return current_sequence_number
+
+func _calculate_cervical_mobility_score(total_rom: float) -> int:
+	# Score basado en rango de movimiento cervical total
+	# Normal: 270° (90° rot izq + 90° rot der + 50° ext + 40° flex)
+	# Mínimo funcional: 135° (50% de normal)
+	if total_rom >= 270.0:
+		return 100
+	elif total_rom >= 200.0:
+		return 80
+	elif total_rom >= 135.0:
+		return 60
+	elif total_rom >= 90.0:
+		return 40
+	else:
+		return 20
+
+func _calculate_visual_search_score(avg_time: float) -> int:
+	# Menor tiempo = mejor eficiencia
+	if avg_time < 2.0:
+		return 100
+	elif avg_time < 3.0:
+		return 85
+	elif avg_time < 4.0:
+		return 70
+	elif avg_time < 5.0:
+		return 55
+	elif avg_time < 7.0:
+		return 40
+	else:
+		return 25
+
+func _generate_clinical_recommendations(
+	asymmetry: float,
+	neglect: float,
+	cervical_rom: float,
+	gaze_interruption: float,
+	rotations_180: int
+) -> Array[String]:
+	var recommendations: Array[String] = []
+	
+	# Negligencia espacial
+	if asymmetry > 30:
+		recommendations.append("NEGLIGENCIA SEVERA: Incrementar targets en lado afectado. Considerar audio guía bilateral.")
+	elif asymmetry > 20:
+		recommendations.append("Negligencia moderada: Aumentar frecuencia de sesiones (4-5x/semana).")
+	
+	# Movilidad cervical
+	if cervical_rom < 135:
+		recommendations.append("ROM CERVICAL LIMITADO: Combinar con ejercicios de movilización cervical pasiva/activa.")
+	elif cervical_rom < 200:
+		recommendations.append("ROM cervical reducido: Progresión a ejercicios de estiramiento cervical.")
+	
+	# Estabilidad de mirada
+	if gaze_interruption > 40:
+		recommendations.append("INESTABILIDAD DE MIRADA: Trabajar fijación visual con targets estáticos primero.")
+	elif gaze_interruption > 25:
+		recommendations.append("Mejorar estabilidad de mirada con ejercicios de seguimiento visual.")
+	
+	# Rotación 180°
+	if rotations_180 < 2:
+		recommendations.append("EVITA ROTACIÓN: Comenzar con targets solo laterales (90°). Progresión gradual.")
+	
+	# Velocidad de procesamiento
+	if neglect < 70 and asymmetry > 25:
+		recommendations.append("PRIORIDAD: Tratamiento intensivo de negligencia (terapia convencional + VR 5x/semana).")
+	
+	if recommendations.is_empty():
+		recommendations.append("Rendimiento dentro de parámetros funcionales. Continuar progresión a mayor dificultad.")
+	
+	return recommendations

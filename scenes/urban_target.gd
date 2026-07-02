@@ -231,6 +231,13 @@ func _check_gaze_detection(delta: float) -> void:
 		# Resetear si deja de mirar
 		if _being_gazed:
 			_gaze_time = max(0.0, _gaze_time - delta * 2.0)  # Pierde progreso lentamente
+			
+			# Registrar interrupción de mirada
+			if _gaze_time > 0.5:  # Solo si tenía progreso significativo
+				var city_manager = get_tree().root.get_node_or_null("CityWorld/CityGameManager")
+				if city_manager:
+					city_manager.register_gaze_interruption()
+			
 			if _gaze_time <= 0.0:
 				_being_gazed = false
 				if _mesh_instance:
