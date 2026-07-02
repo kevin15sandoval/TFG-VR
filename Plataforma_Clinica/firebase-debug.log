@@ -1,0 +1,37 @@
+[debug] [2026-06-24T14:56:01.726Z] ----------------------------------------------------------------------
+[debug] [2026-06-24T14:56:01.728Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\USUARIO\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-06-24T14:56:01.729Z] CLI Version:   15.22.1
+[debug] [2026-06-24T14:56:01.729Z] Platform:      win32
+[debug] [2026-06-24T14:56:01.729Z] Node Version:  v24.11.0
+[debug] [2026-06-24T14:56:01.729Z] Detected Agent: unknown
+[debug] [2026-06-24T14:56:01.729Z] Time:          Wed Jun 24 2026 16:56:01 GMT+0200 (hora de verano de Europa central)
+[debug] [2026-06-24T14:56:01.729Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-24T14:56:04.368Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-24T14:56:04.369Z] > authorizing via signed-in user (kgomez@dataforge-tech.com)
+[debug] [2026-06-24T14:56:04.369Z] [iam] checking project tfg-vr for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-06-24T14:56:04.370Z] Checked if tokens are valid: false, expires at: 1782306691704
+[debug] [2026-06-24T14:56:04.370Z] Checked if tokens are valid: false, expires at: 1782306691704
+[debug] [2026-06-24T14:56:04.370Z] > refreshing access token with scopes: []
+[debug] [2026-06-24T14:56:04.371Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-24T14:56:04.371Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-24T14:56:04.501Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-06-24T14:56:04.501Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-24T14:56:04.508Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/tfg-vr:testIamPermissions [none]
+[debug] [2026-06-24T14:56:04.508Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/tfg-vr:testIamPermissions  x-goog-user-project=tfg-vr
+[debug] [2026-06-24T14:56:04.508Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/tfg-vr:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-06-24T14:56:05.224Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/tfg-vr:testIamPermissions 403
+[debug] [2026-06-24T14:56:05.224Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/tfg-vr:testIamPermissions {"error":{"code":403,"message":"Caller does not have required permission to use project tfg-vr. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam?project=tfg-vr and then retry. Propagation of the new permission may take a few minutes.","status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"USER_PROJECT_DENIED","domain":"googleapis.com","metadata":{"containerInfo":"tfg-vr","consoleUrl":"https://console.developers.google.com/iam-admin/iam?project=tfg-vr","service":"cloudresourcemanager.googleapis.com","consumer":"projects/tfg-vr"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Caller does not have required permission to use project tfg-vr. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam?project=tfg-vr and then retry. Propagation of the new permission may take a few minutes."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developer console IAM admin","url":"https://console.developers.google.com/iam-admin/iam?project=tfg-vr"}]}]}}
+[debug] [2026-06-24T14:56:05.225Z] [iam] error while checking permissions, command may fail: Request to https://cloudresourcemanager.googleapis.com/v1/projects/tfg-vr:testIamPermissions had HTTP Error: 403, Caller does not have required permission to use project tfg-vr. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam?project=tfg-vr and then retry. Propagation of the new permission may take a few minutes.
+[debug] [2026-06-24T14:56:05.225Z] Checked if tokens are valid: true, expires at: 1782316563501
+[debug] [2026-06-24T14:56:05.225Z] Checked if tokens are valid: true, expires at: 1782316563501
+[debug] [2026-06-24T14:56:05.225Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/tfg-vr [none]
+[debug] [2026-06-24T14:56:05.623Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/tfg-vr 403
+[debug] [2026-06-24T14:56:05.624Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/tfg-vr {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-06-24T14:56:05.624Z] Request to https://firebase.googleapis.com/v1beta1/projects/tfg-vr had HTTP Error: 403, The caller does not have permission
+[debug] [2026-06-24T14:56:05.702Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/tfg-vr had HTTP Error: 403, The caller does not have permission
+    at responseToError (C:\Users\USUARIO\AppData\Roaming\npm\node_modules\firebase-tools\lib\responseToError.js:53:12)
+    at RetryOperation._fn (C:\Users\USUARIO\AppData\Roaming\npm\node_modules\firebase-tools\lib\apiv2.js:333:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[error] 
+[error] Error: Failed to get Firebase project tfg-vr. Please make sure the project exists and your account has permission to access it.
