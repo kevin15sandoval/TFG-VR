@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://esejsv3nwavj" path="res://scenes/gem.gd" id="1_5cxma"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_bcbcq"]
+radius = 0.15
 
 [sub_resource type="PrismMesh" id="PrismMesh_js7pq"]
 
@@ -13,6 +14,8 @@ emission = Color(0.2, 0.6, 1.0, 1)
 emission_energy_multiplier = 2.0
 
 [node name="Gem" type="Area3D" unique_id=500355049]
+collision_layer = 1
+collision_mask = 2
 script = ExtResource("1_5cxma")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1222189191]

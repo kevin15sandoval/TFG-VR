@@ -33,11 +33,11 @@ const GEM_EMISSION := {
 }
 
 const GEM_SCALE := {
-	"normal": Vector3(0.5, 0.5, 0.5),
-	"golden": Vector3(0.65, 0.65, 0.65),
-	"green":  Vector3(0.5, 0.5, 0.5),
-	"purple": Vector3(0.55, 0.55, 0.55),
-	"red":    Vector3(0.6, 0.6, 0.6),
+	"normal": Vector3(0.25, 0.25, 0.25),
+	"golden": Vector3(0.35, 0.35, 0.35),
+	"green":  Vector3(0.25, 0.25, 0.25),
+	"purple": Vector3(0.3, 0.3, 0.3),
+	"red":    Vector3(0.3, 0.3, 0.3),
 }
 
 var _mesh_instance: MeshInstance3D
@@ -98,10 +98,14 @@ func _apply_visuals() -> void:
 	mat.emission_energy_multiplier = GEM_EMISSION.get(gem_type, 2.0)
 	mat.roughness              = 0.1
 	mat.metallic               = 0.3
-	_mesh_instance.surface_material_override[0] = mat
+	
+	# Aplicar material correctamente
+	_mesh_instance.material_override = mat
 
-	var scale = GEM_SCALE.get(gem_type, Vector3(0.5, 0.5, 0.5))
+	var scale = GEM_SCALE.get(gem_type, Vector3(0.25, 0.25, 0.25))
 	_mesh_instance.scale = scale
+	
+	print("[Gem] 💎 Gema creada: ", gem_type, " | Color: ", color, " | Escala: ", scale)
 
 func _process(delta: float) -> void:
 	if collected:
@@ -115,25 +119,35 @@ func _process(delta: float) -> void:
 # ─── DETECCIÓN DE COLISIÓN CON MANOS VR ──────────────────────────────────────
 
 func _on_body_entered(body: Node) -> void:
+	print("[Gem] 💥 BODY DETECTADO: ", body.name, " | Tipo: ", body.get_class())
 	if collected:
+		print("[Gem] ⚠️ Ya está collected, ignorando")
 		return
 	# Detectar XRController3D (los controladores padre de las manos)
 	if body is XRController3D:
+		print("[Gem] ✅ CONTROLADOR XR detectado directamente")
 		_catch()
 	# También detectar nodos que sean hijos de controladores
 	var parent = body.get_parent()
 	if parent and parent is XRController3D:
+		print("[Gem] ✅ HIJO de controlador XR detectado")
 		_catch()
 
 func _on_area_entered(area: Node) -> void:
+	print("[Gem] 🎯 ÁREA DETECTADA: ", area.name, " | Padre: ", area.get_parent().name if area.get_parent() else "none")
 	if collected:
+		print("[Gem] ⚠️ Ya está collected, ignorando")
 		return
 	# Detectar áreas de las manos (LeftHandArea, RightHandArea)
 	if area.name in ["LeftHandArea", "RightHandArea"]:
+		print("[Gem] ✅ MANO DETECTADA por nombre: ", area.name)
 		_catch()
 	# También detectar por grupo si está configurado
-	if area.is_in_group("hand") or area.is_in_group("xr_hand"):
+	elif area.is_in_group("hand") or area.is_in_group("xr_hand"):
+		print("[Gem] ✅ MANO DETECTADA por grupo")
 		_catch()
+	else:
+		print("[Gem] ⚠️ Área NO reconocida como mano")
 
 func _catch() -> void:
 	if collected:
@@ -199,31 +213,34 @@ func _play_collect_effect(positive: bool = true) -> void:
 func _play_collect_sound(positive: bool) -> void:
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
-	audio.max_distance = 10.0
-	audio.unit_size = 1.0
+	audio.max_distance = 15.0  # Más lejos para que se escuche mejor
+	audio.unit_size = 2.0
+	audio.volume_db = 6.0  # MÁS VOLUMEN
 	
 	# Generar tono procedural (sin archivos de audio)
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
-	generator.buffer_length = 0.1
+	generator.buffer_length = 0.15
 	
 	audio.stream = generator
 	audio.play()
+	
+	print("[Gem] 🔊 Reproduciendo sonido: ", "positivo" if positive else "negativo")
 	
 	# Generar onda de sonido simple
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		var hz = 800.0 if positive else 200.0  # Tono alto = positivo, bajo = negativo
-		var frames = int(generator.mix_rate * 0.1)
+		var hz = 1200.0 if positive else 300.0  # Tono más agudo para positivo
+		var frames = int(generator.mix_rate * 0.15)
 		
 		for i in range(frames):
 			var t = float(i) / generator.mix_rate
-			var amplitude = 0.3 * (1.0 - t / 0.1)  # Fade out
+			var amplitude = 0.6 * (1.0 - t / 0.15)  # Fade out, más fuerte
 			var sample = sin(t * hz * TAU) * amplitude
 			playback.push_frame(Vector2(sample, sample))
 	
 	# Limpiar después de reproducir
-	await get_tree().create_timer(0.15).timeout
+	await get_tree().create_timer(0.2).timeout
 	if is_instance_valid(audio):
 		audio.queue_free()
