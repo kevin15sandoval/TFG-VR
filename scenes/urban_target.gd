@@ -51,6 +51,30 @@ func _create_target_visual() -> void:
 	
 	# Anillo exterior
 	_create_outer_ring()
+	
+	# Barra de progreso de mirada
+	_create_gaze_progress_bar()
+
+func _create_gaze_progress_bar() -> void:
+	var progress_bar = MeshInstance3D.new()
+	_mesh_instance.add_child(progress_bar)
+	progress_bar.position = Vector3(0, -0.4, 0)
+	
+	var cylinder = CylinderMesh.new()
+	cylinder.top_radius = 0.05
+	cylinder.bottom_radius = 0.05
+	cylinder.height = 0.0  # Crece con el progreso
+	progress_bar.mesh = cylinder
+	
+	var material = StandardMaterial3D.new()
+	material.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
+	material.emission_enabled = true
+	material.emission = Color(1.0, 1.0, 1.0)
+	material.emission_energy_multiplier = 3.0
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	progress_bar.material_override = material
+	
+	progress_bar.name = "GazeProgressBar"
 
 func _create_outer_ring() -> void:
 	var ring = MeshInstance3D.new()
@@ -141,27 +165,89 @@ func _create_particles() -> void:
 	_particles.color = target_color
 
 func _create_collision_area() -> void:
-	_area = Area3D.new()
-	add_child(_area)
-	_area.collision_layer = 1
-	_area.collision_mask = 2
-	
-	var collision = CollisionShape3D.new()
-	_area.add_child(collision)
-	
-	var shape = SphereShape3D.new()
-	shape.radius = 0.3
-	collision.shape = shape
-	
-	_area.body_entered.connect(_on_body_entered)
-	_area.area_entered.connect(_on_area_entered)
+	# No usamos colisión física, usamos detección por mirada (gaze)
+	pass
 
-func _on_body_entered(_body: Node3D) -> void:
-	_try_activate()
+var _gaze_time: float = 0.0
+var _required_gaze_time: float = 2.0  # 2 segundos mirando
+var _being_gazed: bool = false
 
-func _on_area_entered(_area_node: Area3D) -> void:
-	if _area_node.name.contains("Hand"):
-		_try_activate()
+func _process(delta: float) -> void:
+	if not _is_active or _is_collected:
+		return
+	
+	_check_gaze_detection(delta)
+
+func _check_gaze_detection(delta: float) -> void:
+	# Obtener cámara VR
+	var camera = get_viewport().get_camera_3d()
+	if not camera:
+		return
+	
+	# Vector desde cámara al target
+	var to_target = global_position - camera.global_position
+	var distance = to_target.length()
+	
+	# Vector hacia adelante de la cámara (donde mira)
+	var forward = -camera.global_transform.basis.z
+	
+	# Calcular ángulo entre mirada y target
+	var angle = forward.angle_to(to_target.normalized())
+	
+	# Si está mirando al target (ángulo < 15 grados = 0.26 radianes)
+	if angle < 0.26 and distance < 15.0:  # 15 metros max distancia
+		_being_gazed = true
+		_gaze_time += delta
+		
+		var progress = min(_gaze_time / _required_gaze_time, 1.0)
+		
+		# Feedback visual de progreso - escala
+		if _mesh_instance:
+			_mesh_instance.scale = Vector3.ONE * (1.0 + progress * 0.5)
+			
+			# Cambiar color según progreso (más brillante)
+			var mat = _mesh_instance.material_override as StandardMaterial3D
+			if mat:
+				var color_progress = Color(
+					target_color.r + (1.0 - target_color.r) * progress,
+					target_color.g + (1.0 - target_color.g) * progress,
+					target_color.b
+				)
+				mat.emission = color_progress
+				mat.emission_energy_multiplier = 4.0 + progress * 4.0  # Más brillo
+		
+		# Actualizar barra de progreso
+		var progress_bar = _mesh_instance.get_node_or_null("GazeProgressBar") as MeshInstance3D
+		if progress_bar:
+			var cylinder = progress_bar.mesh as CylinderMesh
+			if cylinder:
+				cylinder.height = progress * 0.6  # Crece hasta 0.6m
+				progress_bar.position.y = -0.4 + (progress * 0.3)  # Sube mientras crece
+		
+		# Activar cuando se completa el tiempo
+		if _gaze_time >= _required_gaze_time:
+			_try_activate()
+	else:
+		# Resetear si deja de mirar
+		if _being_gazed:
+			_gaze_time = max(0.0, _gaze_time - delta * 2.0)  # Pierde progreso lentamente
+			if _gaze_time <= 0.0:
+				_being_gazed = false
+				if _mesh_instance:
+					_mesh_instance.scale = Vector3.ONE
+					var mat = _mesh_instance.material_override as StandardMaterial3D
+					if mat:
+						mat.emission = target_color
+						mat.emission_energy_multiplier = 4.0
+			
+			# Actualizar barra de progreso al decrecer
+			var progress = _gaze_time / _required_gaze_time
+			var progress_bar = _mesh_instance.get_node_or_null("GazeProgressBar") as MeshInstance3D
+			if progress_bar:
+				var cylinder = progress_bar.mesh as CylinderMesh
+				if cylinder:
+					cylinder.height = progress * 0.6
+					progress_bar.position.y = -0.4 + (progress * 0.3)
 
 func _try_activate() -> void:
 	if not _is_active or _is_collected:

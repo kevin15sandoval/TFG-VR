@@ -76,7 +76,11 @@ CityWorld (Node3D) [city_vr_start.gd]
 
 ### ✅ Mecánicas de Juego
 - [x] 12 targets urbanos en secuencia
-- [x] Detección de colisión VR con manos
+- [x] **Detección por MIRADA (gaze-based)** - NO táctil
+- [x] **2 segundos mirando** para activar
+- [x] **Barra de progreso visual** que crece al mirar
+- [x] Feedback visual: escala crece + brillo aumenta
+- [x] Progreso se pierde lentamente si dejas de mirar
 - [x] Sistema de secuencia numerada (1→2→3...)
 - [x] Penalización por orden incorrecto (-5 pts)
 - [x] Sistema de puntuación

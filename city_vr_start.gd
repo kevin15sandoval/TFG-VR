@@ -256,7 +256,7 @@ func _show_game_hud() -> void:
 		hud_timer.visible = true
 	if hud_instruction:
 		hud_instruction.visible = true
-		hud_instruction.text = "¡Busca y toca las señales en orden!"
+		hud_instruction.text = "¡Mira las señales 2 segundos para activarlas!"
 	if hud_sequence:
 		hud_sequence.visible = true
 	if hud_asymmetry:

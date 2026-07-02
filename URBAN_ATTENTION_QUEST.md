@@ -47,7 +47,27 @@ El paciente explora una ciudad virtual buscando y tocando señales luminosas dis
 ## 🎮 Mecánicas del Juego
 
 ### **Objetivo Principal**
-Buscar y tocar señales luminosas distribuidas en una ciudad virtual, siguiendo el orden numerado (1, 2, 3...).
+Buscar señales luminosas distribuidas en una ciudad virtual y **mirarlas durante 2 segundos** para activarlas, siguiendo el orden numerado (1, 2, 3...).
+
+### **Mecánica de Activación: DETECCIÓN POR MIRADA (GAZE-BASED)**
+
+#### ¿Cómo funciona?
+1. **Busca** la señal con el número correcto girando la cabeza
+2. **Mira** la señal directamente durante **2 segundos**
+3. Verás una **barra de progreso** que crece mientras miras
+4. La esfera se hace **más grande y brillante**
+5. Al completar 2 segundos → **¡ACTIVADA!** (explosión de partículas)
+
+#### ⚠️ Si dejas de mirar:
+- La barra de progreso **baja lentamente**
+- Tienes que volver a mirar para completar
+
+#### 👁️ **Ventajas Terapéuticas de Detección por Mirada:**
+- ✅ **Trabaja rotación de cuello/cabeza** (no brazos)
+- ✅ **No requiere alcance manual** (ideal para pacientes con paresia severa)
+- ✅ **Fuerza búsqueda visual activa** (escaneo completo del espacio)
+- ✅ **Detecta negligencia visual** más pura (sin compensación manual)
+- ✅ **Entrena atención sostenida** (mantener mirada 2 segundos)
 
 ### **Elementos del Juego**
 
