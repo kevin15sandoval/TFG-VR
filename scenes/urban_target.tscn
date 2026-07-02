@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://utarget001"]
+
+[ext_resource type="Script" path="res://scenes/urban_target.gd" id="1"]
+
+[node name="UrbanTarget" type="Node3D"]
+script = ExtResource("1")
+target_id = 0
+points = 10
+target_type = "window"
+sequence_number = 0
+target_color = Color(0.2, 1.0, 0.3, 1.0)
