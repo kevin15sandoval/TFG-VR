@@ -1,0 +1,230 @@
+[gd_scene load_steps=8 format=3 uid="uid://vaultworld001"]
+
+[ext_resource type="Script" path="res://vault_vr_start.gd" id="1"]
+[ext_resource type="PackedScene" path="res://models/cofre_bank.glb" id="2"]
+[ext_resource type="Script" path="res://scenes/vault_game_manager.gd" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/laser_beam.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/control_panel.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="6"]
+
+[sub_resource type="Environment" id="Environment_vault"]
+background_mode = 1
+background_color = Color(0.05, 0.05, 0.05, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.2, 0.2, 0.25, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 1.2
+glow_strength = 1.0
+glow_bloom = 0.3
+fog_enabled = true
+fog_light_color = Color(0.1, 0.1, 0.15, 1)
+fog_density = 0.05
+
+[sub_resource type="SphereMesh" id="SphereMesh_lefthand"]
+radius = 0.08
+height = 0.16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lefthand"]
+albedo_color = Color(0.2, 0.6, 1.0, 0.8)
+emission_enabled = true
+emission = Color(0.2, 0.6, 1.0, 1)
+emission_energy_multiplier = 1.5
+transparency = 1
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_lefthand"]
+radius = 0.1
+
+[sub_resource type="SphereMesh" id="SphereMesh_righthand"]
+radius = 0.08
+height = 0.16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_righthand"]
+albedo_color = Color(1.0, 0.4, 0.2, 0.8)
+emission_enabled = true
+emission = Color(1.0, 0.4, 0.2, 1)
+emission_energy_multiplier = 1.5
+transparency = 1
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_righthand"]
+radius = 0.1
+
+[sub_resource type="SphereMesh" id="SphereMesh_trail"]
+radius = 0.03
+height = 0.06
+
+[node name="VaultWorld" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_vault")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 5, 5)
+light_energy = 0.4
+light_color = Color(1.0, 0.95, 0.9, 1)
+shadow_enabled = true
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+light_energy = 0.8
+light_color = Color(1.0, 0.9, 0.8, 1)
+omni_range = 8.0
+
+[node name="XROrigin3D" type="XROrigin3D" parent="."]
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+current = true
+
+[node name="LeftHand" type="XRController3D" parent="XROrigin3D"]
+tracker = &"left_hand"
+pose = &"grip"
+
+[node name="LeftHandMesh" type="MeshInstance3D" parent="XROrigin3D/LeftHand"]
+mesh = SubResource("SphereMesh_lefthand")
+surface_material_override/0 = SubResource("StandardMaterial3D_lefthand")
+
+[node name="LeftHandArea" type="Area3D" parent="XROrigin3D/LeftHand"]
+collision_layer = 2
+collision_mask = 5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="XROrigin3D/LeftHand/LeftHandArea"]
+shape = SubResource("SphereShape3D_lefthand")
+
+[node name="LeftHandTrail" type="CPUParticles3D" parent="XROrigin3D/LeftHand"]
+emitting = true
+amount = 30
+lifetime = 0.5
+local_coords = false
+mesh = SubResource("SphereMesh_trail")
+emission_shape = 1
+emission_sphere_radius = 0.02
+direction = Vector3(0, 0, 0)
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 0.0
+initial_velocity_max = 0.0
+scale_amount_min = 0.05
+scale_amount_max = 0.08
+color = Color(0.2, 0.6, 1.0, 0.6)
+
+[node name="RightHand" type="XRController3D" parent="XROrigin3D"]
+tracker = &"right_hand"
+pose = &"grip"
+
+[node name="RightHandMesh" type="MeshInstance3D" parent="XROrigin3D/RightHand"]
+mesh = SubResource("SphereMesh_righthand")
+surface_material_override/0 = SubResource("StandardMaterial3D_righthand")
+
+[node name="RightHandArea" type="Area3D" parent="XROrigin3D/RightHand"]
+collision_layer = 2
+collision_mask = 5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="XROrigin3D/RightHand/RightHandArea"]
+shape = SubResource("SphereShape3D_righthand")
+
+[node name="RightHandTrail" type="CPUParticles3D" parent="XROrigin3D/RightHand"]
+emitting = true
+amount = 30
+lifetime = 0.5
+local_coords = false
+mesh = SubResource("SphereMesh_trail")
+emission_shape = 1
+emission_sphere_radius = 0.02
+direction = Vector3(0, 0, 0)
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 0.0
+initial_velocity_max = 0.0
+scale_amount_min = 0.05
+scale_amount_max = 0.08
+color = Color(1.0, 0.4, 0.2, 0.6)
+
+[node name="VaultModel" parent="." instance=ExtResource("2")]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0)
+
+[node name="VaultGameManager" type="Node" parent="."]
+script = ExtResource("3")
+
+[node name="FirebaseManager" type="Node" parent="."]
+script = ExtResource("6")
+
+[node name="LaserSetup" type="Node3D" parent="."]
+
+[node name="Laser_Horizontal_1" parent="LaserSetup" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0.8, 0)
+laser_length = 4.0
+laser_thickness = 0.04
+
+[node name="Laser_Horizontal_2" parent="LaserSetup" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 1.5, 0)
+laser_length = 4.0
+laser_thickness = 0.04
+move_speed = 0.3
+move_range = 0.5
+
+[node name="Laser_Vertical_1" parent="LaserSetup" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 1.2, 0)
+laser_length = 3.0
+laser_thickness = 0.04
+
+[node name="Laser_Vertical_2" parent="LaserSetup" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 1.2, 0)
+laser_length = 3.0
+laser_thickness = 0.04
+
+[node name="Laser_Diagonal_1" parent="LaserSetup" instance=ExtResource("4")]
+transform = Transform3D(0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0, 1, -0.8, 1.2, -1.5)
+laser_length = 3.5
+laser_thickness = 0.04
+blink_enabled = true
+blink_interval = 1.5
+
+[node name="Laser_Diagonal_2" parent="LaserSetup" instance=ExtResource("4")]
+transform = Transform3D(-0.707107, 0.707107, 0, -0.707107, -0.707107, 0, 0, 0, 1, 0.8, 1.2, 1.5)
+laser_length = 3.5
+laser_thickness = 0.04
+blink_enabled = true
+blink_interval = 1.5
+
+[node name="ControlPanels" type="Node3D" parent="."]
+
+[node name="Panel_1" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.8, 0.5)
+panel_id = 1
+panel_type = "normal"
+
+[node name="Panel_2" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 1.8, -0.5)
+panel_id = 2
+panel_type = "normal"
+
+[node name="Panel_3" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0)
+panel_id = 3
+panel_type = "golden"
+
+[node name="Panel_4" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.6, -1.8)
+panel_id = 4
+panel_type = "normal"
+
+[node name="Panel_5" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.6, 1.8)
+panel_id = 5
+panel_type = "normal"
+
+[node name="Panel_6" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1.2, -2.0)
+panel_id = 6
+panel_type = "golden"
+
+[node name="Panel_7" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1.2, 2.0)
+panel_id = 7
+panel_type = "normal"
+
+[node name="Panel_8" parent="ControlPanels" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 1.5, 0)
+panel_id = 8
+panel_type = "normal"
