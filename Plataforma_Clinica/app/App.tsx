@@ -21,8 +21,9 @@ import {
   subscribePatients, subscribeSessions,
   addPatient, updatePatient, deletePatient,
   addSession, updateSession, seedIfEmpty, publishActiveSession,
-  createDeviceLink, subscribeDeviceLink, sendSessionToDevice,
+  createDeviceLink, subscribeDeviceLink, sendSessionToDevice, db,
 } from "./db";
+import { collection, query, where, limit, onSnapshot } from "firebase/firestore";
 
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
 // Patient, SessionRecord, SessionConfig, Screen
@@ -1916,18 +1917,57 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
   config: SessionConfig; patients: Patient[];
   onSessionSent: (sessionId: string) => void; onBack: () => void;
 }) {
-  const [status, setStatus] = useState<"idle" | "sending" | "ready" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "ready" | "playing" | "error">("idle");
+  const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const patient = patients.find(p => p.id === config.patientId);
   const game = MINIGAMES.find(g => g.id === config.selectedGame);
+
+  // Escuchar cuando VR guarde los resultados en Firestore
+  useEffect(() => {
+    // Solo activar listener cuando se haya enviado la sesión
+    if (!currentSessionId) return;
+    
+    console.log("[Web] 👀 Escuchando resultados de sesión:", currentSessionId);
+    
+    const q = query(
+      collection(db, "sesiones"),
+      where("sessionId", "==", currentSessionId),
+      limit(1)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const sessionData = snapshot.docs[0].data();
+        console.log("[Web] ✅ Resultados detectados desde VR:", sessionData);
+        console.log("[Web] 📊 Datos recibidos:", {
+          score: sessionData.score,
+          accuracy: sessionData.accuracy,
+          duration: sessionData.duration,
+          patientName: sessionData.patientName
+        });
+        setStatus("playing");
+        // Navegar automáticamente a resultados después de 1 segundo
+        setTimeout(() => {
+          onSessionSent(currentSessionId);
+        }, 1000);
+      }
+    });
+    
+    return () => {
+      console.log("[Web] 🔌 Desconectando listener de resultados");
+      unsubscribe();
+    };
+  }, [currentSessionId, onSessionSent]);
 
   async function handleSend() {
     if (!patient) return;
     setStatus("sending");
     const sessionId = `session_${Date.now()}`;
+    setCurrentSessionId(sessionId);
     try {
       await publishActiveSession(config, patient, sessionId);
       setStatus("ready");
-      // NO navegamos automáticamente — el fisio pulsa cuando el paciente está jugando
+      console.log("[Web] 📤 Sesión enviada con ID:", sessionId);
     } catch {
       setStatus("error");
     }
@@ -1986,12 +2026,21 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
         )}
         {status === "ready" && (
           <div className="py-2">
-            <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={36} className="text-emerald-600" />
+            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <Activity size={36} className="text-blue-600 animate-pulse" />
             </div>
-            <h3 className="text-lg font-bold text-emerald-700 mb-2">¡Sesión enviada!</h3>
-            <p className="text-sm text-slate-500">El juego arrancará automáticamente en las gafas</p>
-            <p className="text-xs text-slate-400 mt-1">El paciente ya puede ponerse el headset</p>
+            <h3 className="text-lg font-bold text-blue-700 mb-2">El paciente está jugando</h3>
+            <p className="text-sm text-slate-500">Esperando resultados de la sesión...</p>
+            <p className="text-xs text-slate-400 mt-1">Los resultados aparecerán automáticamente al terminar</p>
+          </div>
+        )}
+        {status === "playing" && (
+          <div className="py-2">
+            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <Loader2 size={36} className="text-blue-600 animate-spin" />
+            </div>
+            <h3 className="text-lg font-bold text-blue-700 mb-2">¡Sesión completada!</h3>
+            <p className="text-sm text-slate-500">Cargando resultados...</p>
           </div>
         )}
         {status === "error" && (
@@ -2014,7 +2063,7 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
             "2. Abre la app NeuroVR Rehab en las gafas",
             "3. Pulsa el botón de abajo para enviar la sesión",
             "4. El juego arrancará automáticamente en las gafas",
-            "5. Ayuda al paciente a ponerse el headset",
+            "5. Los resultados aparecerán aquí cuando el paciente termine",
           ].map(step => (
             <div key={step} className="flex items-center gap-2 text-xs text-slate-600">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
@@ -2044,12 +2093,13 @@ function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
       {status === "ready" && (
         <div className="space-y-3">
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
-            <CheckCircle size={16} /> Sesión enviada — el paciente ya puede jugar en las gafas
+            <Activity size={16} className="animate-pulse" /> El paciente está jugando — Los resultados aparecerán automáticamente
           </div>
-          <button onClick={() => onSessionSent(`session_${Date.now()}`)}
-            className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-200 transition-all">
-            <CheckCircle size={18} /> El paciente terminó — Ver resultados
-          </button>
+        </div>
+      )}
+      {status === "playing" && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 font-semibold flex items-center gap-2">
+          <Loader2 size={16} className="animate-spin" /> Cargando resultados...
         </div>
       )}
     </div>

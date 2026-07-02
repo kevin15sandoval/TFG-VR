@@ -10,6 +10,9 @@ import {
 import { db } from "./firebase";
 import type { Patient, SessionRecord, SessionConfig } from "./types";
 
+// Re-exportar db para uso externo
+export { db };
+
 // ── Colecciones ───────────────────────────────────────────────────────────────
 
 const COL_PATIENTS       = "pacientes";
