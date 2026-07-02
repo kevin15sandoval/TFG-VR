@@ -154,6 +154,8 @@ const HISTORY_CHART_BY_PATIENT: Record<number, { s: string; score: number; preci
 
 const MINIGAMES = [
   { id: "gems", name: "Recolectar gemas", description: "Ejercicio de alcance funcional y coordinación ojo-mano", Icon: Sparkles, difficulty: "Media", diffColor: "amber", area: "Alcance · Coordinación ojo-mano", bg: "bg-blue-50", iconBg: "bg-blue-100", iconColor: "text-blue-600", border: "border-blue-200" },
+  { id: "vault_escape", name: "Laser Vault Escape", description: "Planificación motora y precisión evitando obstáculos láser", Icon: Lock, difficulty: "Media", diffColor: "amber", area: "Planificación · Control postural · Función ejecutiva", bg: "bg-slate-50", iconBg: "bg-slate-100", iconColor: "text-slate-600", border: "border-slate-200" },
+  { id: "urban_attention_quest", name: "Urban Attention Quest", description: "Navegación 360° y rehabilitación de negligencia espacial", Icon: Crosshair, difficulty: "Media", diffColor: "amber", area: "Negligencia espacial · Rotación cervical · Orientación", bg: "bg-cyan-50", iconBg: "bg-cyan-100", iconColor: "text-cyan-600", border: "border-cyan-200" },
   { id: "lateral", name: "Objetivos laterales", description: "Trabajo de rotación de tronco y movilidad lateral", Icon: Move, difficulty: "Difícil", diffColor: "red", area: "Rotación de tronco · Movilidad lateral", bg: "bg-violet-50", iconBg: "bg-violet-100", iconColor: "text-violet-600", border: "border-violet-200" },
   { id: "catch", name: "Atrapar objetos", description: "Ejercicio de reacción y precisión motora", Icon: Hand, difficulty: "Fácil", diffColor: "green", area: "Reacción · Precisión motora", bg: "bg-emerald-50", iconBg: "bg-emerald-100", iconColor: "text-emerald-600", border: "border-emerald-200" },
   { id: "lights", name: "Seguir luces", description: "Trabajo de atención visual y control motor", Icon: Eye, difficulty: "Media", diffColor: "amber", area: "Atención visual · Control motor", bg: "bg-amber-50", iconBg: "bg-amber-100", iconColor: "text-amber-600", border: "border-amber-200" },
@@ -254,6 +256,195 @@ const GAME_SPECIFICATIONS: Record<string, any> = {
 </div>
     `.trim(),
   },
+  vault_escape: {
+    id: "vault_escape",
+    name: "Laser Vault Escape",
+    description: "Ejercicio de doble tarea (cognitivo-motora) para planificación motora, control postural y función ejecutiva",
+    targetMuscles: [
+      { name: "Deltoides (anterior, medio, posterior)", activation: 85, description: "Alcance multidireccional y elevación" },
+      { name: "Core (recto abdominal, oblicuos)", activation: 80, description: "Estabilización de tronco durante movimiento" },
+      { name: "Trapecio y romboides", activation: 70, description: "Control escapular" },
+      { name: "Cuádriceps y glúteos", activation: 75, description: "Agacharse y levantarse" },
+      { name: "Manguito rotador", activation: 70, description: "Estabilización glenohumeral" },
+    ],
+    primaryMovements: [
+      "Alcance selectivo multidireccional",
+      "Control postural dinámico",
+      "Flexión y extensión de tronco",
+      "Cruce de línea media",
+      "Coordinación bilateral",
+    ],
+    secondaryMovements: [
+      "Rotación de tronco",
+      "Flexión de rodillas (agacharse)",
+      "Planificación de trayectorias",
+      "Inhibición motora (evitar láser)",
+    ],
+    workZones: [
+      { zone: "Alto", percentage: 25, description: "Paneles por encima de la cabeza. Trabaja flexión máxima de hombro." },
+      { zone: "Medio", percentage: 45, description: "Altura del pecho. Rango funcional principal." },
+      { zone: "Bajo", percentage: 20, description: "Paneles bajos. Requiere agacharse, trabaja miembros inferiores." },
+      { zone: "Cruce línea media", percentage: 10, description: "Paneles en lado contralateral. Compensación hemisférica." },
+    ],
+    therapeuticBenefits: [
+      "Entrenamiento de doble tarea (motor + cognitivo)",
+      "Mejora de función ejecutiva y planificación",
+      "Desarrollo de control inhibitorio",
+      "Trabajo de memoria de trabajo espacial",
+      "Mejora de coordinación ojo-mano con obstáculos",
+      "Entrenamiento de resolución de problemas dinámicos",
+      "Mejora de atención sostenida",
+    ],
+    contraindications: [
+      "Episodios epilépticos no controlados (estímulos visuales intensos)",
+      "Dolor severo al movimiento (>7/10)",
+      "Inestabilidad postural severa sin soporte",
+      "Mareos o vértigo no resuelto",
+      "Ansiedad severa (el ambiente puede ser estresante)",
+    ],
+    progressionCriteria: {
+      beginner: "Láser estáticos, espacios amplios, sin tiempo límite. Enfoque en confianza.",
+      intermediate: "Láser móviles, 8 paneles, 3 minutos. Trabaja planificación y memoria.",
+      advanced: "Láser parpadeantes, 10+ paneles, 2 minutos, secuencia numérica. Máxima demanda cognitiva.",
+    },
+    clinicalNotes: `
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Evidencia científica:</div>
+    <ul class="notes-list">
+      <li><strong>Dual-task training:</strong> Combinación motor + cognitivo mejora outcomes en ictus (>20% vs. monotarea)</li>
+      <li><strong>Gamificación:</strong> Narrativa ("escapar") aumenta adherencia +35%</li>
+      <li><strong>Feedback inmediato:</strong> Acelera aprendizaje motor</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Dosificación:</div>
+    <ul class="notes-list">
+      <li>Frecuencia: 3-4 sesiones/semana</li>
+      <li>Duración: 3-5 minutos (alta demanda cognitiva)</li>
+      <li>Descanso: 2-3 minutos entre sesiones</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Indicadores de progreso:</div>
+    <ul class="notes-list">
+      <li>Disminución de toques de láser (mejor planificación)</li>
+      <li>Reducción de tiempo por panel (velocidad de procesamiento)</li>
+      <li>Mayor número de cruces de línea media</li>
+      <li>Aumento de rango vertical</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Ajustes terapéuticos:</div>
+    <ul class="notes-list">
+      <li><strong>Fase aguda:</strong> Pocos láser, sin tiempo, enfoque en alcance básico</li>
+      <li><strong>Fase subaguda:</strong> Introducir planificación, cruces de línea media</li>
+      <li><strong>Fase crónica:</strong> Máxima dificultad, secuencias, entrenamiento funcional</li>
+    </ul>
+  </div>
+</div>
+    `.trim(),
+  },
+  urban_attention_quest: {
+    id: "urban_attention_quest",
+    name: "Urban Attention Quest",
+    description: "Rehabilitación específica de negligencia espacial unilateral (hemineglect), orientación y navegación 360° con detección por mirada",
+    targetMuscles: [
+      { name: "Esternocleidomastoideo", activation: 90, description: "Rotación cervical izquierda/derecha" },
+      { name: "Trapecio superior", activation: 85, description: "Extensión cervical" },
+      { name: "Escalenos", activation: 75, description: "Flexión lateral cervical" },
+      { name: "Esplenio de la cabeza", activation: 80, description: "Extensión y rotación cervical" },
+      { name: "Core y erectores espinales", activation: 70, description: "Estabilización durante giros" },
+    ],
+    primaryMovements: [
+      "Rotación cervical (0-90° bilateral)",
+      "Rotación de tronco 360°",
+      "Flexión/extensión cervical",
+      "Escaneo visual activo",
+      "Búsqueda visual bilateral",
+    ],
+    secondaryMovements: [
+      "Estabilización postural durante giros",
+      "Cambios de peso corporal",
+      "Coordinación ojo-cabeza",
+      "Planificación de secuencias espaciales",
+    ],
+    workZones: [
+      { zone: "Lado izquierdo", percentage: 25, description: "Detección de negligencia izquierda (común post-ictus)." },
+      { zone: "Lado derecho", percentage: 25, description: "Comparación bilateral para asimetría." },
+      { zone: "Detrás (180°)", percentage: 20, description: "Requiere giro completo. Trabaja conciencia espacial posterior." },
+      { zone: "Arriba/abajo", percentage: 30, description: "Rango vertical completo. Flexión/extensión cervical." },
+    ],
+    therapeuticBenefits: [
+      "Detección temprana de negligencia espacial unilateral",
+      "Rehabilitación de hemineglect (déficit post-ictus frecuente)",
+      "Mejora de escaneo visual sistemático",
+      "Entrenamiento de rotación cervical funcional",
+      "Desarrollo de orientación espacial urbana (AVD)",
+      "Trabajo de atención sostenida y dividida",
+      "Mejora de confianza en navegación y giros",
+      "Transferencia a actividades cotidianas (cruzar calles, buscar objetos)",
+    ],
+    contraindications: [
+      "Espondilosis cervical severa no tratada",
+      "Mareos o vértigo posicional no resuelto",
+      "Síndrome vertiginoso agudo",
+      "Dolor cervical agudo (>7/10)",
+      "Inestabilidad atlantoaxial",
+      "Hernias cervicales con compresión neural activa",
+    ],
+    progressionCriteria: {
+      beginner: "Targets solo frente y lados, sin tiempo, asistencia con flechas. Familiarización.",
+      intermediate: "Targets bilaterales + algunos atrás, secuencia obligatoria, 3 minutos. Detecta negligencia.",
+      advanced: "Targets 360° completo, 15-20 objetivos, 2 minutos, sin asistencia. Autonomía máxima.",
+    },
+    clinicalNotes: `
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Evidencia para negligencia espacial:</div>
+    <ul class="notes-list">
+      <li><strong>Prevalencia:</strong> 30-50% de pacientes post-ictus hemisferio derecho presentan hemineglect</li>
+      <li><strong>Impacto funcional:</strong> Negligencia reduce independencia AVD en 60%</li>
+      <li><strong>VR efectividad:</strong> Entornos virtuales mejoran transferencia vs. terapia convencional (+40%)</li>
+      <li><strong>Detección por mirada:</strong> Mide atención visual pura, sin compensación manual</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Métricas claves:</div>
+    <ul class="notes-list">
+      <li><strong>Asimetría:</strong> >20% = negligencia moderada, >30% = severa</li>
+      <li><strong>Tiempos de reacción:</strong> Diferencia izq/der >1s indica hemineglect</li>
+      <li><strong>Rotaciones 180°:</strong> <2 en sesión = evita espacio posterior</li>
+      <li><strong>Score negligencia:</strong> <70 requiere intervención intensiva</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Protocolo recomendado:</div>
+    <ul class="notes-list">
+      <li>Semanas 1-4: Nivel FÁCIL, énfasis en exploración sin presión</li>
+      <li>Semanas 5-8: Nivel MEDIA, feedback activo de asimetría</li>
+      <li>Semanas 9-12: Nivel DIFÍCIL, autonomía completa</li>
+      <li>Frecuencia: 3-5 sesiones/semana, 10-15 min/sesión</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Complementar con:</div>
+    <ul class="notes-list">
+      <li><strong>Prismas ópticos:</strong> Tratamiento convencional paralelo</li>
+      <li><strong>Estimulación vestibular:</strong> Mejora orientación espacial</li>
+      <li><strong>Escaneo visual guiado:</strong> Transferir estrategias a vida real</li>
+      <li><strong>Práctica en entornos reales:</strong> Salidas supervisadas a exteriores</li>
+    </ul>
+  </div>
+</div>
+    `.trim(),
+  },
 };
 
 const AVATAR_COLORS = [
@@ -266,7 +457,7 @@ const DIAGNOSES = ["Ictus isquémico", "Ictus hemorrágico", "AIT recurrente", "
 const SIDES = ["Izquierdo", "Derecho", "Ambos"];
 const DIFFICULTIES = ["Fácil", "Media", "Difícil"];
 const HEIGHTS = ["Baja", "Media", "Alta", "Mixta"];
-const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco"];
+const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco", "Planificación motora", "Navegación espacial"];
 const DURATIONS = [1, 3, 5, 10];
 
 const DEFAULT_CONFIG: SessionConfig = {
