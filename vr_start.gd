@@ -74,49 +74,56 @@ func _init_openxr() -> void:
 # ─── UI DE SALA DE ESPERA ─────────────────────────────────────────────────────
 
 func _create_waiting_ui() -> void:
-	# Crear labels 3D para mostrar en VR
+	# Crear labels 3D ENFRENTE del usuario y LEGIBLES
 	label_status = Label3D.new()
-	label_status.position = Vector3(0, 2, -3)
-	label_status.font_size = 64
-	label_status.modulate = Color(0.2, 0.8, 1.0)  # Azul claro
+	label_status.position = Vector3(-2.0, 1.8, 0)
+	label_status.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
+	label_status.font_size = 72
+	label_status.modulate = Color(0.2, 0.8, 1.0)
 	label_status.outline_size = 8
 	label_status.outline_modulate = Color.BLACK
 	add_child(label_status)
 	
 	label_info = Label3D.new()
-	label_info.position = Vector3(0, 1.5, -3)
-	label_info.font_size = 32
+	label_info.position = Vector3(-2.0, 1.4, 0)
+	label_info.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
+	label_info.font_size = 36
 	label_info.modulate = Color(0.8, 0.8, 0.8)
-	label_info.outline_size = 4
+	label_info.outline_size = 5
 	label_info.outline_modulate = Color.BLACK
 	add_child(label_info)
+	
+	print("[VR] ✅ UI de espera creada")
 
 # ─── HUD DEL JUEGO ────────────────────────────────────────────────────────────
 
 func _create_game_hud() -> void:
-	# Score (arriba izquierda)
+	# Score (arriba izquierda ENFRENTE y LEGIBLE)
 	hud_score = Label3D.new()
-	hud_score.position = Vector3(-1.5, 2.5, -2.5)
+	hud_score.position = Vector3(-1.8, 1.8, -1.0)
+	hud_score.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
 	hud_score.font_size = 48
-	hud_score.modulate = Color(1.0, 0.9, 0.0)  # Dorado
+	hud_score.modulate = Color(1.0, 0.9, 0.0)
 	hud_score.outline_size = 6
 	hud_score.outline_modulate = Color.BLACK
 	hud_score.visible = false
 	add_child(hud_score)
 	
-	# Timer (arriba derecha)
+	# Timer (arriba derecha ENFRENTE y LEGIBLE)
 	hud_timer = Label3D.new()
-	hud_timer.position = Vector3(1.5, 2.5, -2.5)
+	hud_timer.position = Vector3(-1.8, 1.8, 1.0)
+	hud_timer.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
 	hud_timer.font_size = 48
-	hud_timer.modulate = Color(0.2, 1.0, 0.4)  # Verde
+	hud_timer.modulate = Color(0.2, 1.0, 0.4)
 	hud_timer.outline_size = 6
 	hud_timer.outline_modulate = Color.BLACK
 	hud_timer.visible = false
 	add_child(hud_timer)
 	
-	# Instrucción actual (abajo centro)
+	# Instrucción actual (abajo centro ENFRENTE y LEGIBLE)
 	hud_instruction = Label3D.new()
-	hud_instruction.position = Vector3(0, 0.3, -2.0)
+	hud_instruction.position = Vector3(-1.5, 0.5, 0)
+	hud_instruction.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
 	hud_instruction.font_size = 28
 	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
 	hud_instruction.outline_size = 4
@@ -124,11 +131,12 @@ func _create_game_hud() -> void:
 	hud_instruction.visible = false
 	add_child(hud_instruction)
 	
-	# Combo multiplier (centro)
+	# Combo multiplier (centro ENFRENTE y LEGIBLE)
 	hud_combo = Label3D.new()
-	hud_combo.position = Vector3(0, 1.8, -2.5)
+	hud_combo.position = Vector3(-1.8, 1.5, 0)
+	hud_combo.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
 	hud_combo.font_size = 56
-	hud_combo.modulate = Color(1.0, 0.4, 0.0)  # Naranja
+	hud_combo.modulate = Color(1.0, 0.4, 0.0)
 	hud_combo.outline_size = 8
 	hud_combo.outline_modulate = Color.BLACK
 	hud_combo.visible = false
@@ -138,9 +146,10 @@ func _create_game_hud() -> void:
 
 func _create_countdown_ui() -> void:
 	_countdown_label = Label3D.new()
-	_countdown_label.position = Vector3(0, 1.6, -2.0)
-	_countdown_label.font_size = 128
-	_countdown_label.modulate = Color(1.0, 1.0, 0.0)  # Amarillo
+	_countdown_label.position = Vector3(-1.5, 1.5, 0)
+	_countdown_label.rotation_degrees = Vector3(0, 90, 0)  # 90° para que se lea correctamente
+	_countdown_label.font_size = 144
+	_countdown_label.modulate = Color(1.0, 1.0, 0.0)
 	_countdown_label.outline_size = 16
 	_countdown_label.outline_modulate = Color.BLACK
 	_countdown_label.visible = false
@@ -249,12 +258,13 @@ func _generate_ambient_loop() -> void:
 
 func _show_waiting_message() -> void:
 	if label_status:
-		label_status.text = "🏥 SALA DE ESPERA"
+		label_status.text = "SALA DE ESPERA"  # Sin emoji
 		label_status.visible = true
 	if label_info:
-		label_info.text = "El fisioterapeuta iniciará tu sesión en breve..."
+		label_info.text = "Polling activo. Esperando sesión..."
 		label_info.visible = true
 	_hide_game_hud()
+	print("[VR] 📺 Mensaje de espera mostrado")
 
 func _hide_waiting_ui() -> void:
 	if label_status:
@@ -284,6 +294,8 @@ func _hide_game_hud() -> void:
 
 func _on_new_session_detected(config: Dictionary) -> void:
 	print("[VR] 🎮 ¡Nueva sesión detectada! Iniciando automáticamente...")
+	if label_info:
+		label_info.text = "¡SESIÓN DETECTADA! Iniciando..."
 	waiting_mode = false
 	firebase_manager.stop_polling()  # Detener polling
 	_hide_waiting_ui()
@@ -393,6 +405,8 @@ func _on_timer_updated(remaining: float) -> void:
 
 func _on_session_finished(results: Dictionary) -> void:
 	print("[VR] 🏁 Sesión terminada — Puntos: ", results.get("score", 0))
+	
+	# Guardar resultados en Firestore
 	firebase_manager.save_results(results)
 	
 	_hide_game_hud()
@@ -406,9 +420,23 @@ func _on_session_finished(results: Dictionary) -> void:
 		label_info.visible = true
 		label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Precisión: " + str(results.get("accuracy", 0)) + "%"
 	
+	# Limpiar sesión activa en Firestore para evitar auto-inicio
+	print("[VR] 🧹 Limpiando sesión de Firestore...")
+	_clear_firestore_session()
+	
 	# Volver a sala de espera después de 5 segundos
 	await get_tree().create_timer(5.0).timeout
 	print("[VR] 🔄 Volviendo a sala de espera...")
 	waiting_mode = true
 	_show_waiting_message()
 	firebase_manager.start_polling()  # Reactivar polling para la siguiente sesión
+
+func _clear_firestore_session() -> void:
+	# Llamada HTTP DELETE para limpiar sesión activa
+	var url = "https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current"
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request(url, [], HTTPClient.METHOD_DELETE)
+	await http.request_completed
+	http.queue_free()
+	print("[VR] ✅ Sesión limpiada de Firestore")

@@ -150,6 +150,14 @@ func _on_config_received(result: int, code: int, _headers, body: PackedByteArray
 func save_results(results: Dictionary) -> void:
 	var url = BASE_URL + "/" + COL_RESULTS
 	var headers = ["Content-Type: application/json"]
+	
+	print("[Firebase] 💾 Guardando resultados:")
+	print("  - Paciente: ", results.get("patient_name", ""))
+	print("  - Score: ", results.get("score", 0))
+	print("  - Precisión: ", results.get("accuracy", 0), "%")
+	print("  - Duración: ", results.get("duration", 0), "s")
+	print("  - Lado: ", results.get("therapy_side", ""))
+	print("  - Dificultad: ", results.get("difficulty", ""))
 
 	# Construir movements_summary como array Firestore
 	var movements_array = {"arrayValue": {"values": []}}
