@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://luggage_item_scene"]
+
+[ext_resource type="Script" path="res://scenes/luggage_item.gd" id="1"]
+
+[node name="LuggageItem" type="RigidBody3D"]
+script = ExtResource("1")
+mass = 5.0
+gravity_scale = 1.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+
+[node name="Label3D" type="Label3D" parent="."]
+billboard = 1
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 20
+lifetime = 0.5
+one_shot = true
+explosiveness = 1.0
