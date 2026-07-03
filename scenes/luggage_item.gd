@@ -16,7 +16,7 @@ signal luggage_dropped(item: RigidBody3D)
 @export var target_zone: String = "green"  # green, yellow, red
 
 var is_grabbed: bool = false
-var grabbed_by: Node3D = null
+var grabbed_by: Node3D = null  # Referencia al controlador XR que la agarró
 var spawn_time: float = 0.0
 var lifetime: float = 0.0
 var on_conveyor: bool = true
@@ -26,6 +26,7 @@ var _mesh: MeshInstance3D
 var _collision: CollisionShape3D
 var _particles: GPUParticles3D
 var _label: Label3D
+var _grab_area: Area3D  # Área para detectar controladores cerca
 
 # Colores según tipo
 const COLORS = {
@@ -47,6 +48,7 @@ func _ready() -> void:
 	spawn_time = Time.get_ticks_msec() / 1000.0
 	_create_visual()
 	_setup_physics()
+	_create_grab_area()
 	
 	# Conectar señales de colisión
 	body_entered.connect(_on_body_entered)
@@ -104,6 +106,37 @@ func _setup_physics() -> void:
 	physics_material_override = PhysicsMaterial.new()
 	physics_material_override.friction = 0.8
 	physics_material_override.bounce = 0.1
+
+func _create_grab_area() -> void:
+	# Crear área de detección para controladores VR
+	_grab_area = Area3D.new()
+	add_child(_grab_area)
+	
+	# Collision shape para área (ligeramente más grande que la maleta)
+	var grab_collision = CollisionShape3D.new()
+	var grab_shape = SphereShape3D.new()
+	grab_shape.radius = 0.3  # 30cm de radio para agarrar
+	grab_collision.shape = grab_shape
+	_grab_area.add_child(grab_collision)
+	
+	# Conectar señales
+	_grab_area.body_entered.connect(_on_grab_area_entered)
+	_grab_area.body_exited.connect(_on_grab_area_exited)
+	
+	print("[Luggage] Área de agarre creada (radio 0.3m)")
+
+func _on_grab_area_entered(body: Node3D) -> void:
+	# Detectar si es un controlador XR
+	if body.is_in_group("xr_controller") and not is_grabbed:
+		print("[Luggage] Controlador XR cerca de maleta ", luggage_id)
+		# El controlador puede agarrar esta maleta
+		body.set_meta("nearby_luggage", self)
+
+func _on_grab_area_exited(body: Node3D) -> void:
+	if body.is_in_group("xr_controller"):
+		if body.get_meta("nearby_luggage", null) == self:
+			body.remove_meta("nearby_luggage")
+			print("[Luggage] Controlador XR alejado de maleta ", luggage_id)
 
 func _process(delta: float) -> void:
 	if not is_grabbed:
