@@ -156,6 +156,7 @@ const MINIGAMES = [
   { id: "gems", name: "Recolectar gemas", description: "Ejercicio de alcance funcional y coordinación ojo-mano", Icon: Sparkles, difficulty: "Media", diffColor: "amber", area: "Alcance · Coordinación ojo-mano", bg: "bg-blue-50", iconBg: "bg-blue-100", iconColor: "text-blue-600", border: "border-blue-200" },
   { id: "vault_escape", name: "Laser Vault Escape", description: "Planificación motora y precisión evitando obstáculos láser", Icon: Lock, difficulty: "Media", diffColor: "amber", area: "Planificación · Control postural · Función ejecutiva", bg: "bg-slate-50", iconBg: "bg-slate-100", iconColor: "text-slate-600", border: "border-slate-200" },
   { id: "urban_attention_quest", name: "Urban Attention Quest", description: "Navegación 360° y rehabilitación de negligencia espacial", Icon: Crosshair, difficulty: "Media", diffColor: "amber", area: "Negligencia espacial · Rotación cervical · Orientación", bg: "bg-cyan-50", iconBg: "bg-cyan-100", iconColor: "text-cyan-600", border: "border-cyan-200" },
+  { id: "luggage_handler", name: "Luggage Handler", description: "Entrenamiento de fuerza, resistencia y rotación de tronco", Icon: Layers, difficulty: "Media", diffColor: "amber", area: "Fuerza · Resistencia · Rotación de tronco", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600", border: "border-orange-200" },
   { id: "lateral", name: "Objetivos laterales", description: "Trabajo de rotación de tronco y movilidad lateral", Icon: Move, difficulty: "Difícil", diffColor: "red", area: "Rotación de tronco · Movilidad lateral", bg: "bg-violet-50", iconBg: "bg-violet-100", iconColor: "text-violet-600", border: "border-violet-200" },
   { id: "catch", name: "Atrapar objetos", description: "Ejercicio de reacción y precisión motora", Icon: Hand, difficulty: "Fácil", diffColor: "green", area: "Reacción · Precisión motora", bg: "bg-emerald-50", iconBg: "bg-emerald-100", iconColor: "text-emerald-600", border: "border-emerald-200" },
   { id: "lights", name: "Seguir luces", description: "Trabajo de atención visual y control motor", Icon: Eye, difficulty: "Media", diffColor: "amber", area: "Atención visual · Control motor", bg: "bg-amber-50", iconBg: "bg-amber-100", iconColor: "text-amber-600", border: "border-amber-200" },
@@ -445,6 +446,123 @@ const GAME_SPECIFICATIONS: Record<string, any> = {
 </div>
     `.trim(),
   },
+  luggage_handler: {
+    id: "luggage_handler",
+    name: "Luggage Handler",
+    description: "Ejercicio de manipulación de cargas para fortalecimiento muscular, resistencia y rotación de tronco funcional",
+    targetMuscles: [
+      { name: "Deltoides (anterior, medio, posterior)", activation: 85, description: "Levantamiento y elevación de maletas" },
+      { name: "Bíceps braquial y braquiorradial", activation: 80, description: "Flexión de codo y agarre" },
+      { name: "Tríceps braquial", activation: 70, description: "Extensión de codo al colocar" },
+      { name: "Trapecio superior y medio", activation: 75, description: "Elevación y retracción escapular" },
+      { name: "Core (recto abdominal, oblicuos)", activation: 80, description: "Estabilización durante giros" },
+      { name: "Erectores espinales", activation: 75, description: "Control de columna bajo carga" },
+      { name: "Cuádriceps y glúteos", activation: 60, description: "Agacharse y levantarse" },
+    ],
+    primaryMovements: [
+      "Levantamiento de objetos (2-15 kg)",
+      "Rotación de tronco izquierda/derecha",
+      "Transferencia de peso bilateral",
+      "Alcance multidireccional bajo carga",
+      "Agarre y manipulación de objetos",
+    ],
+    secondaryMovements: [
+      "Flexión y extensión de codo",
+      "Abducción y flexión de hombro",
+      "Cruce de línea media",
+      "Estabilización postural dinámica",
+      "Coordinación bimanual",
+    ],
+    workZones: [
+      { zone: "Zona Verde (Izquierda)", percentage: 35, description: "Rotación de tronco a izquierda. Trabajo de oblicuos y rotadores." },
+      { zone: "Zona Amarilla (Derecha)", percentage: 35, description: "Rotación de tronco a derecha. Simetría bilateral." },
+      { zone: "Zona Roja (Atrás)", percentage: 30, description: "Rotación 180°. Máxima demanda de movilidad troncal." },
+    ],
+    therapeuticBenefits: [
+      "Fortalecimiento muscular progresivo (2-15 kg)",
+      "Desarrollo de resistencia muscular bajo carga sostenida",
+      "Mejora de rotación de tronco funcional",
+      "Entrenamiento de manipulación de cargas (AVD)",
+      "Trabajo de coordinación bilateral",
+      "Transferencia directa a tareas cotidianas (compras, mudanzas)",
+      "Mejora de tolerancia al esfuerzo",
+    ],
+    contraindications: [
+      "Dolor lumbar agudo no controlado (>7/10)",
+      "Hernia discal con compromiso neural activo",
+      "Inestabilidad vertebral",
+      "Hipertensión arterial no controlada (ejercicio de fuerza)",
+      "Tendinopatía aguda de hombro",
+      "Cirugía reciente de columna (<3 meses)",
+    ],
+    progressionCriteria: {
+      beginner: "Solo maletas ligeras (2-5kg), 2 zonas, 3 min. Enfoque en técnica y postura.",
+      intermediate: "Maletas hasta 12kg, 3 zonas, rotación completa, 3-5 min. Progresión de carga.",
+      advanced: "Todas las maletas (hasta 15kg), velocidad alta, 5 min. Máxima resistencia.",
+    },
+    clinicalNotes: `
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Evidencia para entrenamiento de fuerza post-ictus:</div>
+    <ul class="notes-list">
+      <li><strong>Efectividad:</strong> Aumenta fuerza muscular +25-40% en 8-12 semanas</li>
+      <li><strong>Seguridad:</strong> No aumenta espasticidad ni deteriora función</li>
+      <li><strong>Dosis óptima:</strong> 2-3 sesiones/semana, intensidad moderada-alta</li>
+      <li><strong>Transferencia funcional:</strong> Contexto realista mejora generalización a AVD</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Dosificación recomendada:</div>
+    <ul class="notes-list">
+      <li>Frecuencia: 2-3 sesiones/semana (mínimo 48h recuperación)</li>
+      <li>Duración: 3-5 minutos por sesión (alta demanda muscular)</li>
+      <li>Progresión: Aumentar peso cada 2-3 semanas si tolera bien</li>
+      <li>Descanso: 2-3 minutos entre sesiones si se repiten</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Indicadores de progreso:</div>
+    <ul class="notes-list">
+      <li>Aumento de peso total movido por sesión (+10-20% cada 2 semanas)</li>
+      <li>Disminución del índice de fatiga (<0.3 = buen rendimiento)</li>
+      <li>Mayor simetría en rotaciones (asimetría <20%)</li>
+      <li>Mejora en precisión de colocación (>85%)</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Precauciones específicas:</div>
+    <ul class="notes-list">
+      <li><strong>Técnica correcta:</strong> Evitar flexión lumbar excesiva (usar piernas)</li>
+      <li><strong>Respiración:</strong> No retener aire (Valsalva) - exhalar al levantar</li>
+      <li><strong>Dolor:</strong> Detener si aparece dolor agudo (>4/10)</li>
+      <li><strong>Fatiga:</strong> Si índice >0.5, reducir peso o duración siguiente sesión</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Ajustes terapéuticos por fase:</div>
+    <ul class="notes-list">
+      <li><strong>Fase aguda (1-3 meses):</strong> Solo 2-5kg, 2 zonas, 2-3 min, sin rotación atrás</li>
+      <li><strong>Fase subaguda (3-6 meses):</strong> Hasta 10kg, 3 zonas, 3-5 min, incluir rotación</li>
+      <li><strong>Fase crónica (6+ meses):</strong> Hasta 15kg, velocidad alta, máxima funcionalidad</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Integración con otras terapias:</div>
+    <ul class="notes-list">
+      <li><strong>Combina bien con:</strong> Estiramientos de tronco, movilizaciones articulares, ejercicios de equilibrio</li>
+      <li><strong>Realizar después de:</strong> Calentamiento cardiovascular (5-10 min)</li>
+      <li><strong>Realizar antes de:</strong> Actividades de coordinación fina</li>
+      <li><strong>Complementar con:</strong> Ejercicios de core específicos fuera de VR</li>
+    </ul>
+  </div>
+</div>
+    `.trim(),
+  },
 };
 
 const AVATAR_COLORS = [
@@ -457,7 +575,7 @@ const DIAGNOSES = ["Ictus isquémico", "Ictus hemorrágico", "AIT recurrente", "
 const SIDES = ["Izquierdo", "Derecho", "Ambos"];
 const DIFFICULTIES = ["Fácil", "Media", "Difícil"];
 const HEIGHTS = ["Baja", "Media", "Alta", "Mixta"];
-const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco", "Planificación motora", "Navegación espacial"];
+const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco", "Planificación motora", "Navegación espacial", "Fuerza"];
 const DURATIONS = [1, 3, 5, 10];
 
 const DEFAULT_CONFIG: SessionConfig = {

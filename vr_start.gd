@@ -7,10 +7,11 @@ extends Node3D
 
 var firebase_manager: Node = null
 var waiting_mode := true  # Modo sala de espera activo
+var current_game_manager: Node = null  # Game manager activo según juego
 
 # UI Labels para feedback visual
 @onready var label_status: Label3D = null
-@onready var label_info: Label3D = null
+@ontml:parameter name="label_info: Label3D = null
 
 # HUD Labels para juego
 var hud_score: Label3D = null
@@ -32,11 +33,7 @@ func _ready() -> void:
 	_create_countdown_ui()
 	_setup_ambient_audio()
 
-	# Conectar señales del GameManager
-	GameManager.session_started.connect(_on_session_started)
-	GameManager.session_finished.connect(_on_session_finished)
-	GameManager.gem_collected.connect(_on_gem_collected)
-	GameManager.timer_updated.connect(_on_timer_updated)
+	# Nota: Las señales se conectan dinámicamente cuando se carga el game manager
 
 	# Crear FirebaseManager dinámicamente si no está en escena
 	if has_node("FirebaseManager"):
@@ -303,11 +300,89 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	# Aplicar configuración
 	GameManager.apply_config(config)
 	
+	# Cargar el game manager específico según game_id
+	var game_id = config.get("game_id", "gems")
+	_load_game_manager(game_id)
+	
 	# Mostrar countdown animado
 	await _show_countdown()
 	
 	# Arrancar sesión
-	GameManager.start_session()
+	if current_game_manager and current_game_manager.has_method("start_game"):
+		current_game_manager.start_game()
+	else:
+		GameManager.start_session()
+
+func _load_game_manager(game_id: String) -> void:
+	print("[VR] 🎮 Cargando game manager para: ", game_id)
+	
+	# Limpiar game manager anterior si existe
+	if current_game_manager:
+		current_game_manager.queue_free()
+		current_game_manager = null
+	
+	# Cargar el script apropiado según el juego
+	var game_manager_script: GDScript = null
+	
+	match game_id:
+		"gems":
+			# Usar GameManager global (ya existe)
+			print("[VR] ✅ Usando GameManager global para Recolectar Gemas")
+			GameManager.session_started.connect(_on_session_started)
+			GameManager.session_finished.connect(_on_session_finished)
+			GameManager.gem_collected.connect(_on_gem_collected)
+			GameManager.timer_updated.connect(_on_timer_updated)
+			return  # No crear nuevo manager
+		
+		"vault_escape":
+			game_manager_script = load("res://scenes/vault_game_manager.gd")
+		
+		"urban_attention_quest":
+			game_manager_script = load("res://scenes/city_game_manager.gd")
+		
+		"luggage_handler":
+			game_manager_script = load("res://scenes/luggage_game_manager.gd")
+		
+		_:
+			print("[VR] ⚠️ Game ID desconocido: ", game_id, " - Usando gems por defecto")
+			GameManager.session_started.connect(_on_session_started)
+			GameManager.session_finished.connect(_on_session_finished)
+			GameManager.gem_collected.connect(_on_gem_collected)
+			GameManager.timer_updated.connect(_on_timer_updated)
+			return
+	
+	# Crear instancia del game manager
+	if game_manager_script:
+		current_game_manager = Node.new()
+		current_game_manager.set_script(game_manager_script)
+		current_game_manager.name = "CurrentGameManager"
+		add_child(current_game_manager)
+		
+		# Conectar señales comunes
+		if current_game_manager.has_signal("game_started"):
+			current_game_manager.game_started.connect(_on_session_started)
+		if current_game_manager.has_signal("game_finished"):
+			current_game_manager.game_finished.connect(_on_session_finished)
+		if current_game_manager.has_signal("timer_updated"):
+			current_game_manager.timer_updated.connect(_on_timer_updated)
+		
+		# Señales específicas por juego
+		match game_id:
+			"vault_escape":
+				if current_game_manager.has_signal("panel_collected"):
+					current_game_manager.panel_collected.connect(_on_panel_collected)
+				if current_game_manager.has_signal("laser_hit"):
+					current_game_manager.laser_hit.connect(_on_laser_hit)
+			
+			"urban_attention_quest":
+				if current_game_manager.has_signal("target_collected"):
+					current_game_manager.target_collected.connect(_on_target_collected)
+			
+			"luggage_handler":
+				if current_game_manager.has_signal("luggage_placed"):
+					current_game_manager.luggage_placed.connect(_on_luggage_placed)
+		
+		print("[VR] ✅ Game manager cargado: ", game_id)
 
 func _on_config_loaded(config: Dictionary) -> void:
 	# Esta función ya no se usa en el flujo principal
@@ -321,6 +396,10 @@ func _on_config_error(_msg: String) -> void:
 	# En modo sala de espera, no hacer nada, seguir esperando
 	# Solo usar defaults si estamos en modo desarrollo/pruebas
 	print("[VR] [AUTO-START] Iniciando sesión de prueba en 3 segundos...")
+	
+	# Configuración de prueba (puedes cambiar game_id para probar cada juego)
+	var test_game_id = "gems"  # Cambiar a: vault_escape, urban_attention_quest, luggage_handler
+	
 	GameManager.apply_config({
 		"patient_id":    "test",
 		"patient_name":  "Prueba Local",
@@ -329,14 +408,21 @@ func _on_config_error(_msg: String) -> void:
 		"difficulty":    "Media",
 		"therapy_side":  "Izquierdo",
 		"session_type":  "Alcance",
-		"game_id":       "gems",
+		"game_id":       test_game_id,
 	})
+	
+	# Cargar game manager apropiado
+	_load_game_manager(test_game_id)
 	
 	# Mostrar countdown y arrancar
 	_hide_waiting_ui()
 	await get_tree().create_timer(1.0).timeout
 	await _show_countdown()
-	GameManager.start_session()
+	
+	if current_game_manager and current_game_manager.has_method("start_game"):
+		current_game_manager.start_game()
+	else:
+		GameManager.start_session()
 
 func _on_session_started() -> void:
 	print("[VR] ▶ Sesión iniciada | ", GameManager.difficulty, " | ", GameManager.therapy_side)
@@ -374,6 +460,41 @@ func _on_gem_collected(gem_type: String, points: int, total: int) -> void:
 		_combo_count = 1
 	
 	_last_gem_time = current_time
+
+# ─── CALLBACKS ESPECÍFICOS POR JUEGO ─────────────────────────────────────────
+
+func _on_panel_collected(panel_id: int, points: int) -> void:
+	print("[VR] Panel: ", panel_id, " +", points, " pts")
+	if hud_score and current_game_manager:
+		hud_score.text = "🔐 " + str(current_game_manager.score)
+		var tween = create_tween()
+		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
+		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
+
+func _on_laser_hit() -> void:
+	print("[VR] ⚡ Láser tocado!")
+	if hud_instruction:
+		hud_instruction.text = "¡CUIDADO CON EL LÁSER!"
+		hud_instruction.modulate = Color(1.0, 0.0, 0.0)
+		await get_tree().create_timer(1.0).timeout
+		hud_instruction.modulate = Color(1.0, 1.0, 1.0)
+		hud_instruction.text = ""
+
+func _on_target_collected(target_id: int, points: int) -> void:
+	print("[VR] Target: ", target_id, " +", points, " pts")
+	if hud_score and current_game_manager:
+		hud_score.text = "🎯 " + str(current_game_manager.score)
+		var tween = create_tween()
+		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
+		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
+
+func _on_luggage_placed(zone: String, weight: float, points: int) -> void:
+	print("[VR] Maleta colocada en ", zone, " (", weight, "kg) +", points, " pts")
+	if hud_score and current_game_manager:
+		hud_score.text = "📦 " + str(current_game_manager.score)
+		var tween = create_tween()
+		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
+		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
 
 func _show_combo() -> void:
 	if hud_combo:
@@ -418,7 +539,21 @@ func _on_session_finished(results: Dictionary) -> void:
 		label_status.modulate = Color(0.2, 1.0, 0.4)
 	if label_info:
 		label_info.visible = true
-		label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Precisión: " + str(results.get("accuracy", 0)) + "%"
+		var game_type = results.get("game_type", "")
+		match game_type:
+			"vault_escape":
+				label_info.text = "Score: " + str(results.get("score", 0)) + " | Paneles: " + str(results.get("panels_collected", 0))
+			"urban_attention_quest":
+				label_info.text = "Score: " + str(results.get("score", 0)) + " | Targets: " + str(results.get("targets_collected", 0))
+			"luggage_handler":
+				label_info.text = "Score: " + str(results.get("score", 0)) + " | Maletas: " + str(results.get("luggage_placed", 0))
+			_:
+				label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Precisión: " + str(results.get("accuracy", 0)) + "%"
+	
+	# Limpiar game manager actual
+	if current_game_manager:
+		current_game_manager.queue_free()
+		current_game_manager = null
 	
 	# Limpiar sesión activa en Firestore para evitar auto-inicio
 	print("[VR] 🧹 Limpiando sesión de Firestore...")

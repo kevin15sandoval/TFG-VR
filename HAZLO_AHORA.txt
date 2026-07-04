@@ -1,0 +1,51 @@
+═══════════════════════════════════════════════════════════════════════════
+  🚀 HAZ ESTO AHORA - 3 PASOS SIMPLES
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PASO 1: EXPORTAR (10 min)                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+1. Abre Godot 4.6
+2. Abre proyecto TFG
+3. Project → Export
+4. Exporta HubWorld a: builds/hub/index.html
+5. Espera a que termine
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PASO 2: DEPLOY (5 min)                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+1. Abre CMD
+2. Escribe:
+   cd c:\Users\USUARIO\Documents\tfg
+   deploy_all_games.bat
+3. Espera a que termine
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PASO 3: PROBAR (5 min)                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+1. Abre navegador
+2. Ve a: https://tfg-vr.web.app/
+3. ¡LISTO! Tu sistema está en producción
+
+═══════════════════════════════════════════════════════════════════════════
+
+¿PROBLEMAS?
+
+Lee: GUIA_FINAL_PRODUCCION.md
+
+═══════════════════════════════════════════════════════════════════════════
+
+DESPUÉS DE ESTO TENDRÁS:
+
+✅ Sistema completo funcionando
+✅ 4 juegos VR jugables  
+✅ Hub con loft
+✅ Plataforma clínica
+✅ Todo listo para presentar
+
+═══════════════════════════════════════════════════════════════════════════
+
+¡EMPIEZA YA! ⏰

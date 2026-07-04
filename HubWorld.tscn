@@ -1,0 +1,104 @@
+[gd_scene load_steps=10 format=3 uid="uid://hub_world_universal"]
+
+[ext_resource type="Script" path="res://hub_manager.gd" id="1_hub"]
+[ext_resource type="PackedScene" path="res://models/loft2_free_interior.glb" id="2_hub"]
+[ext_resource type="Script" uid="uid://oq6fvrlvhv43" path="res://scripts/firebase_manager.gd" id="3_hub"]
+
+[sub_resource type="Environment" id="Environment_hub"]
+background_mode = 2
+background_color = Color(0.05, 0.1, 0.15, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.4, 0.5, 0.6, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 1.0
+glow_strength = 1.0
+glow_bloom = 0.3
+fog_enabled = true
+fog_light_color = Color(0.2, 0.3, 0.4, 1)
+fog_density = 0.015
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_hub"]
+sky_top_color = Color(0.1, 0.2, 0.3, 1)
+sky_horizon_color = Color(0.3, 0.4, 0.5, 1)
+ground_bottom_color = Color(0.05, 0.05, 0.1, 1)
+ground_horizon_color = Color(0.2, 0.25, 0.3, 1)
+
+[sub_resource type="Sky" id="Sky2_hub"]
+sky_material = SubResource("Sky_hub")
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(20, 0.2, 20)
+
+[sub_resource type="StandardMaterial3D" id="Material_floor"]
+albedo_color = Color(0.15, 0.2, 0.25, 1)
+metallic = 0.3
+roughness = 0.7
+
+[sub_resource type="BoxShape3D" id="BoxShape_floor"]
+size = Vector3(20, 0.2, 20)
+
+[node name="HubWorld" type="Node3D"]
+script = ExtResource("1_hub")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_hub")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+light_energy = 0.8
+shadow_enabled = true
+
+[node name="XROrigin3D" type="XROrigin3D" parent="."]
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="LeftController" type="XRController3D" parent="XROrigin3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.2, -0.3)
+tracker = &"left_hand"
+pose = &"grip"
+
+[node name="RightController" type="XRController3D" parent="XROrigin3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.2, -0.3)
+tracker = &"right_hand"
+pose = &"grip"
+
+[node name="TrainStation" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="LoftInterior" parent="TrainStation" instance=ExtResource("2_hub")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="WelcomeSign" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -3)
+
+[node name="StatusLabel" type="Label3D" parent="WelcomeSign"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+pixel_size = 0.002
+text = "SALA DE ESPERA VR"
+font_size = 64
+outline_size = 12
+outline_modulate = Color(0, 0, 0, 1)
+
+[node name="InfoLabel" type="Label3D" parent="WelcomeSign"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+pixel_size = 0.002
+text = "Esperando a que el fisioterapeuta inicie la sesión..."
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)
+
+[node name="GameLabel" type="Label3D" parent="WelcomeSign"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+pixel_size = 0.002
+visible = false
+text = ""
+font_size = 48
+outline_size = 10
+outline_modulate = Color(0, 0, 0, 1)
+modulate = Color(0.2, 1, 0.4, 1)
+
+[node name="FirebaseManager" type="Node" parent="."]
+script = ExtResource("3_hub")
