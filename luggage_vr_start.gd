@@ -69,9 +69,14 @@ func _ready() -> void:
 	firebase_manager.results_saved.connect(func(): print("[LuggageVR] ✅ Resultados guardados"))
 	firebase_manager.results_error.connect(func(e): print("[LuggageVR] ❌ Error: ", e))
 	
-	print("[LuggageVR] 🏥 Entrando en sala de espera...")
-	_show_waiting_message()
-	firebase_manager.start_polling()
+	# MODO DEBUG: Si ejecutas esta escena directamente (sin Hub), auto-iniciar
+	if OS.is_debug_build():
+		print("[LuggageVR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
+		_on_config_error("Debug mode")
+	else:
+		print("[LuggageVR] 🏥 Entrando en sala de espera...")
+		_show_waiting_message()
+		firebase_manager.start_polling()
 
 func _process(_delta: float) -> void:
 	if luggage_manager and _xr_camera:

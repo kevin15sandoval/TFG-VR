@@ -64,9 +64,14 @@ func _ready() -> void:
 	firebase_manager.results_error.connect(func(e): print("[VaultVR] ❌ Error: ", e))
 	
 	# Modo sala de espera
-	print("[VaultVR] 🏥 Entrando en sala de espera...")
-	_show_waiting_message()
-	firebase_manager.start_polling()
+	# MODO DEBUG: Si ejecutas esta escena directamente (sin Hub), auto-iniciar
+	if OS.is_debug_build():
+		print("[VaultVR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
+		_on_config_error("Debug mode")
+	else:
+		print("[VaultVR] 🏥 Entrando en sala de espera...")
+		_show_waiting_message()
+		firebase_manager.start_polling()
 
 func _init_openxr() -> void:
 	var xr = XRServer.find_interface("OpenXR")

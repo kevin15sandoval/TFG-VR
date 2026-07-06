@@ -51,11 +51,16 @@ func _ready() -> void:
 	firebase_manager.results_saved.connect(func(): print("[VR] ✅ Resultados guardados"))
 	firebase_manager.results_error.connect(func(e): print("[VR] ❌ Error: ", e))
 
-	# NUEVO: Iniciar en modo sala de espera con polling
-	print("[VR] 🏥 Entrando en sala de espera...")
-	print("[VR] 👀 Esperando que el fisioterapeuta inicie sesión...")
-	_show_waiting_message()
-	firebase_manager.start_polling()  # Activar polling automático
+	# MODO DEBUG: Si ejecutas esta escena directamente (sin Hub), auto-iniciar
+	if OS.is_debug_build():
+		print("[VR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
+		_on_config_error("Debug mode")
+	else:
+		# NUEVO: Iniciar en modo sala de espera con polling
+		print("[VR] 🏥 Entrando en sala de espera...")
+		print("[VR] 👀 Esperando que el fisioterapeuta inicie sesión...")
+		_show_waiting_message()
+		firebase_manager.start_polling()  # Activar polling automático
 
 func _init_openxr() -> void:
 	var xr = XRServer.find_interface("OpenXR")
