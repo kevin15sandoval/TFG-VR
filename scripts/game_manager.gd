@@ -193,7 +193,7 @@ func finish_session() -> void:
 		else:
 			zones["Medio"] += 1
 
-	var results := {
+	var results = {
 		# Datos básicos
 		"patient_id":       patient_id,
 		"patient_name":     patient_name,
@@ -205,6 +205,8 @@ func finish_session() -> void:
 		"score":            score,
 		"accuracy":         accuracy,
 		"date":             Time.get_date_string_from_system(),
+		"game_type":        "gems",
+		"game_name":        "Recolectar gemas",
 		# Gemas
 		"gems_collected":   gems_collected,
 		"normal_gems":      normal_gems,

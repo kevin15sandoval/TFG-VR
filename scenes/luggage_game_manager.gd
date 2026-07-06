@@ -266,6 +266,7 @@ func end_game() -> void:
 	
 	var results = {
 		"game_type": "luggage_handler",
+		"game_name": "Luggage Handler",
 		"score": score,
 		"luggage_placed": luggage_placed_count,
 		"luggage_dropped": luggage_dropped_count,
@@ -275,6 +276,11 @@ func end_game() -> void:
 		"accuracy_percentage": accuracy,
 		"time_elapsed": elapsed,
 		"difficulty": difficulty,
+		"patient_id": GameManager.patient_id,
+		"patient_name": GameManager.patient_name,
+		"session_id": GameManager.session_id,
+		"therapy_side": GameManager.therapy_side,
+		"session_type": GameManager.session_type,
 		
 		# === MÉTRICAS DE FUERZA ===
 		"total_weight_moved": total_weight_moved,

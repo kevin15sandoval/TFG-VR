@@ -150,6 +150,7 @@ func end_game() -> void:
 	
 	var results = {
 		"game_type": "vault_escape",
+		"game_name": "Laser Vault Escape",
 		"score": score,
 		"panels_collected": panels_collected,
 		"total_panels": total_panels,
@@ -157,6 +158,11 @@ func end_game() -> void:
 		"completion_percentage": completion,
 		"time_elapsed": elapsed,
 		"difficulty": difficulty,
+		"patient_id": GameManager.patient_id,
+		"patient_name": GameManager.patient_name,
+		"session_id": GameManager.session_id,
+		"therapy_side": GameManager.therapy_side,
+		"session_type": GameManager.session_type,
 		
 		# Métricas terapéuticas
 		"avg_time_per_panel": avg_time_per_panel,

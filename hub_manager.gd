@@ -165,6 +165,11 @@ func _load_game(game_id: String, config: Dictionary) -> void:
 		_show_error_message("No se pudo cargar el juego")
 		return
 	
+	# Aplicar configuración a GameManager ANTES de cargar la escena
+	if GameManager:
+		GameManager.apply_config(config)
+		print("[Hub] ✅ Configuración aplicada al GameManager")
+	
 	# Cargar la escena del juego
 	var game_scene_resource = load(scene_path)
 	if game_scene_resource == null:
@@ -182,21 +187,24 @@ func _load_game(game_id: String, config: Dictionary) -> void:
 	
 	print("[Hub] ✅ Escena del juego cargada")
 	
-	# Aplicar configuración a GameManager
-	if GameManager:
-		GameManager.apply_config(config)
-		print("[Hub] ✅ Configuración aplicada al GameManager")
-	
 	# Ocultar el Hub
 	_hide_hub()
 	
-	# Añadir la escena del juego
+	# Añadir la escena del juego a la raíz
 	get_tree().root.add_child(current_game_scene)
 	
-	print("[Hub] 🎮 Juego cargado y listo")
+	# Esperar un frame para que todo se inicialice
+	await get_tree().process_frame
+	
+	# CRÍTICO: Iniciar sesión en GameManager (esto dispara session_started para todos)
+	if GameManager:
+		GameManager.start_session()
+		print("[Hub] ✅ Sesión iniciada en GameManager")
+	
+	print("[Hub] 🎮 Juego cargado y sesión iniciada")
 	print("[Hub] ═══════════════════════════════════════════════════════════")
 	
-	# El juego ahora tomará el control
+	# El juego ahora tomará el control y escuchará session_started
 
 func _hide_hub() -> void:
 	# Ocultar todos los elementos visuales del hub

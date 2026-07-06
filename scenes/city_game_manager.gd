@@ -247,6 +247,7 @@ func end_game() -> void:
 	
 	var results = {
 		"game_type": "urban_attention_quest",
+		"game_name": "Urban Attention Quest",
 		"score": score,
 		"targets_collected": targets_collected,
 		"total_targets": total_targets,
@@ -254,6 +255,11 @@ func end_game() -> void:
 		"completion_percentage": completion,
 		"time_elapsed": elapsed,
 		"difficulty": difficulty,
+		"patient_id": GameManager.patient_id,
+		"patient_name": GameManager.patient_name,
+		"session_id": GameManager.session_id,
+		"therapy_side": GameManager.therapy_side,
+		"session_type": GameManager.session_type,
 		
 		# === MÉTRICAS CLÍNICAS DE NEGLIGENCIA ===
 		"left_side_targets": left_side_targets,

@@ -297,7 +297,7 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	firebase_manager.stop_polling()  # Detener polling
 	_hide_waiting_ui()
 	
-	# Aplicar configuración
+	# Aplicar configuración al GameManager GLOBAL primero
 	GameManager.apply_config(config)
 	
 	# Cargar el game manager específico según game_id
@@ -307,11 +307,10 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	# Mostrar countdown animado
 	await _show_countdown()
 	
-	# Arrancar sesión
-	if current_game_manager and current_game_manager.has_method("start_game"):
-		current_game_manager.start_game()
-	else:
-		GameManager.start_session()
+	# CRÍTICO: Iniciar sesión en GameManager GLOBAL (esto dispara session_started)
+	GameManager.start_session()
+	
+	# Los game managers específicos escuchan session_started y arrancan automáticamente
 
 func _load_game_manager(game_id: String) -> void:
 	print("[VR] 🎮 Cargando game manager para: ", game_id)
@@ -328,10 +327,14 @@ func _load_game_manager(game_id: String) -> void:
 		"gems":
 			# Usar GameManager global (ya existe)
 			print("[VR] ✅ Usando GameManager global para Recolectar Gemas")
-			GameManager.session_started.connect(_on_session_started)
-			GameManager.session_finished.connect(_on_session_finished)
-			GameManager.gem_collected.connect(_on_gem_collected)
-			GameManager.timer_updated.connect(_on_timer_updated)
+			if not GameManager.session_started.is_connected(_on_session_started):
+				GameManager.session_started.connect(_on_session_started)
+			if not GameManager.session_finished.is_connected(_on_session_finished):
+				GameManager.session_finished.connect(_on_session_finished)
+			if not GameManager.gem_collected.is_connected(_on_gem_collected):
+				GameManager.gem_collected.connect(_on_gem_collected)
+			if not GameManager.timer_updated.is_connected(_on_timer_updated):
+				GameManager.timer_updated.connect(_on_timer_updated)
 			return  # No crear nuevo manager
 		
 		"vault_escape":
@@ -345,10 +348,14 @@ func _load_game_manager(game_id: String) -> void:
 		
 		_:
 			print("[VR] ⚠️ Game ID desconocido: ", game_id, " - Usando gems por defecto")
-			GameManager.session_started.connect(_on_session_started)
-			GameManager.session_finished.connect(_on_session_finished)
-			GameManager.gem_collected.connect(_on_gem_collected)
-			GameManager.timer_updated.connect(_on_timer_updated)
+			if not GameManager.session_started.is_connected(_on_session_started):
+				GameManager.session_started.connect(_on_session_started)
+			if not GameManager.session_finished.is_connected(_on_session_finished):
+				GameManager.session_finished.connect(_on_session_finished)
+			if not GameManager.gem_collected.is_connected(_on_gem_collected):
+				GameManager.gem_collected.connect(_on_gem_collected)
+			if not GameManager.timer_updated.is_connected(_on_timer_updated):
+				GameManager.timer_updated.connect(_on_timer_updated)
 			return
 	
 	# Crear instancia del game manager
@@ -358,11 +365,15 @@ func _load_game_manager(game_id: String) -> void:
 		current_game_manager.name = "CurrentGameManager"
 		add_child(current_game_manager)
 		
+		# CRÍTICO: Conectar con GameManager global para que reciba session_started
+		if not GameManager.session_started.is_connected(current_game_manager._on_session_started):
+			GameManager.session_started.connect(current_game_manager._on_session_started)
+		
 		# Conectar señales comunes
 		if current_game_manager.has_signal("game_started"):
 			current_game_manager.game_started.connect(_on_session_started)
 		if current_game_manager.has_signal("game_finished"):
-			current_game_manager.game_finished.connect(_on_session_finished)
+			current_game_manager.game_finished.connect(_on_game_finished_wrapper)
 		if current_game_manager.has_signal("timer_updated"):
 			current_game_manager.timer_updated.connect(_on_timer_updated)
 		
@@ -383,6 +394,12 @@ func _load_game_manager(game_id: String) -> void:
 					current_game_manager.luggage_placed.connect(_on_luggage_placed)
 		
 		print("[VR] ✅ Game manager cargado: ", game_id)
+
+# Wrapper para game_finished de los otros juegos para que también guarde en GameManager
+func _on_game_finished_wrapper(results: Dictionary) -> void:
+	print("[VR] 🏁 Juego terminado con métricas")
+	# Pasar resultados a _on_session_finished para guardar en Firebase
+	_on_session_finished(results)
 
 func _on_config_loaded(config: Dictionary) -> void:
 	# Esta función ya no se usa en el flujo principal
