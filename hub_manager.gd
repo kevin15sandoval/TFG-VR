@@ -155,53 +155,86 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	_load_game(game_id, config)
 
 func _load_game(game_id: String, config: Dictionary) -> void:
-	print("[Hub] 🔄 Cargando juego: ", game_id)
+	print("[Hub] ═══════════════════════════════════════════════════════════")
+	print("[Hub] 🔄 INICIANDO CARGA DE JUEGO")
+	print("[Hub] ═══════════════════════════════════════════════════════════")
+	print("[Hub] Game ID: ", game_id)
+	print("[Hub] Config completo: ", config)
 	
 	# Obtener la ruta de la escena
 	var scene_path = GAME_SCENES.get(game_id, GAME_SCENES["gems"])
+	print("[Hub] 📂 Ruta de escena: ", scene_path)
 	
-	if not ResourceLoader.exists(scene_path):
-		print("[Hub] ❌ ERROR: No se encuentra la escena: ", scene_path)
+	# DIAGNÓSTICO: Verificar si la escena existe
+	var exists = ResourceLoader.exists(scene_path)
+	print("[Hub] 🔍 ¿Escena existe en APK? ", exists)
+	
+	if not exists:
+		print("[Hub] ❌ ERROR CRÍTICO: No se encuentra la escena: ", scene_path)
+		print("[Hub] ❌ Posible causa: Escena no incluida en export presets")
 		_show_error_message("No se pudo cargar el juego")
 		return
 	
+	print("[Hub] ✅ Escena verificada, procediendo a cargar...")
+	
 	# Aplicar configuración a GameManager ANTES de cargar la escena
 	if GameManager:
+		print("[Hub] 📋 Aplicando configuración a GameManager...")
 		GameManager.apply_config(config)
-		print("[Hub] ✅ Configuración aplicada al GameManager")
+		print("[Hub] ✅ Configuración aplicada")
+		print("[Hub]    - Patient ID: ", GameManager.patient_id)
+		print("[Hub]    - Session ID: ", GameManager.session_id)
+		print("[Hub]    - Game Type: ", GameManager.game_type)
+	else:
+		print("[Hub] ⚠️ ADVERTENCIA: GameManager no encontrado")
 	
 	# Cargar la escena del juego
+	print("[Hub] 📦 Cargando recurso de escena...")
 	var game_scene_resource = load(scene_path)
 	if game_scene_resource == null:
 		print("[Hub] ❌ ERROR: No se pudo cargar el recurso de escena")
+		print("[Hub] ❌ ResourceLoader retornó null")
 		_show_error_message("Error al cargar el juego")
 		return
 	
+	print("[Hub] ✅ Recurso cargado exitosamente")
+	
 	# Instanciar la escena
+	print("[Hub] 🏗️ Instanciando escena del juego...")
 	current_game_scene = game_scene_resource.instantiate()
 	
 	if current_game_scene == null:
 		print("[Hub] ❌ ERROR: No se pudo instanciar la escena")
+		print("[Hub] ❌ instantiate() retornó null")
 		_show_error_message("Error al instanciar el juego")
 		return
 	
-	print("[Hub] ✅ Escena del juego cargada")
+	print("[Hub] ✅ Escena instanciada correctamente")
+	print("[Hub] 🎮 Tipo de nodo: ", current_game_scene.get_class())
 	
 	# Ocultar el Hub
+	print("[Hub] 👻 Ocultando Hub...")
 	_hide_hub()
 	
 	# Añadir la escena del juego a la raíz
+	print("[Hub] ➕ Añadiendo escena del juego al árbol...")
 	get_tree().root.add_child(current_game_scene)
+	print("[Hub] ✅ Escena añadida al árbol de nodos")
 	
 	# Esperar un frame para que todo se inicialice
 	await get_tree().process_frame
+	print("[Hub] ⏳ Frame procesado, todo inicializado")
 	
 	# CRÍTICO: Iniciar sesión en GameManager (esto dispara session_started para todos)
 	if GameManager:
+		print("[Hub] 🚀 Iniciando sesión en GameManager...")
 		GameManager.start_session()
-		print("[Hub] ✅ Sesión iniciada en GameManager")
+		print("[Hub] ✅ Sesión iniciada - signal session_started emitido")
+	else:
+		print("[Hub] ⚠️ ERROR: No se puede iniciar sesión - GameManager no existe")
 	
-	print("[Hub] 🎮 Juego cargado y sesión iniciada")
+	print("[Hub] ═══════════════════════════════════════════════════════════")
+	print("[Hub] 🎮 ¡JUEGO CARGADO Y EN EJECUCIÓN!")
 	print("[Hub] ═══════════════════════════════════════════════════════════")
 	
 	# El juego ahora tomará el control y escuchará session_started

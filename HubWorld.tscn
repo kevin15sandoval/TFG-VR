@@ -51,6 +51,7 @@ light_energy = 0.8
 shadow_enabled = true
 
 [node name="XROrigin3D" type="XROrigin3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
@@ -98,6 +99,12 @@ text = ""
 font_size = 48
 outline_size = 10
 outline_modulate = Color(0, 0, 0, 1)
+
+[node name="CollisionFloor" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionFloor"]
+shape = SubResource("BoxShape_floor")
 modulate = Color(0.2, 1, 0.4, 1)
 
 [node name="FirebaseManager" type="Node" parent="."]
