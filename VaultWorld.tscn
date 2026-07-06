@@ -54,8 +54,35 @@ script = preload("res://scenes/vault_game_manager.gd")
 [node name="FirebaseManager" type="Node" parent="."]
 script = preload("res://scripts/firebase_manager.gd")
 
+[node name="ControlPanels" type="Node3D" parent="."]
+
+[node name="Panel1" parent="ControlPanels" instance=preload("res://scenes/control_panel.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 1.5, -2)
+
+[node name="Panel2" parent="ControlPanels" instance=preload("res://scenes/control_panel.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.2, -1.5)
+
+[node name="Panel3" parent="ControlPanels" instance=preload("res://scenes/control_panel.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1.5, -2)
+
+[node name="Panel4" parent="ControlPanels" instance=preload("res://scenes/control_panel.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.8, -1.5)
+
+[node name="Panel5" parent="ControlPanels" instance=preload("res://scenes/control_panel.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -2.5)
+
+[node name="Panel6" parent="ControlPanels" instance=preload("res://scenes/control_panel.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1, -1.8)
+
 [node name="LaserSetup" type="Node3D" parent="."]
 
-[node name="ControlPanels" type="Node3D" parent="."]
+[node name="Laser1" parent="LaserSetup" instance=preload("res://scenes/laser_beam.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 1, 0)
+
+[node name="Laser2" parent="LaserSetup" instance=preload("res://scenes/laser_beam.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 1, 0)
+
+[node name="Laser3" parent="LaserSetup" instance=preload("res://scenes/laser_beam.tscn")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.5, -1.5)
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
