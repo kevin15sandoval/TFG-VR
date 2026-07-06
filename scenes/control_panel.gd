@@ -104,7 +104,8 @@ func _create_label() -> void:
 		_label.modulate = Color.WHITE
 		_label.outline_size = 8
 		_label.outline_modulate = Color.BLACK
-		_label.billboard = Label3D.BILLBOARD_ENABLED
+		# Billboard mode para que siempre mire a la cámara (1 = enabled)
+		_label.billboard = 1
 
 func _create_collision_area() -> void:
 	_area = Area3D.new()
