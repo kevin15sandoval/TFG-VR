@@ -218,4 +218,9 @@ func _play_activation_sound() -> void:
 
 func deactivate() -> void:
 	_is_active = false
-	modulate = Color(0.3, 0.3, 0.3, 0.5)
+	if _mesh_instance:
+		# Cambiar material del mesh a gris oscuro
+		var mat = _mesh_instance.get_active_material(0) as StandardMaterial3D
+		if mat:
+			mat.albedo_color = Color(0.3, 0.3, 0.3, 0.5)
+			mat.emission_energy_multiplier = 0.5

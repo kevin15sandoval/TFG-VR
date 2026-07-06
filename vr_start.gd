@@ -11,7 +11,7 @@ var current_game_manager: Node = null  # Game manager activo según juego
 
 # UI Labels para feedback visual
 @onready var label_status: Label3D = null
-@ontml:parameter name="label_info: Label3D = null
+@onready var label_info: Label3D = null
 
 # HUD Labels para juego
 var hud_score: Label3D = null
