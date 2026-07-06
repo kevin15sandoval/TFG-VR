@@ -104,7 +104,7 @@ func _create_label() -> void:
 		_label.modulate = Color.WHITE
 		_label.outline_size = 8
 		_label.outline_modulate = Color.BLACK
-		_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_label.billboard = Label3D.BILLBOARD_ENABLED
 
 func _create_collision_area() -> void:
 	_area = Area3D.new()
