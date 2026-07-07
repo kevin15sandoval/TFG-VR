@@ -32,10 +32,10 @@ const GAME_SCENES = {
 }
 
 const GAME_NAMES = {
-	"gems": "⭐ Recolectar Gemas",
-	"vault_escape": "🔐 Laser Vault Escape",
-	"urban_attention_quest": "🎯 Urban Attention Quest",
-	"luggage_handler": "📦 Luggage Handler"
+	"gems": "Recolectar Gemas",
+	"vault_escape": "Laser Vault Escape",
+	"urban_attention_quest": "Urban Attention Quest",
+	"luggage_handler": "Luggage Handler"
 }
 
 func _ready() -> void:
@@ -110,7 +110,7 @@ func _setup_firebase_manager() -> void:
 
 func _show_welcome_message() -> void:
 	if status_label:
-		status_label.text = "🏥 SALA DE ESPERA VR"
+		status_label.text = "SALA DE ESPERA VR"
 		status_label.modulate = Color(0.2, 0.8, 1.0)
 	
 	if info_label:

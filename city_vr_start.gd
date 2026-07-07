@@ -341,7 +341,7 @@ func _on_game_started() -> void:
 
 func _on_target_collected(target_id: int, points: int) -> void:
 	if hud_score and city_manager:
-		hud_score.text = "⭐ " + str(city_manager.score)
+		hud_score.text = str(city_manager.score) + " pts"
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
 		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
@@ -396,7 +396,7 @@ func _on_timer_updated(remaining: float) -> void:
 	else:
 		var m = int(remaining) / 60
 		var s = int(remaining) % 60
-		hud_timer.text = "⏱ %02d:%02d" % [m, s]
+		hud_timer.text = "%02d:%02d" % [m, s]
 		
 		if remaining < 30:
 			hud_timer.modulate = Color(1.0, 0.2, 0.2)

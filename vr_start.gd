@@ -466,7 +466,7 @@ func _on_gem_collected(gem_type: String, points: int, total: int) -> void:
 	
 	# Actualizar score HUD
 	if hud_score:
-		hud_score.text = "⭐ " + str(total)
+		hud_score.text = str(total) + " pts"
 		# Animación de pulso
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
@@ -488,7 +488,7 @@ func _on_gem_collected(gem_type: String, points: int, total: int) -> void:
 func _on_panel_collected(panel_id: int, points: int) -> void:
 	print("[VR] Panel: ", panel_id, " +", points, " pts")
 	if hud_score and current_game_manager:
-		hud_score.text = "🔐 " + str(current_game_manager.score)
+		hud_score.text = str(current_game_manager.score) + " pts"
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
 		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
@@ -505,7 +505,7 @@ func _on_laser_hit() -> void:
 func _on_target_collected(target_id: int, points: int) -> void:
 	print("[VR] Target: ", target_id, " +", points, " pts")
 	if hud_score and current_game_manager:
-		hud_score.text = "🎯 " + str(current_game_manager.score)
+		hud_score.text = str(current_game_manager.score) + " pts"
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
 		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
@@ -513,7 +513,7 @@ func _on_target_collected(target_id: int, points: int) -> void:
 func _on_luggage_placed(zone: String, weight: float, points: int) -> void:
 	print("[VR] Maleta colocada en ", zone, " (", weight, "kg) +", points, " pts")
 	if hud_score and current_game_manager:
-		hud_score.text = "📦 " + str(current_game_manager.score)
+		hud_score.text = str(current_game_manager.score) + " pts"
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
 		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
@@ -536,7 +536,7 @@ func _on_timer_updated(remaining: float) -> void:
 	
 	# Actualizar HUD timer
 	if hud_timer:
-		hud_timer.text = "⏱ %02d:%02d" % [m, s]
+		hud_timer.text = "%02d:%02d" % [m, s]
 		
 		# Cambiar color cuando queda poco tiempo
 		if remaining < 30:
