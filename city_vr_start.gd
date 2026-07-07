@@ -73,9 +73,18 @@ func _ready() -> void:
 		print("[CityVR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
 		_on_config_error("Debug mode")
 	else:
-		print("[CityVR] 🏥 Entrando en sala de espera...")
-		_show_waiting_message()
-		firebase_manager.start_polling()
+		# CRÍTICO: Si se cargó desde Hub, GameManager ya tiene configuración
+		# Verificar si GameManager ya tiene sesión activa
+		if GameManager.patient_id != "" and GameManager.session_id != "":
+			print("[CityVR] ✅ Cargado desde Hub - Sesión ya configurada")
+			print("[CityVR] 🎮 Iniciando juego directamente...")
+			_hide_waiting_ui()
+			await _show_countdown()
+			city_manager.start_game()
+		else:
+			print("[CityVR] 🏥 Entrando en sala de espera...")
+			_show_waiting_message()
+			firebase_manager.start_polling()
 
 func _process(_delta: float) -> void:
 	# Actualizar posición del jugador en el manager

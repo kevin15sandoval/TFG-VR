@@ -69,9 +69,18 @@ func _ready() -> void:
 		print("[VaultVR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
 		_on_config_error("Debug mode")
 	else:
-		print("[VaultVR] 🏥 Entrando en sala de espera...")
-		_show_waiting_message()
-		firebase_manager.start_polling()
+		# CRÍTICO: Si se cargó desde Hub, GameManager ya tiene configuración
+		# Verificar si GameManager ya tiene sesión activa
+		if GameManager.patient_id != "" and GameManager.session_id != "":
+			print("[VaultVR] ✅ Cargado desde Hub - Sesión ya configurada")
+			print("[VaultVR] 🎮 Iniciando juego directamente...")
+			_hide_waiting_ui()
+			await _show_countdown()
+			vault_manager.start_game()
+		else:
+			print("[VaultVR] 🏥 Entrando en sala de espera...")
+			_show_waiting_message()
+			firebase_manager.start_polling()
 
 func _init_openxr() -> void:
 	var xr = XRServer.find_interface("OpenXR")
