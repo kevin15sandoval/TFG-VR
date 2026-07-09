@@ -49,19 +49,26 @@ func _process(delta: float) -> void:
 	_poll_timer += delta
 	if _poll_timer >= _poll_interval:
 		_poll_timer = 0.0
+		print("[Firebase] ⏱️ Tiempo de polling alcanzado (", _poll_interval, "s) - ejecutando poll...")
 		_poll_for_new_session()
 
 # ─── POLLING AUTOMÁTICO ──────────────────────────────────────────────────────
 
 ## Activa el polling para detectar nuevas sesiones automáticamente
 func start_polling() -> void:
-	print("[Firebase] Iniciando polling cada ", _poll_interval, "s")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🔄 INICIANDO POLLING AUTOMÁTICO ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[Firebase] Intervalo: ", _poll_interval, "s")
+	print("[Firebase] URL: ", BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE)
 	_polling_enabled = true
 	_poll_timer = 0.0
+	print("[Firebase] ✅ Polling habilitado")
+	print("═══════════════════════════════════════════════════════════════")
 
 ## Detiene el polling
 func stop_polling() -> void:
-	print("[Firebase] Deteniendo polling")
+	print("[Firebase] ⏸️ Deteniendo polling")
 	_polling_enabled = false
 
 func _poll_for_new_session() -> void:
@@ -80,19 +87,34 @@ func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) 
 			print("[Firebase] ⏳ Sin sesión activa aún (código ", code, ")")
 		return
 
+	print("[Firebase] ✅ Respuesta exitosa del servidor")
+	var body_str = body.get_string_from_utf8()
+	print("[Firebase] 📄 Body recibido (primeros 200 chars): ", body_str.substr(0, 200))
+	
 	var json = JSON.new()
-	var parse_err = json.parse(body.get_string_from_utf8())
+	var parse_err = json.parse(body_str)
 	if parse_err != OK:
+		print("[Firebase] ❌ Error parseando JSON: ", parse_err)
 		return
 
 	var data = json.get_data()
+	if not data.has("fields"):
+		print("[Firebase] ⚠️ Respuesta sin campo 'fields'")
+		return
+		
 	var fields = data.get("fields", {})
+	print("[Firebase] 📋 Campos disponibles: ", fields.keys())
 	
 	var session_id = _get_string(fields, "sessionId")
+	print("[Firebase] 🔍 Session ID extraído: '", session_id, "'")
+	print("[Firebase] 🔍 Último session ID: '", _last_session_id, "'")
 	
 	# Si es una sesión nueva (diferente a la última que procesamos)
 	if session_id != "" and session_id != _last_session_id:
-		print("[Firebase] 🎮 Nueva sesión detectada: ", session_id)
+		print("═══════════════════════════════════════════════════════════════")
+		print("═══ 🎮 NUEVA SESIÓN DETECTADA EN FIRESTORE ═══")
+		print("═══════════════════════════════════════════════════════════════")
+		print("[Firebase] Session ID: ", session_id)
 		_last_session_id = session_id
 		
 		var config := {
@@ -106,7 +128,18 @@ func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) 
 			"session_id":    session_id,
 		}
 		
+		print("[Firebase] 📋 Config construida:")
+		for key in config.keys():
+			print("  - ", key, ": ", config[key])
+		print("[Firebase] 📢 Emitiendo señal 'new_session_detected'...")
 		emit_signal("new_session_detected", config)
+		print("[Firebase] ✅ Señal emitida")
+		print("═══════════════════════════════════════════════════════════════")
+	else:
+		if session_id == "":
+			print("[Firebase] ⚠️ Session ID vacío, ignorando")
+		else:
+			print("[Firebase] ℹ️ Sesión ya procesada, ignorando")
 
 # ─── LEER CONFIG DE SESIÓN ───────────────────────────────────────────────────
 

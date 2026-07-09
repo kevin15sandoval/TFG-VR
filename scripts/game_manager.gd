@@ -69,6 +69,8 @@ func _process(_delta: float) -> void:
 
 # ─── CONFIGURAR SESIÓN ────────────────────────────────────────────────────────
 
+var game_type: String = ""  # gems, vault_escape, urban_attention_quest, luggage_handler
+
 func apply_config(config: Dictionary) -> void:
 	patient_id      = config.get("patient_id",   "")
 	patient_name    = config.get("patient_name", "Paciente")
@@ -77,7 +79,17 @@ func apply_config(config: Dictionary) -> void:
 	difficulty      = config.get("difficulty",   "Media")
 	session_type    = config.get("session_type", "Alcance")
 	session_duration = float(config.get("duration", 180))
-	print("[GameManager] Config: ", config)
+	game_type       = config.get("game_id", "gems")
+	print("[GameManager] ═══════════════════════════════════════════")
+	print("[GameManager] 📋 CONFIGURACIÓN APLICADA")
+	print("[GameManager] ═══════════════════════════════════════════")
+	print("[GameManager] Patient ID:  ", patient_id)
+	print("[GameManager] Session ID:  ", session_id)
+	print("[GameManager] Game Type:   ", game_type)
+	print("[GameManager] Difficulty:  ", difficulty)
+	print("[GameManager] Therapy Side:", therapy_side)
+	print("[GameManager] Duration:    ", session_duration, "s")
+	print("[GameManager] ═══════════════════════════════════════════")
 	emit_signal("config_ready", config)
 
 func get_gem_speed() -> float:
@@ -89,6 +101,10 @@ func get_spawn_interval() -> float:
 # ─── INICIO ───────────────────────────────────────────────────────────────────
 
 func start_session() -> void:
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🚀 GAMEMANAGER.START_SESSION() EJECUTÁNDOSE ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	
 	score             = 0
 	gems_collected    = 0
 	normal_gems       = 0
@@ -108,8 +124,22 @@ func start_session() -> void:
 		movements_by_type[key]["completed"] = 0
 		movements_by_type[key]["total_time"] = 0.0
 
-	print("[GameManager] ▶ Sesión iniciada | ", difficulty, " | ", therapy_side)
+	print("[GameManager] ✅ Variables reseteadas")
+	print("[GameManager] 📊 Estado actual:")
+	print("  - session_active:  ", session_active)
+	print("  - game_finished:   ", game_finished)
+	print("  - score:           ", score)
+	print("  - difficulty:      ", difficulty)
+	print("  - therapy_side:    ", therapy_side)
+	print("  - session_duration:", session_duration, "s")
+	print("[GameManager] 📢 Emitiendo señal 'session_started'...")
+	
 	emit_signal("session_started")
+	
+	print("[GameManager] ✅ Señal 'session_started' emitida")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ✅ SESIÓN ACTIVA - JUEGO EN MARCHA ═══")
+	print("═══════════════════════════════════════════════════════════════")
 
 # ─── NOTIFICAR NUEVA GEMA (llamar cuando spawna) ─────────────────────────────
 

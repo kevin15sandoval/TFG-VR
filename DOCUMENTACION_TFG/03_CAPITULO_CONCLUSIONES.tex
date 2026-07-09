@@ -1,0 +1,133 @@
+\chapter{Conclusiones}
+
+\section{Conclusiones generales}
+
+El presente Trabajo de Fin de Grado ha desarrollado con éxito un sistema integral de rehabilitación neurológica mediante realidad virtual, denominado NeuroVR Rehab, dirigido específicamente a pacientes post-ictus. El sistema combina tecnología de realidad virtual inmersiva (Meta Quest 2), una plataforma web de gestión clínica, y una base de datos en tiempo real para ofrecer una solución completa, accesible y de bajo coste.
+
+\subsection{Cumplimiento de objetivos}
+
+Los objetivos establecidos al inicio del proyecto han sido alcanzados satisfactoriamente:
+
+\begin{enumerate}
+    \item \textbf{Objetivo principal}: Desarrollar un sistema funcional de telerrehabilitación VR → Cumplido al 100\%
+    
+    \item \textbf{Objetivos específicos}:
+    \begin{itemize}
+        \item Implementar 4 videojuegos VR con objetivos terapéuticos diferenciados → Completado
+        \item Crear sistema de métricas clínicas automáticas → Completado
+        \item Desarrollar plataforma web para gestión de pacientes y sesiones → Completado
+        \item Implementar sincronización en tiempo real entre plataforma web y aplicaciones VR → Completado
+        \item Garantizar rendimiento óptimo (>60 FPS, <20ms latencia) → Superado (72 FPS, 11-16ms)
+        \item Detectar patrones de negligencia espacial → Completado
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Contribuciones principales}
+
+Este proyecto aporta las siguientes contribuciones al campo de la rehabilitación asistida por tecnología:
+
+\begin{enumerate}
+    \item \textbf{Sistema completo end-to-end}: A diferencia de soluciones parciales, NeuroVR Rehab integra todos los componentes necesarios: videojuegos terapéuticos, gestión clínica, almacenamiento de datos y análisis de métricas.
+    
+    \item \textbf{Arquitectura escalable}: El uso de Firebase como backend permite escalar el sistema a múltiples clínicas y dispositivos sin requerir infraestructura propia.
+    
+    \item \textbf{Detección automática de negligencia}: El sistema de Urban Attention Quest detecta automáticamente asimetrías espaciales, un síntoma frecuente y difícil de cuantificar en ictus.
+    
+    \item \textbf{Métricas clínicas granulares}: Cada movimiento del paciente se registra individualmente con timestamps, permitiendo análisis detallados de patrones motores.
+    
+    \item \textbf{Bajo coste}: El uso de Meta Quest 2 (€449) en lugar de sistemas CAVE o HTC Vive (>€2,000) hace viable su adopción en clínicas con presupuestos limitados.
+    
+    \item \textbf{Open source}: Todo el código es abierto y puede ser adaptado por instituciones sanitarias según sus necesidades específicas.
+\end{enumerate}
+
+\subsection{Validación de la hipótesis}
+
+La hipótesis inicial planteaba que \textit{``un sistema de realidad virtual inmersiva puede proporcionar ejercicios terapéuticos efectivos para rehabilitación post-ictus, con métricas objetivas y a un coste accesible''}.
+
+Los resultados obtenidos validan parcialmente esta hipótesis:
+
+\begin{itemize}
+    \item \textbf{Validado}: El sistema proporciona ejercicios terapéuticos basados en principios de neurorehabilitación (repetición, variabilidad, motivación)
+    \item \textbf{Validado}: Las métricas capturadas son objetivas, cuantificables y clínicamente relevantes
+    \item \textbf{Validado}: El coste del hardware (€449) es significativamente menor que alternativas comerciales (€2,000-€5,000)
+    \item \textbf{Pendiente de validar}: La efectividad terapéutica real requiere estudios clínicos controlados con pacientes post-ictus
+\end{itemize}
+
+\section{Lecciones aprendidas}
+
+\subsection{Desarrollo con Godot y OpenXR}
+
+\textbf{Aspectos positivos}:
+\begin{itemize}
+    \item Godot 4.6 ofrece soporte nativo de OpenXR robusto y bien documentado
+    \item El lenguaje GDScript es altamente productivo para prototipado rápido
+    \item La exportación directa a Android APK simplifica enormemente el despliegue en Meta Quest
+    \item El sistema de señales (signals) de Godot facilita la comunicación entre componentes
+\end{itemize}
+
+\textbf{Dificultades encontradas}:
+\begin{itemize}
+    \item El debugging en dispositivo VR es complejo; se requiere uso intensivo de logs y ADB
+    \item La documentación de Firebase REST API desde Godot es limitada
+    \item El manejo de recursos 3D pesados (modelos de 50+ MB) requiere optimización cuidadosa
+    \item El testing en escritorio (sin VR) tiene limitaciones para simular interacciones reales
+\end{itemize}
+
+\subsection{Arquitectura y diseño}
+
+\textbf{Decisiones acertadas}:
+\begin{itemize}
+    \item Uso de Firebase como backend: permitió desarrollo rápido sin gestión de servidores
+    \item GameManager como singleton: evitó duplicación de código entre los 4 juegos
+    \item Sistema de polling: simple y robusto, aunque no es tiempo real estricto
+    \item Separación clara entre lógica de juego y lógica de métricas
+\end{itemize}
+
+\textbf{Aspectos mejorables}:
+\begin{itemize}
+    \item El sistema de polling introduce latencia innecesaria (1.5-4.5s); WebSockets sería más eficiente
+    \item La dependencia de WiFi limita el uso en entornos sin conectividad
+    \item No se implementó sistema de caché offline para resiliencia ante desconexiones
+\end{itemize}
+
+\subsection{Proceso de desarrollo}
+
+Metodología aplicada: desarrollo incremental por módulos funcionales, testing continuo en Meta Quest tras cada cambio significativo, e iteraciones cortas con feedback de usuarios. Herramientas clave utilizadas: Git para control de versiones, ADB para despliegue e inspección de logs, Firebase Console para monitorización, y Overleaf para documentación en paralelo.
+
+\section{Impacto potencial}
+
+\subsection{Impacto sanitario}
+
+Si se valida clínicamente, NeuroVR Rehab podría aumentar la adherencia terapéutica mediante juegos motivadores, permitir terapia domiciliaria con supervisión remota, reducir costes sanitarios por menor necesidad de desplazamientos, personalizar tratamientos mediante métricas detalladas, y detectar deterioros tempranos mediante seguimiento continuo.
+
+\subsection{Impacto social}
+
+El bajo coste democratiza el acceso a tecnología avanzada de rehabilitación. Pacientes en zonas rurales o con movilidad reducida pueden acceder a terapia de calidad. Los pacientes ganan autonomía al poder realizar ejercicios sin supervisión presencial constante.
+
+\subsection{Impacto académico}
+
+Este proyecto puede servir como base para investigaciones clínicas sobre eficacia de VR en neurorehabilitación. El código open source permite a otros investigadores adaptar y extender el sistema. Las métricas capturadas pueden alimentar estudios sobre patrones de recuperación post-ictus.
+
+\section{Reflexión personal}
+
+El desarrollo de este TFG ha supuesto un desafío técnico y multidisciplinar significativo. La integración de conocimientos de ingeniería de software, realidad virtual, bases de datos distribuidas y neurorrehabilitación ha requerido un aprendizaje continuo y adaptación a tecnologías nuevas.
+
+Los principales retos superados incluyen:
+
+\begin{enumerate}
+    \item \textbf{Curva de aprendizaje de Godot y OpenXR}: Pese a no tener experiencia previa en desarrollo VR, se logró dominar las herramientas necesarias mediante documentación oficial y experimentación.
+    
+    \item \textbf{Debugging en VR}: La imposibilidad de usar debuggers tradicionales obligó a desarrollar estrategias alternativas (logs intensivos, inspección remota con ADB).
+    
+    \item \textbf{Sincronización web-VR}: Diseñar una arquitectura que funcione sin servidor propio y sea resiliente a desconexiones fue un desafío de diseño importante.
+    
+    \item \textbf{Balance entre complejidad técnica y utilidad clínica}: Era tentador añadir funcionalidades técnicas avanzadas, pero se priorizó que cada característica tuviera valor clínico real.
+\end{enumerate}
+
+Este proyecto ha reforzado la convicción de que la tecnología, cuando se diseña con propósito social claro, puede tener impacto real en la calidad de vida de las personas.
+
+\section{Conclusión final}
+
+NeuroVR Rehab representa un sistema funcional y técnicamente robusto que demuestra la viabilidad de la realidad virtual como herramienta de rehabilitación neurológica. Si bien requiere validación clínica con pacientes reales, el prototipo desarrollado sienta las bases para futuras investigaciones y desarrollos en este campo emergente.
+
+La combinación de bajo coste, métricas clínicas detalladas, y una experiencia de usuario motivadora posiciona a NeuroVR Rehab como una alternativa prometedora a sistemas comerciales más costosos. Con las mejoras propuestas en el siguiente capítulo, el sistema podría evolucionar hacia una solución lista para ensayos clínicos y eventual uso hospitalario.

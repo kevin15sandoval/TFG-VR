@@ -20,7 +20,19 @@ var _countdown_label: Label3D = null
 var _ambient_audio: AudioStreamPlayer = null
 
 func _ready() -> void:
-	print("=== 🔐 LASER VAULT ESCAPE — VR System ===")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🔐 LASER VAULT ESCAPE — VR System INICIANDO ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[VaultVR] _ready() ejecutándose...")
+	print("[VaultVR] Verificando GameManager...")
+	if GameManager:
+		print("[VaultVR] ✅ GameManager existe")
+		print("[VaultVR] GameManager.patient_id = '", GameManager.patient_id, "'")
+		print("[VaultVR] GameManager.session_id = '", GameManager.session_id, "'")
+		print("[VaultVR] GameManager.game_type = '", GameManager.game_type, "'")
+	else:
+		print("[VaultVR] ❌ GameManager NO existe!")
+	
 	await get_tree().process_frame
 	_init_openxr()
 	_create_waiting_ui()
@@ -63,24 +75,10 @@ func _ready() -> void:
 	firebase_manager.results_saved.connect(func(): print("[VaultVR] ✅ Resultados guardados"))
 	firebase_manager.results_error.connect(func(e): print("[VaultVR] ❌ Error: ", e))
 	
-	# Modo sala de espera
-	# MODO DEBUG: Si ejecutas esta escena directamente (sin Hub), auto-iniciar
-	if OS.is_debug_build():
-		print("[VaultVR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
-		_on_config_error("Debug mode")
-	else:
-		# CRÍTICO: Si se cargó desde Hub, GameManager ya tiene configuración
-		# Verificar si GameManager ya tiene sesión activa
-		if GameManager.patient_id != "" and GameManager.session_id != "":
-			print("[VaultVR] ✅ Cargado desde Hub - Sesión ya configurada")
-			print("[VaultVR] 🎮 Iniciando juego directamente...")
-			_hide_waiting_ui()
-			await _show_countdown()
-			vault_manager.start_game()
-		else:
-			print("[VaultVR] 🏥 Entrando en sala de espera...")
-			_show_waiting_message()
-			firebase_manager.start_polling()
+	# SIEMPRE iniciar en modo sala de espera con polling
+	print("[VaultVR] 🏥 Entrando en sala de espera...")
+	_show_waiting_message()
+	firebase_manager.start_polling()
 
 func _init_openxr() -> void:
 	var xr = XRServer.find_interface("OpenXR")

@@ -1,0 +1,134 @@
+═══════════════════════════════════════════════════════════════
+    GUÍA RÁPIDA - HACER QUE LOS JUEGOS FUNCIONEN DESDE WEB
+═══════════════════════════════════════════════════════════════
+
+📋 QUÉ SE HIZO:
+✅ Se agregó logging extensivo en TODO el código
+✅ Se puede rastrear cada paso del proceso
+✅ Se puede ver EXACTAMENTE dónde falla si algo no funciona
+
+═══════════════════════════════════════════════════════════════
+
+🚀 PASOS PARA PROBAR:
+
+1️⃣  EXPORTAR APK
+   ┌─────────────────────────────────────────┐
+   │ • Abre Godot 4.6                        │
+   │ • Project → Export                      │
+   │ • Selecciona "Android (Quest)"          │
+   │ • Click "Export Project"                │
+   │ • Guarda como TFG.apk                   │
+   └─────────────────────────────────────────┘
+
+2️⃣  INSTALAR EN GAFAS
+   ┌─────────────────────────────────────────┐
+   │ • Conecta gafas con cable USB           │
+   │ • Doble-click en:                       │
+   │   instalar_y_ver_logs.bat               │
+   │ • Sigue las instrucciones               │
+   └─────────────────────────────────────────┘
+
+3️⃣  VER LOGS Y PROBAR
+   ┌─────────────────────────────────────────┐
+   │ • La ventana mostrará los logs          │
+   │ • Ponte las gafas                       │
+   │ • Abre el juego TFG                     │
+   │ • Ve a: https://tfg-vr.web.app          │
+   │ • Crea una sesión                       │
+   │ • Observa los logs en el PC             │
+   └─────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════
+
+📊 QUÉ DEBERÍAS VER EN LOS LOGS:
+
+FASE 1: STARTUP
+├─ [GemsVR] _ready()
+├─ [GemsVR] ✅ GameManager existe
+├─ [Firebase] 🔄 INICIANDO POLLING
+└─ [Spawner] 🎯 INICIALIZADO
+
+FASE 2: POLLING (cada 3 segundos)
+├─ [Firebase] ⏱️ Polling...
+├─ [Firebase] 📡 Code: 404
+└─ (se repite mientras espera sesión)
+
+FASE 3: DETECCIÓN (cuando creas la sesión)
+├─ [Firebase] 📡 Code: 200 ✅
+├─ [Firebase] 🎮 NUEVA SESIÓN DETECTADA
+└─ [Firebase] 📢 Emitiendo señal
+
+FASE 4: CONFIGURACIÓN
+├─ [VR] 🎮 NUEVA SESIÓN DETECTADA
+├─ [VR] 🔧 Aplicando config
+├─ [GameManager] 📋 CONFIGURACIÓN APLICADA
+├─ [VR] ⏱️ Countdown...
+└─ [GameManager] 🚀 START_SESSION()
+
+FASE 5: SPAWNER ACTIVADO
+├─ [Spawner] 🚀 SESSION_STARTED RECIBIDA
+├─ [Spawner] ✅ Cola construida
+├─ [Spawner] ✅ Timer iniciado
+└─ [Spawner] 💎 Primera gema spawneada
+
+FASE 6: JUEGO ACTIVO ✅
+└─ ¡GEMAS APARECIENDO CADA 2-3 SEGUNDOS!
+
+═══════════════════════════════════════════════════════════════
+
+❓ SI ALGO FALLA:
+
+Si los logs se DETIENEN antes de FASE 6:
+
+❌ FASE 1: FirebaseManager no se creó
+   → Problema en vr_start.gd
+
+❌ FASE 2: No hace polling
+   → Problema de red o FirebaseManager
+
+❌ FASE 3: No detecta la sesión
+   → Firestore no tiene sesion_activa/current
+   → Ve a Firebase Console y verifica
+
+❌ FASE 4: No aplica la config
+   → La señal no se conectó
+   → Problema en vr_start.gd
+
+❌ FASE 5: Spawner no recibe señal
+   → GameManager no emitió session_started
+   → Problema en game_manager.gd
+
+❌ FASE 6: No aparecen gemas
+   → GemSpawner no tiene gem_scene asignado
+   → Abre World.tscn y verifica
+
+═══════════════════════════════════════════════════════════════
+
+💡 TIPS:
+
+• Los logs son MUY verbosos ahora - es TEMPORAL para debugging
+• Espera 3-6 segundos después de crear la sesión (polling es cada 3s)
+• Si no funciona con APK, prueba en Godot Editor primero
+• Puedes filtrar logs solo con headers: adb logcat -s godot:V | findstr "═══"
+
+═══════════════════════════════════════════════════════════════
+
+📁 ARCHIVOS ÚTILES:
+
+• instalar_y_ver_logs.bat  → Automatiza todo el proceso
+• ver_logs_vr.bat          → Solo ver logs (sin instalar)
+• INSTRUCCIONES_DEBUGGING_VR.md → Guía detallada
+• RESUMEN_CAMBIOS_VR.md    → Qué se cambió en el código
+
+═══════════════════════════════════════════════════════════════
+
+✅ RESULTADO ESPERADO:
+
+Portal web → Crea sesión → VR detecta en ≤3s → Countdown (3,2,1,GO!)
+→ Juego inicia → Gemas aparecen → ¡FUNCIONA! 🎮
+
+═══════════════════════════════════════════════════════════════
+
+¿Necesitas ayuda? Envía los logs y dime en qué fase se detiene.
+
+═══════════════════════════════════════════════════════════════

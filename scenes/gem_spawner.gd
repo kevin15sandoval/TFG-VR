@@ -51,27 +51,52 @@ const RED_GEMS := [
 ]
 
 func _ready() -> void:
-	print("[Spawner] 🎯 GemSpawner inicializado")
-	GameManager.session_started.connect(_on_session_started)
-	GameManager.session_finished.connect(_on_session_finished)
-	print("[Spawner] ✅ Señales conectadas")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🎯 GEM SPAWNER INICIALIZADO ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[Spawner] Verificando GameManager...")
+	if GameManager:
+		print("[Spawner] ✅ GameManager existe")
+		print("[Spawner] Conectando señales...")
+		GameManager.session_started.connect(_on_session_started)
+		GameManager.session_finished.connect(_on_session_finished)
+		print("[Spawner] ✅ Señales conectadas a GameManager")
+	else:
+		print("[Spawner] ❌ ERROR: GameManager NO existe!")
 
 	_spawn_timer = Timer.new()
 	add_child(_spawn_timer)
 	_spawn_timer.one_shot = false
 	_spawn_timer.timeout.connect(_on_spawn_timer)
-	print("[Spawner] ⏱️ Timer creado")
+	print("[Spawner] ⏱️ Timer de spawn creado")
+	print("═══════════════════════════════════════════════════════════════")
 
 func _on_session_started() -> void:
-	print("[Spawner] 🚀 Sesión iniciada - construyendo cola de ejercicios")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🚀 SPAWNER: SESSION_STARTED RECIBIDA ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[Spawner] Construyendo cola de ejercicios...")
 	_build_queue()
+	print("[Spawner] ✅ Cola construida con ", _exercise_queue.size(), " ejercicios")
 	_queue_index = 0
+	
+	print("[Spawner] 🧹 Limpiando gemas anteriores...")
 	_clear_all_gems()
+	
+	print("[Spawner] ⏱️ Configurando intervalo de spawn...")
 	_spawn_timer.wait_time = GameManager.get_spawn_interval()
-	print("[Spawner] ⏱️ Intervalo de spawn: ", _spawn_timer.wait_time, "s")
+	print("[Spawner] ✅ Intervalo: ", _spawn_timer.wait_time, "s (dificultad: ", GameManager.difficulty, ")")
+	
+	print("[Spawner] 🎮 Iniciando timer de spawn...")
 	_spawn_timer.start()
-	print("[Spawner] 🎮 Timer iniciado - spawneando primera gema")
+	print("[Spawner] ✅ Timer iniciado")
+	
+	print("[Spawner] 💎 Spawneando primera gema...")
 	_spawn_next()
+	print("[Spawner] ✅ Primera gema spawneada")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ✅ SPAWNER ACTIVO - GENERANDO GEMAS ═══")
+	print("═══════════════════════════════════════════════════════════════")
 
 func _on_session_finished(_results: Dictionary) -> void:
 	_spawn_timer.stop()

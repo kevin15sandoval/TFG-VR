@@ -25,7 +25,19 @@ var _ambient_audio: AudioStreamPlayer = null
 var _countdown_label: Label3D = null
 
 func _ready() -> void:
-	print("=== NeuroVR Rehab — Sistema de Auto-Arranque ===")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 💎 GEMS GAME — VR System INICIANDO ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[GemsVR] _ready() ejecutándose...")
+	print("[GemsVR] Verificando GameManager...")
+	if GameManager:
+		print("[GemsVR] ✅ GameManager existe")
+		print("[GemsVR] GameManager.patient_id = '", GameManager.patient_id, "'")
+		print("[GemsVR] GameManager.session_id = '", GameManager.session_id, "'")
+		print("[GemsVR] GameManager.game_type = '", GameManager.game_type, "'")
+	else:
+		print("[GemsVR] ❌ GameManager NO existe!")
+	
 	await get_tree().process_frame
 	_init_openxr()
 	_create_waiting_ui()
@@ -36,31 +48,38 @@ func _ready() -> void:
 	# Nota: Las señales se conectan dinámicamente cuando se carga el game manager
 
 	# Crear FirebaseManager dinámicamente si no está en escena
+	print("[GemsVR] 🔍 Buscando FirebaseManager...")
 	if has_node("FirebaseManager"):
 		firebase_manager = get_node("FirebaseManager")
+		print("[GemsVR] ✅ FirebaseManager encontrado en escena")
 	else:
+		print("[GemsVR] ⚙️ Creando FirebaseManager dinámicamente...")
 		var script = load("res://scripts/firebase_manager.gd")
 		firebase_manager = Node.new()
 		firebase_manager.set_script(script)
+		firebase_manager.name = "FirebaseManager"
 		add_child(firebase_manager)
+		print("[GemsVR] ✅ FirebaseManager creado")
 
 	# Conectar señales (incluida la nueva de auto-detección)
+	print("[GemsVR] 🔌 Conectando señales de FirebaseManager...")
 	firebase_manager.config_loaded.connect(_on_config_loaded)
 	firebase_manager.config_error.connect(_on_config_error)
 	firebase_manager.new_session_detected.connect(_on_new_session_detected)
 	firebase_manager.results_saved.connect(func(): print("[VR] ✅ Resultados guardados"))
 	firebase_manager.results_error.connect(func(e): print("[VR] ❌ Error: ", e))
+	print("[GemsVR] ✅ Todas las señales conectadas")
 
-	# MODO DEBUG: Si ejecutas esta escena directamente (sin Hub), auto-iniciar
-	if OS.is_debug_build():
-		print("[VR] 🔧 MODO DEBUG: Auto-iniciando juego sin polling")
-		_on_config_error("Debug mode")
-	else:
-		# NUEVO: Iniciar en modo sala de espera con polling
-		print("[VR] 🏥 Entrando en sala de espera...")
-		print("[VR] 👀 Esperando que el fisioterapeuta inicie sesión...")
-		_show_waiting_message()
-		firebase_manager.start_polling()  # Activar polling automático
+	# SIEMPRE iniciar en modo sala de espera con polling
+	print("[VR] 🏥 Entrando en sala de espera...")
+	print("[VR] 👀 Esperando que el fisioterapeuta inicie sesión...")
+	_show_waiting_message()
+	print("[VR] 🔄 Iniciando polling de Firestore...")
+	firebase_manager.start_polling()  # Activar polling automático
+	print("[VR] ✅ Polling activado")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ⏳ SALA DE ESPERA ACTIVA - POLLING FIRESTORE ═══")
+	print("═══════════════════════════════════════════════════════════════")
 
 func _init_openxr() -> void:
 	var xr = XRServer.find_interface("OpenXR")
@@ -295,25 +314,55 @@ func _hide_game_hud() -> void:
 # ─── DETECCIÓN AUTOMÁTICA DE NUEVA SESIÓN ─────────────────────────────────────
 
 func _on_new_session_detected(config: Dictionary) -> void:
-	print("[VR] 🎮 ¡Nueva sesión detectada! Iniciando automáticamente...")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🎮 NUEVA SESIÓN DETECTADA ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[VR] Config recibida:")
+	print("  - patient_id:   ", config.get("patient_id", ""))
+	print("  - session_id:   ", config.get("session_id", ""))
+	print("  - game_id:      ", config.get("game_id", "gems"))
+	print("  - difficulty:   ", config.get("difficulty", "Media"))
+	print("  - duration:     ", config.get("duration", 180), "s")
+	print("═══════════════════════════════════════════════════════════════")
+	
 	if label_info:
 		label_info.text = "¡SESIÓN DETECTADA! Iniciando..."
+		print("[VR] ✅ Label actualizado")
+	
 	waiting_mode = false
 	firebase_manager.stop_polling()  # Detener polling
+	print("[VR] ✅ Polling detenido")
+	
 	_hide_waiting_ui()
+	print("[VR] ✅ UI de espera ocultada")
 	
 	# Aplicar configuración al GameManager GLOBAL primero
+	print("[VR] 🔧 Aplicando configuración a GameManager...")
 	GameManager.apply_config(config)
+	print("[VR] ✅ Configuración aplicada")
+	print("[VR] Verificación post-config:")
+	print("  - GameManager.patient_id:  ", GameManager.patient_id)
+	print("  - GameManager.session_id:  ", GameManager.session_id)
+	print("  - GameManager.game_type:   ", GameManager.game_type)
 	
 	# Cargar el game manager específico según game_id
 	var game_id = config.get("game_id", "gems")
+	print("[VR] 🎮 Cargando game manager para: ", game_id)
 	_load_game_manager(game_id)
+	print("[VR] ✅ Game manager cargado")
 	
 	# Mostrar countdown animado
+	print("[VR] ⏱️ Iniciando countdown...")
 	await _show_countdown()
+	print("[VR] ✅ Countdown completado")
 	
 	# CRÍTICO: Iniciar sesión en GameManager GLOBAL (esto dispara session_started)
+	print("[VR] 🚀 Llamando GameManager.start_session()...")
 	GameManager.start_session()
+	print("[VR] ✅ start_session() ejecutado")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🎮 SESIÓN INICIADA - JUEGO ACTIVO ═══")
+	print("═══════════════════════════════════════════════════════════════")
 	
 	# Los game managers específicos escuchan session_started y arrancan automáticamente
 
@@ -415,51 +464,49 @@ func _on_config_loaded(config: Dictionary) -> void:
 	GameManager.start_session()
 
 func _on_config_error(_msg: String) -> void:
-	# En modo sala de espera, no hacer nada, seguir esperando
-	# Solo usar defaults si estamos en modo desarrollo/pruebas
-	print("[VR] [AUTO-START] Iniciando sesión de prueba en 3 segundos...")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ⚠️ CONFIG ERROR (NO CRITICAL - POLLING ACTIVO) ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[VR] Mensaje de error: ", _msg)
+	print("[VR] ℹ️ Esto NO es un error real si el polling está activo")
+	print("[VR] ℹ️ El sistema está esperando sesión desde el portal web")
+	print("[VR] ℹ️ El fisioterapeuta debe crear una sesión en:")
+	print("[VR]     https://tfg-vr.web.app")
+	print("═══════════════════════════════════════════════════════════════")
 	
-	# Configuración de prueba (puedes cambiar game_id para probar cada juego)
-	var test_game_id = "gems"  # Cambiar a: vault_escape, urban_attention_quest, luggage_handler
-	
-	GameManager.apply_config({
-		"patient_id":    "test",
-		"patient_name":  "Prueba Local",
-		"session_id":    "offline_" + str(Time.get_ticks_msec()),
-		"duration":      180,
-		"difficulty":    "Media",
-		"therapy_side":  "Izquierdo",
-		"session_type":  "Alcance",
-		"game_id":       test_game_id,
-	})
-	
-	# Cargar game manager apropiado
-	_load_game_manager(test_game_id)
-	
-	# Mostrar countdown y arrancar
-	_hide_waiting_ui()
-	await get_tree().create_timer(1.0).timeout
-	await _show_countdown()
-	
-	if current_game_manager and current_game_manager.has_method("start_game"):
-		current_game_manager.start_game()
-	else:
-		GameManager.start_session()
+	# NO HACER NADA - el polling se encarga de detectar sesiones
+	# Esta función solo se llama si se usa load_session_config() directamente
+	# que ya NO usamos en el flujo principal
 
 func _on_session_started() -> void:
-	print("[VR] ▶ Sesión iniciada | ", GameManager.difficulty, " | ", GameManager.therapy_side)
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ▶️ VR_START: SESSION_STARTED RECIBIDA ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[VR] Iniciando juego...")
+	print("[VR] Dificultad: ", GameManager.difficulty)
+	print("[VR] Lado: ", GameManager.therapy_side)
+	print("[VR] Duración: ", GameManager.session_duration, "s")
+	
 	_combo_count = 0
 	_last_gem_time = 0.0
 	
 	if label_status:
 		label_status.text = "¡SESIÓN ACTIVA!"
 		label_status.modulate = Color(0.2, 1.0, 0.2)  # Verde
+		print("[VR] ✅ Label status actualizado")
 		await get_tree().create_timer(2.0).timeout
 		label_status.visible = false
+		print("[VR] ✅ Label status ocultado")
 	if label_info:
 		label_info.visible = false
+		print("[VR] ✅ Label info ocultado")
 	
+	print("[VR] 📺 Mostrando HUD del juego...")
 	_show_game_hud()
+	print("[VR] ✅ HUD mostrado")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ✅ JUEGO ACTIVO - HUD VISIBLE ═══")
+	print("═══════════════════════════════════════════════════════════════")
 
 func _on_gem_collected(gem_type: String, points: int, total: int) -> void:
 	print("[VR] Gema: ", gem_type, " +", points, " → ", total, " pts")

@@ -1,0 +1,203 @@
+\chapter{Trabajo futuro}
+
+\section{Introducción}
+
+Aunque NeuroVR Rehab constituye un prototipo funcional completo, existen múltiples vías de mejora y extensión que permitirían su evolución hacia un producto clínico maduro. Este capítulo detalla las líneas de trabajo futuro organizadas por áreas temáticas.
+
+\section{Mejoras técnicas}
+
+\subsection{Migración a WebSockets}
+
+\textbf{Motivación}: El sistema actual utiliza polling cada 3 segundos para detectar nuevas sesiones, introduciendo latencia innecesaria de 1.5-4.5 segundos.
+
+\textbf{Propuesta}: Implementar Firebase Realtime Database con WebSockets para notificaciones instantáneas con latencia reducida a menos de 500ms, menor consumo de batería (sin polling continuo), y sincronización bidireccional en tiempo real.
+
+\textbf{Implementación}: Firebase ofrece SDK para Godot mediante plugins de terceros, o REST API con Server-Sent Events (SSE).
+
+\textbf{Esfuerzo estimado}: 2-3 semanas de desarrollo y testing.
+
+\subsection{Modo offline con sincronización diferida}
+
+\textbf{Motivación}: La dependencia estricta de WiFi limita el uso en entornos sin conectividad (domicilios rurales, hospitales con redes restringidas).
+
+\textbf{Propuesta}: Implementar almacenamiento local con sincronización posterior mediante SQLite embebido en Godot o sistema de archivos JSON. Guardar configuración de sesión localmente, ejecutar sesión sin conectividad, almacenar resultados localmente, y sincronizar con Firestore cuando se recupere conexión con cola de reintentos con backoff exponencial.
+
+\subsection{Sistema de adaptación dinámica de dificultad}
+
+\textbf{Motivación}: Actualmente hay 3 niveles fijos de dificultad. Un sistema adaptativo podría ajustar la dificultad en tiempo real según el rendimiento del paciente.
+
+\textbf{Propuesta}: Implementar algoritmo de ajuste dinámico que monitorice precisión y tiempo de respuesta en ventanas temporales (últimos 30 segundos), incremente dificultad si precisión supera 90\% durante 1 minuto, reduzca dificultad si precisión cae por debajo de 60\%, y aplique cambios graduales (±10\% velocidad/frecuencia) para evitar frustraciones.
+
+\textbf{Beneficio clínico}: Mantiene al paciente en la zona de desafío óptima (flow state), maximizando compromiso y beneficio terapéutico.
+
+\subsection{Sistema de notificaciones push}
+
+\textbf{Propuesta}: Implementar Firebase Cloud Messaging (FCM) para enviar notificaciones a la aplicación VR cuando se inicia una sesión, alertas de sesión cancelada por el fisioterapeuta, y recordatorios de sesiones programadas.
+
+\section{Extensiones clínicas}
+
+\subsection{Nuevos videojuegos terapéuticos}
+
+\subsubsection{Balance Training (Entrenamiento de equilibrio)}
+
+\textbf{Objetivo}: Mejorar equilibrio y control postural.
+
+\textbf{Mecánica}: El paciente está de pie sobre una plataforma virtual que se inclina. Debe mantener el equilibrio mediante movimientos del centro de gravedad. Se utilizan giroscopios de Meta Quest para detectar inclinación de la cabeza.
+
+\textbf{Métricas}: Tiempo en equilibrio, número de caídas virtuales, rango de oscilación del centro de gravedad.
+
+\subsubsection{Speech Therapy Game (Terapia del habla)}
+
+\textbf{Objetivo}: Rehabilitación de afasia post-ictus.
+
+\textbf{Mecánica}: El paciente debe nombrar objetos virtuales que aparecen en la escena. El sistema utiliza reconocimiento de voz para verificar respuestas.
+
+\textbf{Métricas}: Número de palabras correctas, tiempo de respuesta, fluidez verbal.
+
+\subsubsection{Cognitive Memory Challenge (Desafío cognitivo)}
+
+\textbf{Objetivo}: Rehabilitación de memoria y función ejecutiva.
+
+\textbf{Mecánica}: Juegos de memoria tipo Simon Says adaptados a VR, secuencias de colores/sonidos que el paciente debe reproducir.
+
+\textbf{Métricas}: Longitud máxima de secuencia recordada, precisión, tiempo de reacción.
+
+\subsection{Integración con wearables}
+
+\textbf{Propuesta}: Integrar sensores externos para capturar métricas fisiológicas:
+
+\begin{itemize}
+    \item \textbf{Pulsómetro Bluetooth}: Monitorizar frecuencia cardíaca para detectar fatiga o estrés
+    \item \textbf{Sensor EMG (electromiografía)}: Medir actividad muscular real durante ejercicios
+    \item \textbf{Sensor de presión en la mano}: Cuantificar fuerza de prensión
+\end{itemize}
+
+\textbf{Beneficio}: Correlacionar métricas de juego con datos fisiológicos objetivos, ajustar intensidad basándose en frecuencia cardíaca, y validar que movimientos virtuales se corresponden con actividad muscular real.
+
+\subsection{Sistema de prescripción personalizada}
+
+\textbf{Propuesta}: Desarrollar módulo de IA que, basándose en el perfil del paciente y métricas previas, sugiera automáticamente:
+
+\begin{itemize}
+    \item Juego más adecuado para la sesión
+    \item Duración óptima
+    \item Nivel de dificultad inicial
+    \item Objetivos específicos a trabajar
+\end{itemize}
+
+\textbf{Tecnología}: Algoritmo de machine learning entrenado con datos históricos de múltiples pacientes (requiere validación clínica previa).
+
+\section{Mejoras de usabilidad}
+
+\subsection{Dashboard de evolución temporal}
+
+\textbf{Motivación}: Actualmente la plataforma web muestra métricas por sesión individual. Los fisioterapeutas necesitan visualizar evolución a lo largo del tiempo.
+
+\textbf{Propuesta}: Implementar gráficos interactivos con Chart.js o D3.js mostrando curvas de evolución de puntuación, precisión, tiempo por movimiento, y detección de plateau (estancamiento) o regresión.
+
+\subsection{Exportación de informes clínicos}
+
+\textbf{Propuesta}: Generar informes en PDF con logo de la clínica, resumen ejecutivo para el médico, gráficos de evolución, tabla de métricas detalladas por sesión, y recomendaciones automáticas basadas en tendencias.
+
+\textbf{Tecnología}: Biblioteca jsPDF o generación server-side con Firebase Functions.
+
+\subsection{Modo multi-idioma}
+
+\textbf{Motivación}: El sistema actual está en español. Para uso internacional se requiere internacionalización (i18n).
+
+\textbf{Propuesta}: Implementar React i18next en la plataforma web y sistema de localización en Godot para aplicaciones VR, con soporte inicial para español, inglés, francés, y portugués.
+
+\section{Validación clínica}
+
+\subsection{Estudio piloto}
+
+\textbf{Objetivo}: Validar viabilidad y aceptabilidad con pacientes reales.
+
+\textbf{Diseño}: Estudio observacional con 10-15 pacientes post-ictus en fase subaguda (1-6 meses post-evento), 12 sesiones de 15 minutos durante 4 semanas, mediciones pre-post con escalas validadas (Fugl-Meyer, Berg Balance Scale).
+
+\textbf{Métricas primarias}: Adherencia al tratamiento, satisfacción del paciente y fisioterapeuta, eventos adversos (mareos, caídas).
+
+\textbf{Métricas secundarias}: Cambios en puntuación de escalas clínicas, correlación entre métricas del sistema y evaluaciones clínicas.
+
+\subsection{Ensayo clínico aleatorizado}
+
+\textbf{Objetivo}: Demostrar eficacia terapéutica comparada con rehabilitación convencional.
+
+\textbf{Diseño}: Ensayo controlado aleatorizado (RCT) con dos brazos: grupo experimental (VR + terapia convencional) y grupo control (solo terapia convencional), 40-60 pacientes por brazo, intervención durante 8-12 semanas con seguimiento a 3 y 6 meses.
+
+\textbf{Outcome primario}: Cambio en puntuación Fugl-Meyer Assessment (FMA) a las 12 semanas.
+
+\textbf{Outcomes secundarios}: Calidad de vida (EQ-5D), independencia funcional (Barthel Index), depresión post-ictus (Beck Depression Inventory).
+
+\section{Escalabilidad y despliegue}
+
+\subsection{Arquitectura multi-tenancy}
+
+\textbf{Motivación}: El sistema actual es monolítico. Para uso en múltiples clínicas simultáneamente se requiere arquitectura multi-tenancy.
+
+\textbf{Propuesta}: Implementar sistema de organizaciones/clínicas con datos aislados por tenant, autenticación y autorización basada en roles (admin clínica, fisioterapeuta, soporte técnico), y facturación por uso (modelo SaaS).
+
+\subsection{Certificación médica}
+
+\textbf{Requisito}: Para uso clínico en Europa se requiere certificación como producto sanitario (Medical Device Regulation - MDR).
+
+\textbf{Pasos necesarios}:
+\begin{enumerate}
+    \item Clasificación como dispositivo médico clase IIa o IIb
+    \item Implementación de sistema de gestión de calidad ISO 13485
+    \item Análisis de riesgos según ISO 14971
+    \item Estudios de usabilidad según IEC 62366
+    \item Evaluación clínica según MEDDEV 2.7/1
+    \item Auditoría por organismo notificado
+\end{enumerate}
+
+\textbf{Esfuerzo estimado}: 12-18 meses + costes de certificación (€50,000-€150,000).
+
+\subsection{Modelo de negocio sostenible}
+
+\textbf{Opciones de monetización}:
+\begin{itemize}
+    \item \textbf{Licencia por clínica}: €200-€500/mes por clínica con usuarios ilimitados
+    \item \textbf{Pago por sesión}: €2-€5 por sesión de rehabilitación completada
+    \item \textbf{Venta de hardware bundle}: Meta Quest 2 + licencia software a precio especial para hospitales
+    \item \textbf{Modelo freemium}: Versión básica gratuita, funcionalidades avanzadas de pago (análisis con IA, informes personalizados)
+\end{itemize}
+
+\section{Investigación y desarrollo avanzado}
+
+\subsection{Integración con Brain-Computer Interfaces (BCI)}
+
+\textbf{Visión futura}: Combinar VR con interfaces cerebro-computadora para pacientes con parálisis severa que no pueden realizar movimientos físicos.
+
+\textbf{Propuesta}: El paciente imagina el movimiento (motor imagery) mientras ve el avatar virtual ejecutarlo. Sensores EEG detectan patrones de activación cerebral y controlan el juego.
+
+\textbf{Beneficio teórico}: Estimulación de neuroplasticidad sin necesidad de movimiento físico residual.
+
+\subsection{Realidad mixta (MR) para terapia híbrida}
+
+\textbf{Propuesta}: Utilizar Meta Quest 3 con passthrough de alta calidad para combinar elementos virtuales con el entorno real del paciente.
+
+\textbf{Ejemplo de uso}: Gemas virtuales aparecen sobre objetos reales de la habitación, el paciente debe alcanzarlas físicamente, el sistema valida que toca el objeto real mediante visión por computadora.
+
+\textbf{Ventaja}: Mayor transferencia a actividades de la vida diaria (ADL) al entrenar en el entorno real del paciente.
+
+\subsection{Análisis predictivo con Machine Learning}
+
+\textbf{Propuesta}: Entrenar modelos de ML con datos históricos para predecir evolución del paciente, probabilidad de abandono de tratamiento, identificación temprana de pacientes que no responden al tratamiento, y optimización automática de parámetros de terapia.
+
+\textbf{Tecnología}: TensorFlow o PyTorch con servidor Python separado, API REST para inferencias desde aplicaciones VR y web.
+
+\section{Conclusión del capítulo}
+
+Las líneas de trabajo futuro presentadas abarcan desde mejoras técnicas incrementales (WebSockets, modo offline) hasta desarrollos ambiciosos a largo plazo (certificación médica, BCI, ML). La priorización dependerá de si el objetivo es uso académico, investigación clínica, o comercialización.
+
+Para avanzar hacia un producto clínico real, se recomienda priorizar en el siguiente orden:
+\begin{enumerate}
+    \item Validación clínica con estudio piloto
+    \item Mejoras de usabilidad (dashboard, informes PDF)
+    \item Modo offline y WebSockets
+    \item Nuevos videojuegos terapéuticos
+    \item Certificación médica y comercialización
+\end{enumerate}
+
+El potencial de NeuroVR Rehab como herramienta de impacto real en rehabilitación neurológica es significativo, y las líneas de trabajo propuestas permitirían materializarlo.

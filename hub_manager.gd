@@ -148,8 +148,12 @@ func _on_new_session_detected(config: Dictionary) -> void:
 		game_label.visible = true
 		game_label.text = GAME_NAMES.get(game_id, "Juego")
 	
+	print("[Hub] ⏳ Esperando 2 segundos antes de cargar...")
+	
 	# Esperar un momento para que el jugador lea el mensaje
 	await get_tree().create_timer(2.0).timeout
+	
+	print("[Hub] ⏰ Timeout completado, llamando _load_game()...")
 	
 	# Cargar el juego
 	_load_game(game_id, config)
@@ -166,6 +170,7 @@ func _load_game(game_id: String, config: Dictionary) -> void:
 	print("[Hub] 📂 Ruta de escena: ", scene_path)
 	
 	# DIAGNÓSTICO: Verificar si la escena existe
+	print("[Hub] 🔍 Verificando existencia de escena...")
 	var exists = ResourceLoader.exists(scene_path)
 	print("[Hub] 🔍 ¿Escena existe en APK? ", exists)
 	
@@ -178,76 +183,47 @@ func _load_game(game_id: String, config: Dictionary) -> void:
 	print("[Hub] ✅ Escena verificada, procediendo a cargar...")
 	
 	# Aplicar configuración a GameManager ANTES de cargar la escena
+	print("[Hub] 📋 Verificando GameManager...")
 	if GameManager:
+		print("[Hub] ✅ GameManager encontrado")
 		print("[Hub] 📋 Aplicando configuración a GameManager...")
 		GameManager.apply_config(config)
-		print("[Hub] ✅ Configuración aplicada")
+		print("[Hub] ✅ Configuración aplicada a GameManager")
 		print("[Hub]    - Patient ID: ", GameManager.patient_id)
 		print("[Hub]    - Session ID: ", GameManager.session_id)
 		print("[Hub]    - Game Type: ", GameManager.game_type)
 	else:
-		print("[Hub] ⚠️ ADVERTENCIA: GameManager no encontrado")
+		print("[Hub] ❌ ADVERTENCIA: GameManager no encontrado")
 	
-	# Cargar la escena del juego
-	print("[Hub] 📦 Cargando recurso de escena...")
-	var game_scene_resource = load(scene_path)
+	# Cargar la escena del juego usando ResourceLoader
+	print("[Hub] 📦 Cargando recurso de escena con ResourceLoader.load()...")
+	var game_scene_resource = ResourceLoader.load(scene_path)
+	print("[Hub] 🔍 Resultado de ResourceLoader.load(): ", game_scene_resource)
+	
 	if game_scene_resource == null:
-		print("[Hub] ❌ ERROR: No se pudo cargar el recurso de escena")
-		print("[Hub] ❌ ResourceLoader retornó null")
+		print("[Hub] ❌ ERROR: ResourceLoader.load() retornó null")
+		print("[Hub] ❌ No se pudo cargar el recurso de escena")
 		_show_error_message("Error al cargar el juego")
 		return
 	
 	print("[Hub] ✅ Recurso cargado exitosamente")
+	print("[Hub] 🎮 Tipo de recurso: ", game_scene_resource.get_class())
 	
-	# Instanciar la escena
-	print("[Hub] 🏗️ Instanciando escena del juego...")
-	current_game_scene = game_scene_resource.instantiate()
+	# USAR CHANGE_SCENE_TO_PACKED para cambiar de escena correctamente
+	print("[Hub] 🔄 Llamando get_tree().change_scene_to_packed()...")
+	var error = get_tree().change_scene_to_packed(game_scene_resource)
+	print("[Hub] 🔍 Resultado de change_scene_to_packed(): ", error)
 	
-	if current_game_scene == null:
-		print("[Hub] ❌ ERROR: No se pudo instanciar la escena")
-		print("[Hub] ❌ instantiate() retornó null")
-		_show_error_message("Error al instanciar el juego")
+	if error != OK:
+		print("[Hub] ❌ ERROR al cambiar escena: código ", error)
+		_show_error_message("Error al cambiar de escena")
 		return
 	
-	print("[Hub] ✅ Escena instanciada correctamente")
-	print("[Hub] 🎮 Tipo de nodo: ", current_game_scene.get_class())
-	
-	# Ocultar el Hub
-	print("[Hub] 👻 Ocultando Hub...")
-	_hide_hub()
-	
-	# Añadir la escena del juego a la raíz
-	print("[Hub] ➕ Añadiendo escena del juego al árbol...")
-	get_tree().root.add_child(current_game_scene)
-	print("[Hub] ✅ Escena añadida al árbol de nodos")
-	
-	# Esperar un frame para que todo se inicialice
-	await get_tree().process_frame
-	print("[Hub] ⏳ Frame procesado, todo inicializado")
-	
-	# CRÍTICO: Iniciar sesión en GameManager (esto dispara session_started para todos)
-	if GameManager:
-		print("[Hub] 🚀 Iniciando sesión en GameManager...")
-		GameManager.start_session()
-		print("[Hub] ✅ Sesión iniciada - signal session_started emitido")
-	else:
-		print("[Hub] ⚠️ ERROR: No se puede iniciar sesión - GameManager no existe")
-	
+	print("[Hub] ✅ change_scene_to_packed() ejecutado sin errores")
 	print("[Hub] ═══════════════════════════════════════════════════════════")
-	print("[Hub] 🎮 ¡JUEGO CARGADO Y EN EJECUCIÓN!")
+	print("[Hub] 🎮 ¡CAMBIO DE ESCENA SOLICITADO!")
+	print("[Hub] 🎮 El juego debería cargar ahora...")
 	print("[Hub] ═══════════════════════════════════════════════════════════")
-	
-	# El juego ahora tomará el control y escuchará session_started
-
-func _hide_hub() -> void:
-	# Ocultar todos los elementos visuales del hub
-	visible = false
-	
-	# También podríamos quitar el procesamiento
-	set_process(false)
-	set_physics_process(false)
-	
-	print("[Hub] 👻 Hub ocultado")
 
 func _show_error_message(message: String) -> void:
 	if status_label:

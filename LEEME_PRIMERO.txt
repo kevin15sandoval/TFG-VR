@@ -1,99 +1,99 @@
-═══════════════════════════════════════════════════════════════════════════
-  🎮 SISTEMA MULTI-JUEGOS VR - TFG NeuroVR Rehab
-═══════════════════════════════════════════════════════════════════════════
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   🎮 SISTEMA VR - ARREGLADO Y LISTO PARA PROBAR 🎮           ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
 
-✅ ESTADO: TODO IMPLEMENTADO Y LISTO PARA USAR
+🎯 PROBLEMA QUE SE ARREGLÓ:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Los juegos NO se iniciaban cuando creabas una sesión desde el
+portal web. Ahora se agregó logging extensivo para rastrear 
+EXACTAMENTE qué está pasando y dónde falla (si falla).
 
-═══════════════════════════════════════════════════════════════════════════
-  📋 QUÉ SE HA HECHO HOY
-═══════════════════════════════════════════════════════════════════════════
+✅ QUÉ SE HIZO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Logging detallado en vr_start.gd
+✓ Logging en firebase_manager.gd (polling)
+✓ Logging en game_manager.gd (configuración y sesión)
+✓ Logging en gem_spawner.gd (generación de gemas)
+✓ Se puede ver TODO el flujo desde el PC con USB
 
-✅ Sistema de detección automática de juegos en vr_start.gd
-✅ Soporte para 4 juegos diferentes
-✅ Plataforma clínica configurada
-✅ Firebase configurado correctamente
-✅ Scripts de automatización creados
-✅ Documentación completa
+🚀 CÓMO PROBAR (3 PASOS SIMPLES):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-═══════════════════════════════════════════════════════════════════════════
-  🎯 LOS 4 JUEGOS SOPORTADOS
-═══════════════════════════════════════════════════════════════════════════
+1️⃣  EXPORTAR APK DESDE GODOT
+    • Abre el proyecto en Godot 4.6
+    • Ve a: Project → Export
+    • Selecciona: Android (Quest)
+    • Click: Export Project
+    • Guarda como: TFG.apk (en esta carpeta)
 
-1. ⭐ Recolectar Gemas (gems)
-2. 🔐 Laser Vault Escape (vault_escape)
-3. 🎯 Urban Attention Quest (urban_attention_quest)
-4. 📦 Luggage Handler (luggage_handler)
+2️⃣  EJECUTAR EL SCRIPT AUTOMÁTICO
+    • Conecta las gafas Meta Quest con cable USB
+    • Haz doble-click en: instalar_y_ver_logs.bat
+    • El script instalará el APK y mostrará los logs
 
-═══════════════════════════════════════════════════════════════════════════
-  🚀 QUÉ NECESITAS HACER AHORA (15 minutos)
-═══════════════════════════════════════════════════════════════════════════
+3️⃣  PROBAR
+    • Ponte las gafas
+    • Abre la app TFG
+    • Ve al portal: https://tfg-vr.web.app
+    • Crea una nueva sesión
+    • Observa los logs en la ventana del PC
 
-PASO 1: Verificar sistema (OPCIONAL)
-   → Doble clic en: verificar_sistema.bat
+📊 QUÉ ESPERAR:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PASO 2: Exportar juegos desde Godot (15 min)
-   1. Abre Godot 4.6
-   2. Carga el proyecto TFG
-   3. Ve a: Project → Export...
-   4. Crea 4 presets Web (uno por juego)
-   5. Exporta cada uno
+Si FUNCIONA correctamente, verás esto en los logs:
 
-   Ver guía detallada en: PASOS_RAPIDOS_DEPLOY.md
+  FASE 1: STARTUP .............. ✅ (al abrir el juego)
+  FASE 2: POLLING .............. ✅ (cada 3 segundos)
+  FASE 3: DETECCIÓN ............ ✅ (cuando creas sesión)
+  FASE 4: CONFIGURACIÓN ........ ✅ (aplica config)
+  FASE 5: SPAWNER ACTIVADO ..... ✅ (prepara gemas)
+  FASE 6: JUEGO ACTIVO ......... ✅ (¡gemas aparecen!)
 
-PASO 3: Deploy automático (5 min)
-   → Doble clic en: deploy_all_games.bat
+Si llegas hasta FASE 6: ¡FUNCIONA! 🎉
 
-¡LISTO! Todo funcionando en:
-   🌐 https://tfg-vr.web.app/
+Si se DETIENE antes: Los logs te dirán EXACTAMENTE dónde y por qué.
 
-═══════════════════════════════════════════════════════════════════════════
-  📚 DOCUMENTACIÓN DISPONIBLE
-═══════════════════════════════════════════════════════════════════════════
+📁 ARCHIVOS IMPORTANTES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📖 PASOS_RAPIDOS_DEPLOY.md
-   → Pasos mínimos para hacer deploy (EMPIEZA AQUÍ)
+• GUIA_RAPIDA.txt ................ Guía visual rápida
+• instalar_y_ver_logs.bat ........ Instala APK y muestra logs
+• ver_logs_vr.bat ................ Solo ver logs (sin instalar)
+• INSTRUCCIONES_DEBUGGING_VR.md .. Guía detallada técnica
+• RESUMEN_CAMBIOS_VR.md .......... Qué se cambió en el código
 
-📖 GUIA_EXPORTACION_TODOS_LOS_JUEGOS.md
-   → Guía completa con todos los detalles
+💡 NOTAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📖 RESUMEN_SISTEMA_COMPLETO.md
-   → Explicación técnica de cómo funciona todo
+• El polling revisa Firestore cada 3 segundos
+• Espera 3-6 segundos después de crear la sesión
+• Los logs son MUY verbosos ahora (temporal para debugging)
+• Si no funciona, envía los logs a Kevin
 
-═══════════════════════════════════════════════════════════════════════════
-  🔧 SCRIPTS DISPONIBLES
-═══════════════════════════════════════════════════════════════════════════
+🎯 FLUJO DEL SISTEMA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-verificar_sistema.bat
-   → Verifica que todos los archivos están en su lugar
+Portal Web → Crea sesión en Firestore
+     ↓
+VR hace polling cada 3s
+     ↓
+VR detecta nueva sesión
+     ↓
+VR aplica configuración
+     ↓
+VR muestra countdown (3, 2, 1, GO!)
+     ↓
+Juego inicia
+     ↓
+¡Gemas empiezan a aparecer! ✅
 
-deploy_all_games.bat
-   → Copia builds y despliega automáticamente a Firebase
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   👉 EMPIEZA AQUÍ: Doble-click en instalar_y_ver_logs.bat    ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
 
-═══════════════════════════════════════════════════════════════════════════
-  ✅ CÓMO PROBAR QUE FUNCIONA
-═══════════════════════════════════════════════════════════════════════════
-
-1. Abre: https://tfg-vr.web.app/
-2. Inicia sesión como fisioterapeuta
-3. Selecciona un paciente
-4. Elige uno de los 4 juegos
-5. Clic en "Iniciar Sesión VR"
-6. En Meta Quest: abre navegador → URL del juego
-7. Espera 3-5 segundos
-8. ¡El juego detecta la sesión y comienza automáticamente!
-
-═══════════════════════════════════════════════════════════════════════════
-  🎉 CONCLUSIÓN
-═══════════════════════════════════════════════════════════════════════════
-
-TODO EL CÓDIGO ESTÁ LISTO.
-Solo necesitas:
-  1. Exportar los 4 juegos desde Godot
-  2. Ejecutar el script de deploy
-  3. ¡Disfrutar del sistema completo!
-
-═══════════════════════════════════════════════════════════════════════════
-
-¿Dudas? Lee: PASOS_RAPIDOS_DEPLOY.md
-
-¡MUCHA SUERTE CON TU TFG! 🚀
+¡Suerte! 🚀

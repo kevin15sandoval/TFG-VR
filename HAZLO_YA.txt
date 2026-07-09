@@ -1,0 +1,124 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║              🚀 HACER QUE FUNCIONE - 3 PASOS 🚀              ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+
+PASO 1: EXPORTAR APK
+════════════════════════════════════════════════════════════════
+
+  1. Abre Godot 4.6
+  2. Abre el proyecto TFG
+  3. Ve a: Project → Export
+  4. Selecciona: Android (Runnable)
+  5. Click: Export Project
+  6. Guarda en esta carpeta como: TFG.apk
+
+
+PASO 2: INSTALAR Y VER LOGS
+════════════════════════════════════════════════════════════════
+
+  1. Conecta las gafas Meta Quest con cable USB
+  2. Enciende las gafas
+  3. Doble-click aquí: instalar_y_ver_logs.bat
+  4. Sigue las instrucciones en pantalla
+
+
+PASO 3: PROBAR
+════════════════════════════════════════════════════════════════
+
+  1. Ponte las gafas Meta Quest
+  2. Abre la app TFG (en Unknown Sources)
+  3. Verás "SALA DE ESPERA" en las gafas
+  4. En el PC, abre: https://tfg-vr.web.app
+  5. Inicia sesión en el portal
+  6. Crea una nueva sesión:
+     - Selecciona un paciente
+     - Juego: Recolectar gemas
+     - Dificultad: Media
+     - Lado: Izquierdo
+     - Duración: 180 segundos
+     - Click: "Iniciar Sesión"
+  7. Espera 3-6 segundos
+  8. En las gafas: Verás countdown (3, 2, 1, GO!)
+  9. ¡Las gemas deberían empezar a aparecer! ✅
+
+
+QUÉ VER EN LOS LOGS (ventana del PC):
+════════════════════════════════════════════════════════════════
+
+  ✅ FASE 1: STARTUP ................ Al abrir el juego
+  ✅ FASE 2: POLLING ................ Cada 3 segundos
+  ✅ FASE 3: DETECCIÓN .............. Cuando creas la sesión
+  ✅ FASE 4: CONFIGURACIÓN .......... Aplica la config
+  ✅ FASE 5: SPAWNER ACTIVADO ....... Prepara las gemas
+  ✅ FASE 6: JUEGO ACTIVO ........... ¡Gemas aparecen!
+
+
+SI FUNCIONA:
+════════════════════════════════════════════════════════════════
+
+  🎉 ¡PERFECTO! El sistema está funcionando correctamente.
+  
+  Ahora puedes:
+  - Probar los otros 3 juegos desde el portal
+  - Jugar sesiones completas
+  - Ver los resultados en el portal web
+  - Reducir el logging si quieres (opcional)
+
+
+SI NO FUNCIONA:
+════════════════════════════════════════════════════════════════
+
+  1. Mira en qué FASE se detienen los logs
+  2. Copia los últimos 50 logs de la ventana
+  3. Pégalos en un archivo de texto
+  4. Envíaselos a Kevin con:
+     - En qué fase se detuvo
+     - Qué esperabas que pasara
+     - Qué pasó en realidad
+
+
+CAUSAS COMUNES DE FALLOS:
+════════════════════════════════════════════════════════════════
+
+  ❌ Se detiene en FASE 2 (polling)
+     → Problema de red o Firestore URL incorrecta
+     → Verifica internet en las gafas
+
+  ❌ Se detiene en FASE 3 (detección)
+     → El documento sesion_activa/current no existe en Firestore
+     → Ve a Firebase Console y verifica
+
+  ❌ Se detiene en FASE 4 (configuración)
+     → Las señales no se conectaron correctamente
+     → Re-exporta el APK
+
+  ❌ Se detiene en FASE 5 (spawner)
+     → GameManager no emitió session_started
+     → Re-exporta el APK
+
+  ❌ Llega a FASE 6 pero no aparecen gemas
+     → GemSpawner no tiene gem_scene asignado
+     → Abre World.tscn en Godot y verifica
+
+
+ATAJOS:
+════════════════════════════════════════════════════════════════
+
+  Solo ver logs (sin instalar):
+    ver_logs_vr.bat
+
+  Ver logs filtrados (solo headers):
+    adb logcat -s godot:V | findstr "═══"
+
+  Limpiar logs anteriores:
+    adb logcat -c
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   👉 EMPIEZA AHORA: Paso 1 - Exportar APK desde Godot       ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝

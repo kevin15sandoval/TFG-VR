@@ -1,0 +1,314 @@
+\chapter{Diseño del sistema}
+
+\section{Introducción}
+
+En este capítulo describo cómo diseñé e implementé el sistema NeuroVR Rehab como una solución integral para la rehabilitación post-ictus mediante realidad virtual. La arquitectura que desarrollé se compone de tres componentes principales que trabajan de forma sincronizada: (1) aplicaciones VR ejecutadas en Meta Quest, (2) plataforma web clínica para gestión de pacientes y sesiones, y (3) base de datos en tiempo real Firebase para la comunicación entre ambos extremos.
+
+Desde el principio tuve claro que quería crear un sistema end-to-end completo, no solo un prototipo aislado. Mi objetivo era que cualquier clínica pudiera usar el sistema sin necesidad de conocimientos técnicos avanzados.
+
+\section{Arquitectura general del sistema}
+
+\subsection{Vista de alto nivel}
+
+Diseñé la arquitectura siguiendo un modelo cliente-servidor distribuido. Tras investigar diferentes opciones, decidí dividir el sistema en tres capas principales:
+
+\begin{itemize}
+    \item \textbf{Frontend clínico (React + TypeScript)}: Desarrollé una interfaz web intuitiva para fisioterapeutas que permite gestionar pacientes, iniciar sesiones terapéuticas y visualizar resultados. Elegí React porque ya tenía experiencia previa con este framework y su ecosistema es muy maduro.
+    
+    \item \textbf{Backend en la nube (Firebase)}: Opté por Firebase porque me permitía concentrarme en el desarrollo del sistema sin tener que gestionar servidores. Firebase proporciona base de datos NoSQL (Firestore), autenticación de usuarios, y hosting para la aplicación web, todo integrado.
+    
+    \item \textbf{Aplicaciones VR (Godot 4.6 + OpenXR)}: Implementé cuatro videojuegos terapéuticos en Godot que se ejecutan en Meta Quest. Elegí Godot después de evaluar varias opciones (Unity, Unreal Engine) porque es open source, ligero, y tiene excelente soporte para OpenXR.
+\end{itemize}
+
+\subsection{Diagrama de componentes}
+
+Implementé una arquitectura de \textit{polling} donde las gafas VR consultan periódicamente la base de datos Firestore en busca de nuevas sesiones asignadas. Aunque soy consciente de que WebSockets sería técnicamente superior (menor latencia), elegí polling porque:
+
+\begin{enumerate}
+    \item Es más simple de implementar y debuggear
+    \item No requiere mantener conexiones persistentes
+    \item Para el uso clínico, una latencia de 1-4 segundos es perfectamente aceptable
+    \item Firebase REST API está muy bien documentada
+\end{enumerate}
+
+El flujo que diseñé funciona así: Una vez que la aplicación VR detecta una sesión nueva, descarga la configuración completa (paciente, duración, dificultad) y ejecuta el juego correspondiente. Al finalizar, las métricas se envían de vuelta a Firestore donde el fisioterapeuta puede consultarlas inmediatamente.
+
+\section{Componente web clínico}
+
+\subsection{Tecnologías utilizadas}
+
+Para desarrollar la plataforma clínica elegí el siguiente stack tecnológico:
+
+\begin{itemize}
+    \item \textbf{React 18}: Utilicé este framework porque me permite crear interfaces reactivas y componentizadas. Además, su ecosistema es muy amplio.
+    
+    \item \textbf{TypeScript}: Decidí usar TypeScript en lugar de JavaScript puro porque el tipado estático me ayudó a detectar errores en tiempo de desarrollo y hacer el código más mantenible.
+    
+    \item \textbf{Material-UI}: Implementé la interfaz con esta biblioteca de componentes para mantener un diseño consistente y profesional sin tener que diseñar cada componente desde cero.
+    
+    \item \textbf{Firebase SDK}: Integré el cliente JavaScript oficial de Firebase para comunicarme con Firestore y el sistema de autenticación.
+\end{itemize}
+
+\subsection{Módulos principales}
+
+\subsubsection{Gestión de pacientes}
+
+Permite al fisioterapeuta:
+\begin{itemize}
+    \item Crear perfiles de pacientes con datos demográficos y clínicos
+    \item Registrar lado afectado (izquierdo, derecho, bilateral)
+    \item Documentar tipo de ictus y fecha del evento
+    \item Consultar historial completo de sesiones
+\end{itemize}
+
+\subsubsection{Inicio de sesiones}
+
+Diseñé un flujo muy simple para que el fisioterapeuta pueda iniciar una sesión en pocos clics:
+
+\begin{enumerate}
+    \item Selecciona el paciente activo de una lista
+    \item Elige uno de los 4 videojuegos terapéuticos disponibles
+    \item Configura la duración de la sesión (rango: 60-300 segundos)
+    \item Selecciona el nivel de dificultad (Fácil, Media, Difícil)
+\end{enumerate}
+
+Cuando el fisioterapeuta confirma, mi código escribe un documento en la colección \texttt{sesion\_activa} de Firestore con todos los parámetros de configuración. Este documento es el que las gafas VR detectan mediante polling.
+
+Inicialmente consideré permitir configuraciones más complejas (lado afectado específico, tipos de ejercicios individuales), pero decidí mantenerlo simple para la primera versión. La experiencia me enseñó que es mejor empezar simple e iterar basándose en feedback real.
+
+\subsubsection{Visualización de resultados}
+
+Cada sesión completada genera métricas clínicas que incluyen:
+\begin{itemize}
+    \item Puntuación total y precisión (\%)
+    \item Tiempo promedio por movimiento
+    \item Distribución de movimientos por tipo (flexión, extensión, abducción, etc.)
+    \item Detección de negligencia espacial (asimetría izquierda-derecha)
+    \item Zonas de rango de movimiento trabajadas
+\end{itemize}
+
+\section{Componente VR}
+
+\subsection{Motor de juego: Godot 4.6}
+
+Elegir el motor de juego fue una de las decisiones más importantes del proyecto. Tras investigar y probar diferentes opciones, me decidí por Godot 4.6 por las siguientes razones:
+
+\begin{itemize}
+    \item \textbf{Soporte nativo de OpenXR}: Godot 4.6 incluye soporte OpenXR de fábrica, sin necesidad de plugins externos. Esto fue crucial porque OpenXR es el estándar abierto que funciona con múltiples dispositivos VR, no solo Meta Quest.
+    
+    \item \textbf{Motor ligero y optimizado}: A diferencia de Unity o Unreal, Godot es muy ligero. Esto es perfecto para Meta Quest que es esencialmente un smartphone Android. Los APKs que genero son de 150-200 MB, mucho más pequeños que con otros motores.
+    
+    \item \textbf{GDScript}: Este lenguaje con sintaxis similar a Python me permitió desarrollar rápidamente. Aunque también soporta C\#, preferí GDScript por su simplicidad.
+    
+    \item \textbf{Exportación directa a Android}: Puedo exportar a APK directamente desde Godot sin necesidad de Android Studio, lo que aceleró enormemente mi flujo de trabajo.
+    
+    \item \textbf{Gratuito y open source}: No hay costes de licencia ni royalties, algo importante si esto se usa comercialmente en el futuro.
+\end{itemize}
+
+Honestamente, al principio dudé entre Unity y Godot. Unity tiene más documentación y recursos, pero Godot resultó ser la elección correcta para este proyecto.
+
+\subsection{Sistema de polling y autoarranque}
+
+Implementé un sistema de auto-arranque que permite a las aplicaciones VR funcionar de forma autónoma. Cada aplicación sigue este flujo que diseñé:
+
+\begin{enumerate}
+    \item Al iniciar, muestra una pantalla de ``Sala de espera VR'' con un mensaje tranquilizador para el paciente
+    
+    \item Consulta Firestore cada 3 segundos buscando el documento \texttt{sesion\_activa/current}. Elegí 3 segundos como compromiso entre latencia y consumo de batería.
+    
+    \item Si detecta una sesión nueva:
+    \begin{itemize}
+        \item Descarga la configuración completa (paciente, duración, dificultad, etc.)
+        \item Aplica los parámetros al \texttt{GameManager} (un singleton que explico más adelante)
+        \item Oculta la sala de espera
+        \item Muestra un countdown visual y auditivo (3-2-1) para preparar al paciente
+        \item Inicia el juego terapéutico correspondiente
+    \end{itemize}
+    
+    \item Al finalizar la sesión:
+    \begin{itemize}
+        \item Calcula todas las métricas clínicas automáticamente
+        \item Envía los resultados a Firestore en la colección \texttt{results}
+        \item Limpia el documento \texttt{sesion\_activa/current} para que no se repita
+        \item Vuelve a mostrar la sala de espera
+    \end{itemize}
+\end{enumerate}
+
+Este diseño permite que el paciente se ponga las gafas y espere pasivamente hasta que el fisioterapeuta inicie la sesión desde la web. Fue uno de los requisitos clave que me planteé: máxima simplicidad para el paciente.
+
+\subsection{GameManager: Singleton compartido}
+
+Una de mis decisiones de diseño más acertadas fue crear un \texttt{GameManager} como autoload (singleton) en Godot. Este patrón me permitió evitar duplicación de código entre los 4 juegos.
+
+El GameManager que implementé gestiona:
+
+\begin{itemize}
+    \item \textbf{Variables de sesión}: patient\_id, session\_id, difficulty, duration, therapy\_side. Todos los juegos acceden a estas variables desde un punto central.
+    
+    \item \textbf{Puntuación y contadores globales}: score, gems\_collected, precision\_percentage, etc. El GameManager mantiene el estado actualizado en tiempo real.
+    
+    \item \textbf{Registro de movimientos}: Cada vez que el paciente completa un movimiento (recoger una gema, activar un panel), lo registro con timestamp preciso y metadata.
+    
+    \item \textbf{Señales (events)}: Implementé un sistema de eventos usando las signals de Godot. Por ejemplo, cuando un juego termina, emite \texttt{session\_finished} y todos los componentes interesados pueden reaccionar.
+    
+    \item \textbf{Cálculo automático de métricas}: Al finalizar una sesión, el GameManager procesa todo el log de movimientos y calcula métricas agregadas como tiempo promedio, distribución por tipos, zonas trabajadas, etc.
+\end{itemize}
+
+Sin este singleton, habría tenido que duplicar cientos de líneas de código en cada juego. Además, me facilita añadir nuevos juegos en el futuro manteniendo consistencia en las métricas.
+
+\section{Videojuegos terapéuticos}
+
+Diseñé e implementé cuatro videojuegos VR, cada uno con un objetivo terapéutico específico. A continuación describo cada uno en detalle.
+
+\subsection{Gems Collector (Recolección de gemas)}
+
+\textbf{Objetivo clínico}: Trabajar ejercicios de alcance en múltiples direcciones y alturas.
+
+\textbf{Mecánica que implementé}: Programé un sistema de spawn donde gemas de colores aparecen en posiciones específicas del espacio 3D. El paciente debe alcanzarlas con la mano para recolectarlas. Cada color de gema que implementé entrena un tipo de movimiento diferente:
+
+\begin{itemize}
+    \item \textbf{Gemas verdes (frontales)}: Aparecen frente al paciente a altura media (1.2-1.5m). Entrenan flexión de hombro.
+    
+    \item \textbf{Gemas moradas (laterales)}: Las sitúo a los lados del paciente (±0.8m). Trabajan abducción y aducción del hombro.
+    
+    \item \textbf{Gemas doradas (altas)}: Las coloco por encima de la cabeza (>1.8m). Requieren alcance máximo, trabajando flexión completa del hombro.
+    
+    \item \textbf{Gemas rojas (penalización)}: Diseñé estas gemas como obstáculos que el paciente debe evitar. Si las toca, pierde puntos. Esto entrena control inhibitorio y planificación motora.
+\end{itemize}
+
+\textbf{Parámetros de dificultad que configuré}:
+\begin{itemize}
+    \item \textit{Fácil}: Velocidad 0.7 m/s, spawn cada 3 segundos. Ideal para pacientes con movilidad muy limitada.
+    \item \textit{Media}: Velocidad 1.2 m/s, spawn cada 2 segundos. Para pacientes con recuperación parcial.
+    \item \textit{Difícil}: Velocidad 1.9 m/s, spawn cada 1.2 segundos. Para pacientes avanzados o modo desafío.
+\end{itemize}
+
+Este fue el primer juego que desarrollé y me sirvió como prototipo para probar todas las mecánicas básicas (tracking de manos, colisiones, sistema de puntuación, etc.).
+
+\subsection{Laser Vault Escape (Escape con láser)}
+
+\textbf{Objetivo clínico}: Coordinación bimanual, planificación motora y control fino.
+
+\textbf{Mecánica}: El paciente se encuentra en una bóveda con paneles de control distribuidos en el espacio. Debe activar todos los paneles tocándolos con las manos mientras evita rayos láser rojos que se mueven en patrones predefinidos.
+
+\textbf{Métricas específicas}:
+\begin{itemize}
+    \item Número de paneles activados
+    \item Colisiones con láser (penalización)
+    \item Tiempo por panel
+    \item Uso simultáneo de ambas manos
+\end{itemize}
+
+\subsection{Urban Attention Quest (Atención urbana)}
+
+\textbf{Objetivo clínico}: Detección de negligencia espacial, atención selectiva, seguimiento visual.
+
+\textbf{Mecánica}: El paciente se encuentra en una ciudad virtual con señales urbanas distribuidas 360°. Las señales se iluminan en secuencia numérica y el paciente debe mirarlas fijamente durante 2 segundos para activarlas.
+
+\textbf{Detección de negligencia}: El sistema registra la distribución espacial de objetivos activados:
+\begin{itemize}
+    \item Hemisferio izquierdo vs derecho
+    \item Zonas altas vs bajas
+    \item Campo visual central vs periférico
+\end{itemize}
+
+Un paciente con negligencia espacial mostrará asimetría significativa (p.ej., solo activar objetivos del lado derecho).
+
+\subsection{Luggage Handler (Manipulación de equipaje)}
+
+\textbf{Objetivo clínico}: Fuerza de prensión, manipulación de objetos, planificación espacial.
+
+\textbf{Mecánica}: Maletas de diferentes pesos aparecen en una cinta transportadora. El paciente debe agarrarlas (usando gatillos de los controladores) y colocarlas en zonas de color según su destino:
+\begin{itemize}
+    \item \textbf{Zona verde (izquierda)}: Entrenamiento de lado izquierdo
+    \item \textbf{Zona amarilla (derecha)}: Entrenamiento de lado derecho
+    \item \textbf{Zona roja (atrás)}: Rotación de tronco
+\end{itemize}
+
+\textbf{Métricas de fuerza}:
+\begin{itemize}
+    \item Peso total movilizado (kg)
+    \item Tiempo de agarre por objeto
+    \item Precisión en la colocación
+    \item Combos (secuencias correctas consecutivas)
+\end{itemize}
+
+\section{Base de datos y esquema de Firestore}
+
+\subsection{Colecciones principales}
+
+\subsubsection{patients}
+
+Documentos con estructura:
+\begin{verbatim}
+{
+  id: string,
+  name: string,
+  age: number,
+  gender: "M" | "F",
+  affected_side: "Izquierdo" | "Derecho" | "Bilateral",
+  stroke_type: "Isquémico" | "Hemorrágico",
+  stroke_date: timestamp,
+  created_at: timestamp
+}
+\end{verbatim}
+
+\subsubsection{sesion\_activa}
+
+Colección con un único documento \texttt{current} que representa la sesión activa:
+\begin{verbatim}
+{
+  patient_id: string,
+  patient_name: string,
+  session_id: string (UUID),
+  game_id: "gems" | "vault_escape" | 
+           "urban_attention_quest" | "luggage_handler",
+  duration: number (segundos),
+  difficulty: "Fácil" | "Media" | "Difícil",
+  therapy_side: "Izquierdo" | "Derecho" | "Ambos",
+  session_type: string,
+  created_at: timestamp
+}
+\end{verbatim}
+
+\subsubsection{results}
+
+Documentos de resultados con métricas completas que incluyen puntuación, precisión, distribución de movimientos por tipo, zonas de rango de movimiento trabajadas, detección de negligencia espacial, y log detallado de cada movimiento con timestamps.
+
+\section{Despliegue y distribución}
+
+\subsection{Plataforma web}
+
+La aplicación web se despliega en Firebase Hosting:
+\begin{itemize}
+    \item URL producción: \texttt{https://tfg-vr.web.app}
+    \item Certificado SSL automático
+    \item CDN global de Google
+    \item Despliegue mediante CLI: \texttt{firebase deploy --only hosting}
+\end{itemize}
+
+\subsection{Aplicaciones VR}
+
+Las aplicaciones VR se exportan como APK de Android para Meta Quest:
+\begin{itemize}
+    \item Firmado con certificado de desarrollador
+    \item Instalación mediante ADB (Android Debug Bridge)
+    \item Arquitectura ARM64 nativa
+    \item Tamaño aproximado: 150-200 MB por juego
+\end{itemize}
+
+\section{Seguridad y privacidad}
+
+\subsection{Reglas de seguridad de Firestore}
+
+Se implementaron reglas de seguridad para proteger datos de pacientes, permitiendo lectura y escritura de pacientes solo con autenticación, acceso de lectura público a sesiones activas para VR, y escritura de resultados desde dispositivos VR sin autenticación.
+
+\subsection{Consideraciones de GDPR}
+
+Aunque este es un prototipo académico, se tuvieron en cuenta principios de protección de datos:
+\begin{itemize}
+    \item No se almacenan datos médicos sensibles innecesarios
+    \item IDs de pacientes son pseudónimos
+    \item Acceso restringido mediante autenticación
+    \item Posibilidad de eliminar datos de pacientes
+\end{itemize}
