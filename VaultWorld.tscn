@@ -1,7 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://vault_world_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://bj5xp8yqvault"]
 
 [ext_resource type="Script" path="res://vault_vr_start.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://cofre_bank_model" path="res://models/cofre_bank.glb" id="2"]
+[ext_resource type="PackedScene" path="res://models/cofre_bank.glb" id="2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(10, 0.5, 10)

@@ -1,13 +1,11 @@
 extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
-# VRStart — Sistema de auto-arranque con sala de espera
-# El juego espera en modo polling hasta que el fisioterapeuta inicie una sesión
-# Incluye HUD con score, timer y feedback visual
+# VRStart — VERSIÓN ULTRA SIMPLE - SOLO JUEGO DE GEMAS
+# Espera polling de Firestore → Detecta sesión → Inicia gemas
 # ─────────────────────────────────────────────────────────────────────────────
 
 var firebase_manager: Node = null
-var waiting_mode := true  # Modo sala de espera activo
-var current_game_manager: Node = null  # Game manager activo según juego
+var waiting_mode := true
 
 # UI Labels para feedback visual
 @onready var label_status: Label3D = null
@@ -45,10 +43,32 @@ func _ready() -> void:
 	_create_countdown_ui()
 	_setup_ambient_audio()
 
-	# Nota: Las señales se conectan dinámicamente cuando se carga el game manager
+	# Conectar señales de GameManager
+	if not GameManager.session_started.is_connected(_on_session_started):
+		GameManager.session_started.connect(_on_session_started)
+	if not GameManager.session_finished.is_connected(_on_session_finished):
+		GameManager.session_finished.connect(_on_session_finished)
+	if not GameManager.gem_collected.is_connected(_on_gem_collected):
+		GameManager.gem_collected.connect(_on_gem_collected)
+	if not GameManager.timer_updated.is_connected(_on_timer_updated):
+		GameManager.timer_updated.connect(_on_timer_updated)
+	
+	print("[GemsVR] ✅ Señales de GameManager conectadas")
 
-	# Crear FirebaseManager dinámicamente si no está en escena
-	print("[GemsVR] 🔍 Buscando FirebaseManager...")
+	# Verificar si ya hay sesión configurada (vino desde Hub)
+	if GameManager.session_id != "" and GameManager.patient_id != "":
+		print("[GemsVR] 🎮 ¡Sesión ya configurada desde Hub!")
+		print("[GemsVR] Session ID: ", GameManager.session_id)
+		print("[GemsVR] Patient ID: ", GameManager.patient_id)
+		print("[GemsVR] ⏱️ Iniciando countdown...")
+		_hide_waiting_ui()
+		await _show_countdown()
+		print("[GemsVR] 🚀 Iniciando sesión...")
+		GameManager.start_session()
+		return  # No crear FirebaseManager ni hacer polling
+
+	# Si NO hay sesión, entrar en modo sala de espera con polling
+	print("[GemsVR] 🔍 No hay sesión configurada, creando FirebaseManager...")
 	if has_node("FirebaseManager"):
 		firebase_manager = get_node("FirebaseManager")
 		print("[GemsVR] ✅ FirebaseManager encontrado en escena")
@@ -61,7 +81,7 @@ func _ready() -> void:
 		add_child(firebase_manager)
 		print("[GemsVR] ✅ FirebaseManager creado")
 
-	# Conectar señales (incluida la nueva de auto-detección)
+	# Conectar señales de FirebaseManager
 	print("[GemsVR] 🔌 Conectando señales de FirebaseManager...")
 	firebase_manager.config_loaded.connect(_on_config_loaded)
 	firebase_manager.config_error.connect(_on_config_error)
@@ -75,7 +95,7 @@ func _ready() -> void:
 	print("[VR] 👀 Esperando que el fisioterapeuta inicie sesión...")
 	_show_waiting_message()
 	print("[VR] 🔄 Iniciando polling de Firestore...")
-	firebase_manager.start_polling()  # Activar polling automático
+	firebase_manager.start_polling()
 	print("[VR] ✅ Polling activado")
 	print("═══════════════════════════════════════════════════════════════")
 	print("═══ ⏳ SALA DE ESPERA ACTIVA - POLLING FIRESTORE ═══")

@@ -1,7 +1,7 @@
 [gd_scene load_steps=10 format=3 uid="uid://hub_world_universal"]
 
 [ext_resource type="Script" path="res://hub_manager.gd" id="1_hub"]
-[ext_resource type="PackedScene" path="res://models/loft2_free_interior.glb" id="2_hub"]
+[ext_resource type="PackedScene" path="res://models/ice_scream_3_shopping_center_map.glb" id="2_hub"]
 [ext_resource type="Script" uid="uid://oq6fvrlvhv43" path="res://scripts/firebase_manager.gd" id="3_hub"]
 
 [sub_resource type="Environment" id="Environment_hub"]
@@ -68,10 +68,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.2, -0.3)
 tracker = &"right_hand"
 pose = &"grip"
 
-[node name="LoftInterior" type="Node3D" parent="."]
+[node name="IceScreamInterior" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="LoftModel" parent="LoftInterior" instance=ExtResource("2_hub")]
+[node name="IceScreamModel" parent="IceScreamInterior" instance=ExtResource("2_hub")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="WelcomeSign" type="Node3D" parent="."]

@@ -1,9 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://luggage_world_scene"]
+[gd_scene load_steps=6 format=3 uid="uid://dlxp8yqluggage"]
 
 [ext_resource type="Script" path="res://luggage_vr_start.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/xr_hand_controller.gd" id="2"]
-[ext_resource type="PackedScene" uid="uid://station_model" path="res://models/abandoned_underground_train_station.glb" id="3"]
-[ext_resource type="PackedScene" uid="uid://conveyor_model" path="res://models/industrial_conveyor_belt.glb" id="4"]
+[ext_resource type="PackedScene" path="res://models/abandoned_underground_train_station.glb" id="3"]
+[ext_resource type="PackedScene" path="res://models/industrial_conveyor_belt.glb" id="4"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(15, 0.5, 15)

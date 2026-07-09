@@ -169,60 +169,30 @@ func _load_game(game_id: String, config: Dictionary) -> void:
 	var scene_path = GAME_SCENES.get(game_id, GAME_SCENES["gems"])
 	print("[Hub] 📂 Ruta de escena: ", scene_path)
 	
-	# DIAGNÓSTICO: Verificar si la escena existe
-	print("[Hub] 🔍 Verificando existencia de escena...")
-	var exists = ResourceLoader.exists(scene_path)
-	print("[Hub] 🔍 ¿Escena existe en APK? ", exists)
-	
-	if not exists:
-		print("[Hub] ❌ ERROR CRÍTICO: No se encuentra la escena: ", scene_path)
-		print("[Hub] ❌ Posible causa: Escena no incluida en export presets")
-		_show_error_message("No se pudo cargar el juego")
-		return
-	
-	print("[Hub] ✅ Escena verificada, procediendo a cargar...")
-	
 	# Aplicar configuración a GameManager ANTES de cargar la escena
-	print("[Hub] 📋 Verificando GameManager...")
+	print("[Hub] 📋 Aplicando configuración a GameManager...")
 	if GameManager:
 		print("[Hub] ✅ GameManager encontrado")
-		print("[Hub] 📋 Aplicando configuración a GameManager...")
 		GameManager.apply_config(config)
-		print("[Hub] ✅ Configuración aplicada a GameManager")
+		print("[Hub] ✅ Configuración aplicada")
 		print("[Hub]    - Patient ID: ", GameManager.patient_id)
 		print("[Hub]    - Session ID: ", GameManager.session_id)
 		print("[Hub]    - Game Type: ", GameManager.game_type)
 	else:
 		print("[Hub] ❌ ADVERTENCIA: GameManager no encontrado")
 	
-	# Cargar la escena del juego usando ResourceLoader
-	print("[Hub] 📦 Cargando recurso de escena con ResourceLoader.load()...")
-	var game_scene_resource = ResourceLoader.load(scene_path)
-	print("[Hub] 🔍 Resultado de ResourceLoader.load(): ", game_scene_resource)
-	
-	if game_scene_resource == null:
-		print("[Hub] ❌ ERROR: ResourceLoader.load() retornó null")
-		print("[Hub] ❌ No se pudo cargar el recurso de escena")
-		_show_error_message("Error al cargar el juego")
-		return
-	
-	print("[Hub] ✅ Recurso cargado exitosamente")
-	print("[Hub] 🎮 Tipo de recurso: ", game_scene_resource.get_class())
-	
-	# USAR CHANGE_SCENE_TO_PACKED para cambiar de escena correctamente
-	print("[Hub] 🔄 Llamando get_tree().change_scene_to_packed()...")
-	var error = get_tree().change_scene_to_packed(game_scene_resource)
-	print("[Hub] 🔍 Resultado de change_scene_to_packed(): ", error)
+	# CAMBIAR DE ESCENA DIRECTAMENTE
+	print("[Hub] 🔄 Cambiando de escena a: ", scene_path)
+	var error = get_tree().change_scene_to_file(scene_path)
 	
 	if error != OK:
 		print("[Hub] ❌ ERROR al cambiar escena: código ", error)
 		_show_error_message("Error al cambiar de escena")
 		return
 	
-	print("[Hub] ✅ change_scene_to_packed() ejecutado sin errores")
+	print("[Hub] ✅ change_scene_to_file() ejecutado")
 	print("[Hub] ═══════════════════════════════════════════════════════════")
 	print("[Hub] 🎮 ¡CAMBIO DE ESCENA SOLICITADO!")
-	print("[Hub] 🎮 El juego debería cargar ahora...")
 	print("[Hub] ═══════════════════════════════════════════════════════════")
 
 func _show_error_message(message: String) -> void:

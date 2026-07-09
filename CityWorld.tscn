@@ -1,7 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://city_world_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://ck3xp9yqcity"]
 
 [ext_resource type="Script" path="res://city_vr_start.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://city_model" path="res://models/procedural_city_5.glb" id="2"]
+[ext_resource type="PackedScene" path="res://models/procedural_city_5.glb" id="2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(30, 0.5, 30)
