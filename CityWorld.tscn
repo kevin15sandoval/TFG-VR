@@ -1,8 +1,9 @@
 [gd_scene format=3 uid="uid://ck3xp9yqcity"]
 
 [ext_resource type="Script" path="res://city_vr_start.gd" id="1"]
-[ext_resource type="Script" path="res://scenes/city_game_manager.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="3"]
+[ext_resource type="PackedScene" uid="uid://procedural_city_5" path="res://models/procedural_city_5.glb" id="2"]
+[ext_resource type="Script" path="res://scenes/city_game_manager.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="4"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 2
@@ -58,8 +59,10 @@ mesh = SubResource("BoxMesh_floor")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
 shape = SubResource("BoxShape3D_floor")
 
+[node name="CityModel" parent="." instance=ExtResource("2")]
+
 [node name="CityGameManager" type="Node" parent="."]
-script = ExtResource("2")
+script = ExtResource("3")
 
 [node name="FirebaseManager" type="Node" parent="."]
-script = ExtResource("3")
+script = ExtResource("4")
