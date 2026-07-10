@@ -23,13 +23,10 @@ func configure_xr_quality():
 		# Obtener el viewport principal
 		var viewport = get_viewport()
 		if viewport:
-			# ===== RESOLUCIÓN NATIVA MÁXIMA - SIN ESCALADO =====
-			viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_OFF
-			viewport.scaling_3d_scale = 1.0
+			# ===== RESOLUCIÓN Y ESCALADO =====
+			viewport.scaling_3d_scale = 1.0  # 100% scale
 			
-			# ===== ANTI-ALIASING MÁXIMO =====
-			viewport.msaa_3d = Viewport.MSAA_8X  # 8x MSAA para máxima calidad
-			viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA  # FXAA adicional
+			# ===== ANTI-ALIASING =====
 			viewport.use_taa = true  # Temporal Anti-Aliasing
 			
 			# ===== TEXTURAS Y HDR =====
