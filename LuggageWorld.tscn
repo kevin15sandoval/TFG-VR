@@ -1,18 +1,37 @@
-[gd_scene load_steps=6 format=3 uid="uid://dlxp8yqluggage"]
+[gd_scene load_steps=7 format=3 uid="uid://dlxp8yqluggage"]
 
 [ext_resource type="Script" path="res://luggage_vr_start.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/xr_hand_controller.gd" id="2"]
-[ext_resource type="PackedScene" path="res://models/abandoned_underground_train_station.glb" id="3"]
-[ext_resource type="PackedScene" path="res://models/industrial_conveyor_belt.glb" id="4"]
+[ext_resource type="PackedScene" path="res://models/abandoned_underground_train_station.glb" id="2"]
+[ext_resource type="PackedScene" path="res://models/industrial_conveyor_belt.glb" id="3"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(15, 0.5, 15)
 
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.2, 0.2, 0.25, 1)
+background_energy_multiplier = 0.6
+ambient_light_source = 2
+ambient_light_color = Color(0.85, 0.9, 1, 1)
+ambient_light_energy = 0.65
+reflected_light_source = 2
+tonemap_mode = 2
+tonemap_exposure = 1.0
+tonemap_white = 6.0
+ssr_enabled = true
+ssr_max_steps = 64
+ssao_enabled = false
+ssil_enabled = false
+sdfgi_enabled = false
+glow_enabled = false
+volumetric_fog_enabled = false
+adjustment_enabled = true
+adjustment_brightness = 1.0
+adjustment_contrast = 1.1
+adjustment_saturation = 1.05
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
 albedo_color = Color(0.35, 0.35, 0.4, 1)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_zone"]
-size = Vector3(1.5, 1.5, 1.5)
 
 [node name="LuggageWorld" type="Node3D"]
 script = ExtResource("1")
@@ -27,24 +46,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.2, -0.3)
 tracker = &"left_hand"
 pose = &"grip"
-script = ExtResource("2")
-grip_button = "grip_click"
-hand_name = "LeftHand"
 
 [node name="RightHand" type="XRController3D" parent="XROrigin3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.2, -0.3)
 tracker = &"right_hand"
 pose = &"grip"
-script = ExtResource("2")
-grip_button = "grip_click"
-hand_name = "RightHand"
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
-light_energy = 0.9
+light_color = Color(1, 0.96, 0.92, 1)
+light_energy = 1.1
 shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
 
 [node name="Floor" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
@@ -52,62 +67,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
 shape = SubResource("BoxShape3D_floor")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
-shape = SubResource("BoxShape3D_floor")
-material_override = SubResource("StandardMaterial3D_floor")
-
-[node name="StationModel" parent="." instance=ExtResource("3")]
+[node name="StationModel" parent="." instance=ExtResource("2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="ConveyorBelt" parent="." instance=ExtResource("4")]
+[node name="ConveyorBelt" parent="." instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -3)
-
-[node name="LuggageGameManager" type="Node" parent="."]
-script = preload("res://scenes/luggage_game_manager.gd")
-
-[node name="LuggageSpawner" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -5)
-script = preload("res://scenes/luggage_spawner.gd")
-spawn_position = Vector3(0, 1.5, -5)
-conveyor_speed = 1.0
-difficulty = "Media"
-
-[node name="FirebaseManager" type="Node" parent="."]
-script = preload("res://scripts/firebase_manager.gd")
-
-[node name="PlacementZones" type="Node3D" parent="."]
-
-[node name="GreenZone" type="Area3D" parent="PlacementZones" groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1, 0)
-metadata/zone_name = "green"
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/GreenZone"]
-shape = SubResource("BoxShape3D_zone")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/GreenZone"]
-mesh = BoxMesh.new()
-material_override = StandardMaterial3D.new()
-
-[node name="YellowZone" type="Area3D" parent="PlacementZones" groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1, 0)
-metadata/zone_name = "yellow"
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/YellowZone"]
-shape = SubResource("BoxShape3D_zone")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/YellowZone"]
-mesh = BoxMesh.new()
-material_override = StandardMaterial3D.new()
-
-[node name="RedZone" type="Area3D" parent="PlacementZones" groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)
-metadata/zone_name = "red"
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/RedZone"]
-shape = SubResource("BoxShape3D_zone")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/RedZone"]
-mesh = BoxMesh.new()
-material_override = StandardMaterial3D.new()
-
-[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
