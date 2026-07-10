@@ -1,7 +1,8 @@
-[gd_scene load_steps=6 format=3 uid="uid://ck3xp9yqcity"]
+[gd_scene load_steps=8 format=3 uid="uid://ck3xp9yqcity"]
 
 [ext_resource type="Script" path="res://city_vr_start.gd" id="1"]
 [ext_resource type="PackedScene" path="res://models/procedural_city_5.glb" id="2"]
+[ext_resource type="Script" path="res://scenes/city_game_manager.gd" id="3"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(30, 0.5, 30)
@@ -31,6 +32,10 @@ adjustment_saturation = 1.05
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
 albedo_color = Color(0.4, 0.4, 0.45, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector3(30, 0.5, 30)
 
 [node name="CityWorld" type="Node3D"]
 script = ExtResource("1")
@@ -63,8 +68,17 @@ environment = SubResource("Environment_1")
 [node name="Floor" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("BoxMesh_floor")
+
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
 shape = SubResource("BoxShape3D_floor")
 
 [node name="CityModel" parent="." instance=ExtResource("2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="CityGameManager" type="Node" parent="."]
+script = ExtResource("3")
+
+[node name="FirebaseManager" type="Node" parent="."]
+script = preload("res://scripts/firebase_manager.gd")
