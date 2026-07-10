@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bwqgqf2cw4b86"]
+
+[node name="Sketchfab_Scene" unique_id=107129403]
+
+[node name="Lanterns_M_Metal_0" parent="Sketchfab_model/2f39371ad4f949bab31092d5ebaad4dd_fbx/RootNode/Lanterns" parent_id_path=PackedInt32Array(2110696129) index="0" unique_id=1536570523]
+visible = false
