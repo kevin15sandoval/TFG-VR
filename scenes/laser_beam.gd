@@ -46,7 +46,15 @@ func _create_laser_visual() -> void:
 	
 	# Usar BoxMesh para láseres rectangulares
 	var box = BoxMesh.new()
-	box.size = Vector3(dims.get("width", 6.0), dims.get("height", 0.08), laser_thickness)
+	
+	# IMPORTANTE: Los láseres verticales tienen dimensiones diferentes
+	if laser_type.begins_with("vertical"):
+		# Láseres VERTICALES: delgados en X, altos en Y
+		box.size = Vector3(dims.get("width", 0.08), dims.get("height", 3.0), laser_thickness)
+	else:
+		# Láseres HORIZONTALES y DIAGONALES: anchos en X, delgados en Y
+		box.size = Vector3(dims.get("width", 6.0), dims.get("height", 0.08), laser_thickness)
+	
 	_mesh_instance.mesh = box
 	
 	# IMPORTANTE: Ajustar posición Y según tipo DE LÁSER
@@ -109,7 +117,15 @@ func _create_collision_areas() -> void:
 	_area.add_child(_collision)
 	
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(dims.get("width", 6.0), dims.get("height", 0.08) * 3.0, laser_thickness * 3.0)
+	
+	# IMPORTANTE: Diferentes tamaños de colisión según tipo
+	if laser_type.begins_with("vertical"):
+		# Láseres VERTICALES: delgados en X, altos en Y
+		shape.size = Vector3(dims.get("width", 0.08) * 3.0, dims.get("height", 3.0), laser_thickness * 3.0)
+	else:
+		# Láseres HORIZONTALES/DIAGONALES: anchos en X, delgados en Y
+		shape.size = Vector3(dims.get("width", 6.0), dims.get("height", 0.08) * 3.0, laser_thickness * 3.0)
+	
 	_collision.shape = shape
 	
 	# IMPORTANTE: Ajustar posición de colisión según tipo

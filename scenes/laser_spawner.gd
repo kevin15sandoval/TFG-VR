@@ -100,7 +100,12 @@ func _spawn_next() -> void:
 	var laser_data = _spawn_queue[_queue_index]
 	_queue_index += 1
 	
-	print("[LaserSpawner] 💥 Spawneando láser tipo: ", laser_data["type"], " | velocidad: ", laser_data["speed"])
+	print("═══════════════════════════════════════════════════════════")
+	print("[LaserSpawner] 💥 SPAWNEANDO LÁSER #", _queue_index)
+	print("[LaserSpawner]    Tipo: ", laser_data["type"])
+	print("[LaserSpawner]    Velocidad: ", laser_data["speed"])
+	print("[LaserSpawner]    Próximo en: ", laser_data["delay"], "s")
+	print("═══════════════════════════════════════════════════════════")
 	
 	# Instanciar láser
 	var laser = laser_scene.instantiate()
