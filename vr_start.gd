@@ -290,8 +290,6 @@ func _on_energy_changed(current: float, max_val: float) -> void:
 		var tween = create_tween()
 		tween.tween_property(hud_energy_label, "modulate:a", 0.3, 0.3)
 		tween.tween_property(hud_energy_label, "modulate:a", 1.0, 0.3)
-	hud_combo.visible = false
-	xr_camera.add_child(hud_combo)
 
 # ─── COUNTDOWN ANIMADO ────────────────────────────────────────────────────────
 

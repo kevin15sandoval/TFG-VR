@@ -486,9 +486,8 @@ func miss() -> void:
 		return
 	collected = true
 	
-	# Solo cuenta como "perdida" si llegó al rango y NO la preparaste/tocaste
-	# NO cuenta si simplemente pasó de largo sin llegar al rango
-	print("[Gem] ⏭ Perdida: ", gem_type, " - Progreso de preparación: ", int(preparation_progress * 100), "%")
+	# Gema perdida (no tocada o pasó de largo)
+	print("[Gem] ⏭ Perdida: ", gem_type)
 	
 	# SONIDO DE ERROR cuando se pierde una gema
 	_play_miss_sound()
