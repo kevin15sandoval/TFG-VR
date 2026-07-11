@@ -39,6 +39,7 @@ func _ready() -> void:
 	
 	await get_tree().process_frame
 	_init_openxr()
+	_setup_vr_quality()  # NUEVO: Configurar calidad VR para evitar throttling
 	_create_waiting_ui()
 	_create_game_hud()
 	# Countdown eliminado - causaba crashes en Meta Quest
@@ -102,6 +103,46 @@ func _init_openxr() -> void:
 	if xr.is_initialized():
 		get_viewport().use_xr = true
 		print("[CityVR] ✅ OpenXR activo")
+
+func _setup_vr_quality() -> void:
+	print("[CityVR] 🎨 Configurando calidad VR para prevenir throttling...")
+	
+	var xr_interface = XRServer.find_interface("OpenXR")
+	if not xr_interface:
+		print("[CityVR] ⚠️ OpenXR no disponible, saltando configuración de calidad")
+		return
+	
+	# ═══ SOLUCIÓN ANTI-THROTTLING ═══
+	# CityWorld (procedural_city_5.glb) es MUY pesado, igual que HubWorld
+	# Usar EXACTAMENTE la misma configuración que funcionó en HubWorld
+	
+	# 1. Eliminar super-sampling (1.7x → 1.0x nativo)
+	var viewport = get_viewport()
+	if viewport:
+		viewport.scaling_3d_scale = 1.0  # Resolución nativa, sin super-sampling
+		print("[CityVR]   ✅ Super-sampling: DESACTIVADO (1.0x nativo)")
+	
+	# 2. Activar Foveated Rendering (CRÍTICO para escenas pesadas)
+	if xr_interface.is_foveation_supported():
+		xr_interface.foveation_level = 2  # Medio (balance perfecto)
+		xr_interface.foveation_dynamic = true  # Se adapta a la carga
+		print("[CityVR]   ✅ Foveated Rendering: NIVEL 2 (medio, dinámico)")
+	else:
+		print("[CityVR]   ⚠️ Foveated Rendering no soportado")
+	
+	# 3. MSAA optimizado (8x → 4x)
+	if viewport:
+		viewport.msaa_3d = Viewport.MSAA_4X  # Reduce carga sin perder mucha calidad
+		print("[CityVR]   ✅ MSAA: 4X (optimizado)")
+		
+		# Anti-aliasing adicional (TAA + FXAA)
+		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+		viewport.use_taa = true
+		print("[CityVR]   ✅ TAA + FXAA: ACTIVADO")
+	
+	print("[CityVR] ✅ Configuración VR optimizada para escenas pesadas")
+	print("[CityVR]   → Previene sobrecalentamiento y throttling")
+	print("[CityVR]   → Calidad estable durante toda la sesión")
 
 func _register_targets() -> void:
 	var targets_node = get_node_or_null("UrbanTargets")
