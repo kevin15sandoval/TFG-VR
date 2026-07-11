@@ -1645,6 +1645,192 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
 
         {/* Columna derecha: Análisis clínico detallado */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Métricas específicas de Urban Attention Quest (CityWorld) */}
+          {session.gameId === "urban_attention_quest" && session.neglect_score !== undefined && (
+            <>
+              {/* Negligencia Espacial */}
+              <Card className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50 border-cyan-100">
+                <h3 className="text-sm font-bold text-cyan-800 mb-4 flex items-center gap-2">
+                  <Eye size={16} className="text-cyan-600" /> Análisis de Negligencia Espacial
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-white rounded-xl p-4 text-center border-2 border-cyan-100">
+                    <div className="text-3xl font-black text-cyan-600 mb-1">{session.left_side_targets || 0}</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Targets Izquierda</div>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 text-center border-2 border-blue-100">
+                    <div className="text-3xl font-black text-blue-600 mb-1">{session.right_side_targets || 0}</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Targets Derecha</div>
+                  </div>
+                  <div className={cx("rounded-xl p-4 text-center border-2",
+                    (session.neglect_score || 0) >= 80 ? "bg-emerald-50 border-emerald-200" :
+                    (session.neglect_score || 0) >= 60 ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"
+                  )}>
+                    <div className={cx("text-3xl font-black mb-1",
+                      (session.neglect_score || 0) >= 80 ? "text-emerald-600" :
+                      (session.neglect_score || 0) >= 60 ? "text-amber-600" : "text-rose-600"
+                    )}>{Math.round(session.neglect_score || 0)}</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Score Negligencia</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-cyan-100">
+                  <p className="text-xs text-cyan-700 leading-relaxed">
+                    <strong>Interpretación:</strong> {
+                      (session.asymmetry_percentage || 0) < 15 
+                        ? `Exploración espacial equilibrada (asimetría: ${Math.round(session.asymmetry_percentage || 0)}%). Excelente conciencia bilateral.`
+                        : (session.asymmetry_percentage || 0) < 30
+                        ? `Asimetría leve detectada (${Math.round(session.asymmetry_percentage || 0)}%). Trabajar más el lado ${(session.left_side_targets || 0) < (session.right_side_targets || 0) ? 'izquierdo' : 'derecho'}.`
+                        : `Asimetría significativa (${Math.round(session.asymmetry_percentage || 0)}%). Indicativo de negligencia ${(session.left_side_targets || 0) < (session.right_side_targets || 0) ? 'izquierda' : 'derecha'}. Requiere entrenamiento intensivo.`
+                    }
+                  </p>
+                </div>
+              </Card>
+
+              {/* ROM Cervical */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <Activity size={14} className="text-violet-500" /> Rango de Movimiento Cervical (ROM)
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-3">
+                    <div className="bg-violet-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Rotación Izquierda</span>
+                        <span className="text-lg font-black text-violet-600">{Math.round(session.cervical_rom_left || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-violet-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_left || 0) / 90) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Rotación Derecha</span>
+                        <span className="text-lg font-black text-blue-600">{Math.round(session.cervical_rom_right || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_right || 0) / 90) * 100)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-emerald-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Extensión (Arriba)</span>
+                        <span className="text-lg font-black text-emerald-600">{Math.round(session.cervical_rom_extension || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_extension || 0) / 50) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="bg-amber-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Flexión (Abajo)</span>
+                        <span className="text-lg font-black text-amber-600">{Math.round(session.cervical_rom_flexion || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_flexion || 0) / 40) * 100)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={cx("rounded-xl p-4 text-center border-2",
+                  (session.cervical_rom_total || 0) >= 200 ? "bg-emerald-50 border-emerald-200" :
+                  (session.cervical_rom_total || 0) >= 135 ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"
+                )}>
+                  <div className={cx("text-4xl font-black mb-1",
+                    (session.cervical_rom_total || 0) >= 200 ? "text-emerald-600" :
+                    (session.cervical_rom_total || 0) >= 135 ? "text-amber-600" : "text-rose-600"
+                  )}>{Math.round(session.cervical_rom_total || 0)}°</div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase mb-2">ROM Total</div>
+                  <div className="text-[10px] text-slate-500">
+                    {(session.cervical_rom_total || 0) >= 200 ? "Movilidad cervical excelente" :
+                     (session.cervical_rom_total || 0) >= 135 ? "Movilidad funcional aceptable" : "ROM limitado, requiere trabajo"}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Scores Clínicos Funcionales */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <Award size={14} className="text-blue-500" /> Scores Clínicos Funcionales
+                </h3>
+                <div className="grid md:grid-cols-3 gap-3">
+                  {[
+                    { label: "Conciencia Espacial", value: session.spatial_awareness || 0, color: "blue" },
+                    { label: "Orientación", value: session.orientation || 0, color: "violet" },
+                    { label: "Velocidad Procesamiento", value: session.processing_speed || 0, color: "emerald" },
+                    { label: "Movilidad Cervical", value: session.cervical_mobility || 0, color: "amber" },
+                    { label: "Eficiencia Búsqueda Visual", value: session.visual_search_efficiency || 0, color: "rose" },
+                  ].map(({ label, value, color }) => {
+                    const bgColors: Record<string, string> = {
+                      blue: "bg-blue-50 border-blue-200",
+                      violet: "bg-violet-50 border-violet-200",
+                      emerald: "bg-emerald-50 border-emerald-200",
+                      amber: "bg-amber-50 border-amber-200",
+                      rose: "bg-rose-50 border-rose-200",
+                    };
+                    const textColors: Record<string, string> = {
+                      blue: "text-blue-600",
+                      violet: "text-violet-600",
+                      emerald: "text-emerald-600",
+                      amber: "text-amber-600",
+                      rose: "text-rose-600",
+                    };
+                    
+                    return (
+                      <div key={label} className={cx("rounded-xl p-4 border-2", bgColors[color])}>
+                        <div className={cx("text-3xl font-black mb-1", textColors[color])}>{value}</div>
+                        <div className="text-[10px] font-semibold text-slate-500 uppercase mb-2">{label}</div>
+                        <div className="h-1.5 w-full bg-white rounded-full overflow-hidden">
+                          <div className={cx("h-full rounded-full",
+                            value >= 80 ? "bg-emerald-500" :
+                            value >= 60 ? "bg-amber-500" : "bg-rose-500"
+                          )} style={{ width: `${value}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Métricas Adicionales de CityWorld */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <BarChart3 size={14} className="text-cyan-500" /> Métricas del Ejercicio
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Targets Completados</span>
+                      <span className="text-xl font-black text-slate-700">{session.targets_collected}/{session.total_targets}</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Errores de Secuencia</span>
+                      <span className={cx("text-xl font-black", 
+                        (session.sequence_errors || 0) === 0 ? "text-emerald-600" :
+                        (session.sequence_errors || 0) <= 2 ? "text-amber-600" : "text-rose-600"
+                      )}>{session.sequence_errors || 0}</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Tiempo Medio Reacción</span>
+                      <span className="text-xl font-black text-blue-600">{(session.avg_reaction_time || 0).toFixed(1)}s</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Completitud</span>
+                      <span className="text-xl font-black text-violet-600">{Math.round(session.completion_percentage || 0)}%</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
+
           {hasVRData ? (
             <>
               {/* Interpretación clínica */}
