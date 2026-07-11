@@ -110,11 +110,11 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 	
 	# Posicionar en inicio de cinta (con pequeña variación)
 	var spawn_offset = Vector3(
-		randf_range(-0.2, 0.2),
+		randf_range(-0.15, 0.15),
 		0.0,
 		randf_range(-0.1, 0.1)
 	)
-	luggage.global_position = spawn_position + spawn_offset
+	luggage.global_position = global_position + spawn_offset
 	
 	# Añadir a escena
 	get_parent().add_child(luggage)

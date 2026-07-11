@@ -36,12 +36,12 @@ const COLORS = {
 	"purple": Color(0.7, 0.2, 0.9)
 }
 
-# Tamaños según tipo
+# Tamaños según tipo (MÁS PEQUEÑAS para caber en la cinta)
 const SIZES = {
-	"green": Vector3(0.3, 0.2, 0.4),    # Pequeña
-	"yellow": Vector3(0.4, 0.3, 0.5),   # Mediana
-	"red": Vector3(0.5, 0.4, 0.6),      # Grande
-	"purple": Vector3(0.6, 0.5, 0.7)    # XL
+	"green": Vector3(0.2, 0.15, 0.25),    # Pequeña
+	"yellow": Vector3(0.25, 0.2, 0.3),   # Mediana
+	"red": Vector3(0.3, 0.25, 0.35),      # Grande
+	"purple": Vector3(0.35, 0.3, 0.4)    # XL
 }
 
 func _ready() -> void:
@@ -113,19 +113,35 @@ func _create_grab_area() -> void:
 	# Crear área de detección para controladores VR
 	_grab_area = Area3D.new()
 	add_child(_grab_area)
+	_grab_area.collision_layer = 0
+	_grab_area.collision_mask = 8  # Layer 8 para detectar manos VR
 	
 	# Collision shape para área (ligeramente más grande que la maleta)
 	var grab_collision = CollisionShape3D.new()
 	var grab_shape = SphereShape3D.new()
-	grab_shape.radius = 0.3  # 30cm de radio para agarrar
+	grab_shape.radius = 0.2  # 20cm de radio para agarrar
 	grab_collision.shape = grab_shape
 	_grab_area.add_child(grab_collision)
 	
 	# Conectar señales
 	_grab_area.body_entered.connect(_on_grab_area_entered)
 	_grab_area.body_exited.connect(_on_grab_area_exited)
+	_grab_area.area_entered.connect(_on_grab_area_entered_area)
+	_grab_area.area_exited.connect(_on_grab_area_exited_area)
 	
-	print("[Luggage] Área de agarre creada (radio 0.3m)")
+	print("[Luggage] Área de agarre creada (radio 0.2m)")
+
+func _on_grab_area_entered_area(area: Area3D) -> void:
+	# Detectar si es un controlador XR
+	if area.get_parent() and area.get_parent() is XRController3D and not is_grabbed:
+		print("[Luggage] Controlador XR cerca de maleta ", luggage_id)
+		area.get_parent().set_meta("nearby_luggage", self)
+
+func _on_grab_area_exited_area(area: Area3D) -> void:
+	if area.get_parent() and area.get_parent() is XRController3D:
+		if area.get_parent().get_meta("nearby_luggage", null) == self:
+			area.get_parent().remove_meta("nearby_luggage")
+			print("[Luggage] Controlador XR alejado de maleta ", luggage_id)
 
 func _on_grab_area_entered(body: Node3D) -> void:
 	# Detectar si es un controlador XR
