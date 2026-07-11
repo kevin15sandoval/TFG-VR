@@ -94,15 +94,12 @@ func register_laser_hit() -> void:
 		return
 	
 	laser_hits += 1
-	score = max(0, score - 15)  # Penalización mayor
+	score = max(0, score - 15)  # Penalización
 	
 	laser_hit.emit()
 	print("[VaultManager] ⚡ Láser tocado! Hits: ", laser_hits, " | Score: ", score)
 	
-	# Si toca 5 veces, game over
-	if laser_hits >= 5:
-		print("[VaultManager] 💀 Demasiados toques de láser - Game Over")
-		end_game()
+	# NO hay game over por toques, solo jugar hasta que termine el tiempo
 
 func end_game() -> void:
 	if not game_active:

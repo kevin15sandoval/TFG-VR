@@ -111,12 +111,15 @@ func _spawn_next() -> void:
 	var laser = laser_scene.instantiate()
 	get_parent().add_child(laser)
 	
-	# Configurar tipo y velocidad
+	# IMPORTANTE: Configurar tipo ANTES de que se ejecute _ready()
 	laser.laser_type = laser_data["type"]
 	laser.advance_speed = laser_data["speed"]
 	
 	# Posición inicial: al fondo de la bóveda (Z negativo)
-	laser.global_position = Vector3(0, 1.5, -8.0)
+	laser.global_position = Vector3(0, 0, -8.0)
+	
+	# AHORA sí, llamar setup para crear visual/colisión con el tipo correcto
+	laser.setup_laser()
 	
 	# Conectar señales
 	laser.player_hit.connect(_on_laser_hit.bind(laser))

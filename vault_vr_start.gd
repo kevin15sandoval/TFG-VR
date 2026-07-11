@@ -283,8 +283,8 @@ func _show_game_hud() -> void:
 		print("[VaultVR]   ✅ Instruction visible")
 	if hud_laser_hits:
 		hud_laser_hits.visible = true
-		hud_laser_hits.text = "❤️❤️❤️❤️❤️"
-		print("[VaultVR]   ✅ Lives visible")
+		hud_laser_hits.text = "⚡ Toques: 0"
+		print("[VaultVR]   ✅ Hit counter visible")
 
 func _hide_game_hud() -> void:
 	if hud_score:
@@ -364,18 +364,16 @@ func _on_laser_dodged(points: int) -> void:
 		var color_tween = create_tween()
 		color_tween.tween_property(hud_score, "modulate", original_color, 0.5).set_delay(0.2)
 
-func _on_laser_hit() -> void:
-	if hud_laser_hits and vault_manager:
-		var hearts = ""
-		var remaining_lives = max(0, 5 - vault_manager.laser_hits)
-		for i in range(remaining_lives):
-			hearts += "❤️"
-		for i in range(vault_manager.laser_hits):
-			hearts += "💔"
-		hud_laser_hits.text = hearts
-		
-		# Flash rojo en la pantalla
-		_screen_flash_red()
+func _on_laser_hit(laser: Node) -> void:
+	if not hud_laser_hits or not vault_manager:
+		return
+	
+	# Mostrar contador de toques (sin límite)
+	hud_laser_hits.text = "⚡ Toques: " + str(vault_manager.laser_hits)
+	hud_laser_hits.modulate = Color(1.0, 0.2, 0.2)
+	
+	# Flash rojo en la pantalla
+	_screen_flash_red()
 	
 	print("[VaultVR] ⚡ Láser tocado!")
 

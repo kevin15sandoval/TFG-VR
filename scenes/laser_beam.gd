@@ -33,6 +33,12 @@ var _laser_dimensions: Dictionary = {
 
 func _ready() -> void:
 	_start_position = global_position
+	# NO llamar _create_laser_visual aquí
+	# Se llama desde setup_laser() después de asignar laser_type
+
+func setup_laser() -> void:
+	# Esta función se llama DESPUÉS de asignar laser_type
+	print("[Laser] 🔧 Setup láser tipo: ", laser_type)
 	_create_laser_visual()
 	_create_collision_areas()
 	_create_warning_visual()
