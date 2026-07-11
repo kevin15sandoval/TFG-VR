@@ -123,31 +123,56 @@ func _on_body_entered(body: Node) -> void:
 	if collected:
 		print("[Gem] ⚠️ Ya está collected, ignorando")
 		return
+	
 	# Detectar XRController3D (los controladores padre de las manos)
 	if body is XRController3D:
-		print("[Gem] ✅ CONTROLADOR XR detectado directamente")
+		print("[Gem] ✅ CONTROLADOR XR detectado: ", body.name)
 		_catch()
+		return
+	
+	# Detectar por nombre de nodo (LeftHand, RightHand, etc.)
+	var body_name = body.name.to_lower()
+	if "hand" in body_name or "left" in body_name or "right" in body_name:
+		print("[Gem] ✅ MANO detectada por nombre: ", body.name)
+		_catch()
+		return
+	
 	# También detectar nodos que sean hijos de controladores
 	var parent = body.get_parent()
 	if parent and parent is XRController3D:
-		print("[Gem] ✅ HIJO de controlador XR detectado")
+		print("[Gem] ✅ HIJO de controlador XR detectado: ", body.name, " (padre: ", parent.name, ")")
 		_catch()
+		return
 
 func _on_area_entered(area: Node) -> void:
 	print("[Gem] 🎯 ÁREA DETECTADA: ", area.name, " | Padre: ", area.get_parent().name if area.get_parent() else "none")
 	if collected:
 		print("[Gem] ⚠️ Ya está collected, ignorando")
 		return
-	# Detectar áreas de las manos (LeftHandArea, RightHandArea)
-	if area.name in ["LeftHandArea", "RightHandArea"]:
+	
+	# Detectar áreas de las manos por nombre (cualquier variación)
+	var area_name = area.name.to_lower()
+	if "hand" in area_name or "left" in area_name or "right" in area_name:
 		print("[Gem] ✅ MANO DETECTADA por nombre: ", area.name)
 		_catch()
+		return
+	
 	# También detectar por grupo si está configurado
-	elif area.is_in_group("hand") or area.is_in_group("xr_hand"):
+	if area.is_in_group("hand") or area.is_in_group("xr_hand"):
 		print("[Gem] ✅ MANO DETECTADA por grupo")
 		_catch()
-	else:
-		print("[Gem] ⚠️ Área NO reconocida como mano")
+		return
+	
+	# Detectar si el padre es un controlador XR
+	var parent = area.get_parent()
+	if parent:
+		var parent_name = parent.name.to_lower()
+		if parent is XRController3D or "hand" in parent_name or "controller" in parent_name:
+			print("[Gem] ✅ MANO DETECTADA por padre XR: ", parent.name)
+			_catch()
+			return
+	
+	print("[Gem] ⚠️ Área NO reconocida como mano: ", area.name)
 
 func _catch() -> void:
 	if collected:

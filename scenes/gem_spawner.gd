@@ -130,12 +130,33 @@ func _process(delta: float) -> void:
 	for gem in _active_gems:
 		if is_instance_valid(gem) and not gem.collected:
 			var ex = gem.exercise_data
-			gem.global_position = gem.global_position.move_toward(
-				ex["end"], GameManager.get_gem_speed() * delta
-			)
-			# Si llegó al final sin ser recogida, la quitamos
-			if gem.global_position.distance_to(ex["end"]) < 0.05:
-				gem.miss()
+			var target_pos = ex["end"]
+			var current_pos = gem.global_position
+			
+			# Calcular distancia al objetivo
+			var distance = current_pos.distance_to(target_pos)
+			
+			# SI ESTÁ LEJOS → Mover hacia el objetivo
+			if distance > 0.3:  # Margen de 30cm para detenerse
+				gem.global_position = current_pos.move_toward(
+					target_pos, GameManager.get_gem_speed() * delta
+				)
+			# SI YA LLEGÓ → Mantener posición flotando (NO atravesar)
+			elif distance > 0.05:
+				# Quedarse quieta en el rango de agarre
+				pass
+			# SI PASÓ MUCHO TIEMPO SIN AGARRAR → Perderla
+			else:
+				if not gem.has_meta("arrival_time"):
+					gem.set_meta("arrival_time", Time.get_ticks_msec() / 1000.0)
+				
+				var arrival_time = gem.get_meta("arrival_time")
+				var time_at_position = (Time.get_ticks_msec() / 1000.0) - arrival_time
+				
+				# Dar 3 segundos para agarrarla antes de perderla
+				if time_at_position > 3.0:
+					print("[Spawner] ⏰ Gema en posición por ", time_at_position, "s - PERDIENDO")
+					gem.miss()
 
 func _on_spawn_timer() -> void:
 	if not GameManager.session_active:
