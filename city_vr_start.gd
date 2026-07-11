@@ -26,8 +26,10 @@ var _xr_camera: XRCamera3D = null
 func _ready() -> void:
 	print("═══════════════════════════════════════════════════════════════")
 	print("═══ 🏙️ URBAN ATTENTION QUEST — VR System INICIANDO ═══")
+	print("═══ VERSION 3.9.0 - CON TODOS LOS FIXES ═══")
 	print("═══════════════════════════════════════════════════════════════")
 	print("[CityVR] _ready() ejecutándose...")
+	print("[CityVR] ⚠️ SI VES ESTE MENSAJE, EL CODIGO NUEVO ESTA FUNCIONANDO ⚠️")
 	print("[CityVR] Verificando GameManager...")
 	if GameManager:
 		print("[CityVR] ✅ GameManager existe")
@@ -392,7 +394,10 @@ func _hide_game_hud() -> void:
 # ─── EVENTOS DE SESIÓN ────────────────────────────────────────────────────────
 
 func _on_new_session_detected(config: Dictionary) -> void:
-	print("[CityVR] 🎮 Nueva sesión detectada!")
+	print("═══════════════════════════════════════════════════════════════")
+	print("🎮 NUEVA SESION DETECTADA - v3.9.0")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[CityVR] Nueva sesión detectada!")
 	if label_info:
 		label_info.text = "¡SESIÓN DETECTADA! Iniciando..."
 	waiting_mode = false
@@ -403,7 +408,9 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	
 	# RESTAURAR COUNTDOWN VISUAL (sin audio para evitar crashes)
 	await get_tree().create_timer(0.5).timeout
+	print("[CityVR] 🎬 A PUNTO DE MOSTRAR COUNTDOWN...")
 	await _show_countdown()
+	print("[CityVR] ✅ COUNTDOWN COMPLETADO, INICIANDO SESION...")
 	
 	GameManager.start_session()
 
@@ -432,6 +439,9 @@ func _on_config_error(_msg: String) -> void:
 	GameManager.start_session()
 
 func _on_session_started() -> void:
+	print("═══════════════════════════════════════════════════════════════")
+	print("▶ SESION INICIADA - MOSTRANDO HUD - v3.9.0")
+	print("═══════════════════════════════════════════════════════════════")
 	print("[CityVR] ▶ Sesión iniciada")
 	_show_game_hud()
 	
