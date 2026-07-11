@@ -326,11 +326,6 @@ func _show_countdown() -> void:
 	_countdown_label.visible = false
 	print("[CityVR] ✅ Countdown completado")
 
-func _setup_ambient_audio() -> void:
-	_ambient_audio = AudioStreamPlayer.new()
-	add_child(_ambient_audio)
-	_ambient_audio.volume_db = -18.0
-
 func _show_waiting_message() -> void:
 	if label_status:
 		label_status.text = "SALA DE ESPERA"

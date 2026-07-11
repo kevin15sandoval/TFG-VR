@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 var firebase_manager: Node = null
+var current_game_manager: Node = null  # Manager del juego actual (vault, city, luggage)
 var waiting_mode := true
 
 # UI Labels para feedback visual
