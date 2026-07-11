@@ -727,51 +727,58 @@ func _on_timer_updated(remaining: float) -> void:
 			hud_timer.modulate = Color(0.2, 1.0, 0.4)  # Verde
 
 func _on_session_finished(results: Dictionary) -> void:
-	print("[VR] 🏁 Sesión terminada — Puntos: ", results.get("score", 0))
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🏁 VR_START: SESSION_FINISHED RECIBIDA ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[VR] Puntos finales: ", results.get("score", 0))
+	print("[VR] Gemas recolectadas: ", results.get("gems_collected", 0))
 	
 	# Guardar resultados en Firestore
-	firebase_manager.save_results(results)
+	if firebase_manager:
+		print("[VR] 💾 Guardando resultados en Firebase...")
+		firebase_manager.save_results(results)
+	else:
+		print("[VR] ⚠️ Firebase Manager no existe, no se guardan resultados")
 	
 	_hide_game_hud()
+	print("[VR] ✅ HUD ocultado")
 	
 	# Mostrar mensaje de finalización
 	if label_status:
 		label_status.visible = true
 		label_status.text = "✅ ¡SESIÓN COMPLETADA!"
 		label_status.modulate = Color(0.2, 1.0, 0.4)
+		print("[VR] ✅ Label status mostrado")
 	if label_info:
 		label_info.visible = true
-		var game_type = results.get("game_type", "")
-		match game_type:
-			"vault_escape":
-				label_info.text = "Score: " + str(results.get("score", 0)) + " | Paneles: " + str(results.get("panels_collected", 0))
-			"urban_attention_quest":
-				label_info.text = "Score: " + str(results.get("score", 0)) + " | Targets: " + str(results.get("targets_collected", 0))
-			"luggage_handler":
-				label_info.text = "Score: " + str(results.get("score", 0)) + " | Maletas: " + str(results.get("luggage_placed", 0))
-			_:
-				label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Precisión: " + str(results.get("accuracy", 0)) + "%"
+		label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Gemas: " + str(results.get("gems_collected", 0))
+		print("[VR] ✅ Label info mostrado: ", label_info.text)
 	
 	# Limpiar game manager actual
 	if current_game_manager:
 		current_game_manager.queue_free()
 		current_game_manager = null
+		print("[VR] ✅ Game manager limpiado")
 	
 	# Limpiar sesión activa en Firestore para evitar auto-inicio
-	print("[VR] 🧹 Limpiando sesión de Firestore...")
-	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
-	print("[VR] ✅ Sesión limpiada completamente")
-	
-	print("[VR] 🛑 Deteniendo polling de Firebase...")
 	if firebase_manager:
+		print("[VR] 🧹 Limpiando sesión de Firestore...")
+		await _clear_firestore_session()  # ESPERAR a que termine la limpieza
+		print("[VR] ✅ Sesión limpiada completamente")
+		
+		print("[VR] 🛑 Deteniendo polling de Firebase...")
 		firebase_manager.stop_polling()
 		print("[VR] ✅ Polling detenido")
+	else:
+		print("[VR] ⚠️ Firebase Manager no existe, saltando limpieza")
 	
 	# Esperar 3 segundos antes de regresar
+	print("[VR] ⏱️ Esperando 3 segundos antes de regresar...")
 	await get_tree().create_timer(3.0).timeout
 	
 	# Regresar al HubWorld (igual que CityWorld)
 	print("[VR] 🔄 Regresando al HubWorld...")
+	print("═══════════════════════════════════════════════════════════════")
 	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _clear_firestore_session() -> void:
