@@ -101,6 +101,8 @@ func _create_visual() -> void:
 func _setup_physics() -> void:
 	mass = weight
 	gravity_scale = 1.0
+	collision_layer = 4  # Layer 4 para maletas
+	collision_mask = 1   # Detecta suelo y zonas
 	
 	# Fricción para simular peso
 	physics_material_override = PhysicsMaterial.new()

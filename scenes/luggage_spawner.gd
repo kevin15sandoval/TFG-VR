@@ -7,7 +7,7 @@ signal luggage_spawned(luggage: RigidBody3D)
 
 @export var spawn_interval: float = 3.0  # Segundos entre maletas
 @export var conveyor_speed: float = 1.0  # m/s
-@export var spawn_position: Vector3 = Vector3(0, 1, -5)  # Posición inicial en cinta
+@export var spawn_position: Vector3 = Vector3(0, 1.5, -6)  # Posición inicial (ATRÁS de la cinta)
 @export var difficulty: String = "Media"
 
 var _luggage_scene: PackedScene
@@ -112,16 +112,18 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 	var spawn_offset = Vector3(
 		randf_range(-0.2, 0.2),
 		0.0,
-		randf_range(-0.3, 0.3)
+		randf_range(-0.1, 0.1)
 	)
 	luggage.global_position = spawn_position + spawn_offset
 	
 	# Añadir a escena
 	get_parent().add_child(luggage)
 	
-	# Aplicar velocidad inicial (movimiento en cinta)
+	# IMPORTANTE: Aplicar velocidad hacia ADELANTE (hacia el jugador en +Z)
 	if luggage is RigidBody3D:
-		luggage.linear_velocity = Vector3(0, 0, conveyor_speed)
+		luggage.linear_velocity = Vector3(0, 0, conveyor_speed)  # Velocidad positiva = hacia jugador
+	
+	print("[LuggageSpawner] 📦 Maleta spawneada en posición: ", luggage.global_position)
 	
 	return luggage
 
