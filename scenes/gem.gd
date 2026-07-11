@@ -206,11 +206,11 @@ func _get_all_children(node: Node) -> Array:
 	return children
 
 func _check_energy_recharge(delta: float) -> void:
-	# Sistema de recarga: El jugador recarga SU energía haciendo flexión/relajación
-	# Esta energía es GLOBAL, no por gema
+	# Sistema de recarga: El jugador recarga SU energía manteniendo el brazo cerca (flexión)
+	# SIMPLE: Solo estar cerca = recargar (no necesita acercar/alejar)
 	
 	_last_energy_check += delta
-	if _last_energy_check < 0.1:  # Chequear cada 0.1s
+	if _last_energy_check < 0.05:  # Chequear cada 0.05s (más frecuente)
 		return
 	_last_energy_check = 0.0
 	
@@ -219,36 +219,24 @@ func _check_energy_recharge(delta: float) -> void:
 	var right_hand = _find_hand_controller("right")
 	
 	var closest_distance = 999.0
-	var hand_name = ""
 	
 	# Calcular distancia a mano izquierda
 	if left_hand:
 		var dist = global_position.distance_to(left_hand.global_position)
 		if dist < closest_distance:
 			closest_distance = dist
-			hand_name = "left"
 	
 	# Calcular distancia a mano derecha
 	if right_hand:
 		var dist = global_position.distance_to(right_hand.global_position)
 		if dist < closest_distance:
 			closest_distance = dist
-			hand_name = "right"
 	
-	# Si hay una mano cerca (< 2.0m), detectar movimiento de acercar/alejar para RECARGAR
-	if closest_distance < 2.0 and hand_name != "":
-		if not _hand_distances.has(hand_name):
-			_hand_distances[hand_name] = closest_distance
-		else:
-			var prev_distance = _hand_distances[hand_name]
-			var distance_change = prev_distance - closest_distance
-			
-			# Si se acercó o se alejó (flexión + relajación) → RECARGAR ENERGÍA GLOBAL
-			if abs(distance_change) > 0.1:
-				GameManager.recharge_energy(delta)
-				print("[Gem] ⚡ Recargando energía global del jugador...")
-			
-			_hand_distances[hand_name] = closest_distance
+	# Si hay una mano CERCA (< 1.5m) → RECARGAR AUTOMÁTICAMENTE (mantener flexión)
+	if closest_distance < 1.5:
+		# RECARGA RÁPIDA - solo por estar cerca
+		GameManager.recharge_energy(delta * 3.0)  # 3x más rápido = 45 energía/segundo
+		# No hace falta print, demasiado spam
 
 func _show_ready_feedback() -> void:
 	# Mostrar texto flotante "¡LISTO!" cuando la gema está preparada
