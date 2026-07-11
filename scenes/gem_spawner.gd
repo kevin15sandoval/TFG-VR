@@ -143,26 +143,56 @@ func _on_spawn_timer() -> void:
 	_spawn_next()
 
 func _spawn_next() -> void:
+	print("[Spawner] ═══════════════════════════════════════════════════")
+	print("[Spawner] 💎 SPAWNING NUEVA GEMA...")
+	print("[Spawner]   - Queue index: ", _queue_index, "/", _exercise_queue.size())
+	print("[Spawner]   - Session active: ", GameManager.session_active if GameManager else "N/A")
+	
 	if _queue_index >= _exercise_queue.size():
 		# Reinicia la cola para sesiones largas
+		print("[Spawner]   🔄 Reiniciando cola...")
 		_build_queue()
 		_queue_index = 0
+		print("[Spawner]   ✅ Cola reiniciada")
 
 	if gem_scene == null:
-		push_error("[GemSpawner] gem_scene no asignada")
+		push_error("[Spawner] ❌ gem_scene NO ASIGNADA!")
 		return
 
 	var exercise = _exercise_queue[_queue_index]
 	_queue_index += 1
+	
+	print("[Spawner]   📋 Ejercicio seleccionado:")
+	print("[Spawner]      - Nombre: ", exercise["name"])
+	print("[Spawner]      - Tipo: ", exercise["type"])
+	print("[Spawner]      - Puntos: ", exercise["points"])
+	print("[Spawner]      - Start: ", exercise["start"])
+	print("[Spawner]      - End: ", exercise["end"])
 
+	print("[Spawner]   🏗️ Instanciando gema...")
 	var gem = gem_scene.instantiate()
+	print("[Spawner]   ✅ Gema instanciada")
+	
+	print("[Spawner]   ➕ Añadiendo gema al parent...")
 	get_parent().add_child(gem)
+	print("[Spawner]   ✅ Gema añadida al árbol de escena")
+	
+	print("[Spawner]   ⚙️ Setup de gema con exercise data...")
 	gem.setup(exercise)
+	print("[Spawner]   ✅ Setup completado")
+	
+	print("[Spawner]   🔗 Conectando señales...")
 	gem.gem_caught.connect(_on_gem_caught.bind(gem))
 	gem.gem_missed.connect(_on_gem_missed.bind(gem))
+	print("[Spawner]   ✅ Señales conectadas")
+	
 	_active_gems.append(gem)
+	print("[Spawner]   📊 Gemas activas: ", _active_gems.size())
 
-	print("[Spawner] Ejercicio: ", exercise["name"], " | Tipo: ", exercise["type"])
+	print("[Spawner] ✅ GEMA SPAWNEADA EXITOSAMENTE")
+	print("[Spawner]   - Posición: ", gem.global_position)
+	print("[Spawner]   - Visible: ", gem.visible)
+	print("[Spawner] ═══════════════════════════════════════════════════")
 
 func _on_gem_caught(gem) -> void:
 	GameManager.on_gem_spawned()

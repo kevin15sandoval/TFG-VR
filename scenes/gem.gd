@@ -188,9 +188,47 @@ func miss() -> void:
 	if collected:
 		return
 	collected = true
-	print("[Gem] ⏭ Perdida: ", gem_type)
+	print("[Gem] ⏭ Perdida: ", gem_type, " - REPRODUCIENDO SONIDO DE ERROR")
+	
+	# SONIDO DE ERROR cuando se pierde una gema
+	_play_miss_sound()
+	
 	emit_signal("gem_missed")
+	
+	# Esperar a que termine el sonido antes de eliminar
+	await get_tree().create_timer(0.5).timeout
 	queue_free()
+
+func _play_miss_sound() -> void:
+	# Sonido de error/desaprobación (buzzer) - IGUAL QUE CITYWORLD
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 20.0
+	audio.unit_size = 3.0
+	audio.volume_db = 8.0  # MÁS VOLUMEN
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	print("[Gem] 🔊 Reproduciendo sonido de ERROR")
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Buzzer desagradable (200Hz bajo) - IGUAL QUE CITYWORLD
+		var frames = int(generator.mix_rate * 0.4)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var envelope = 0.6 * (1.0 - t / 0.4)
+			var sample = sin(t * 200.0 * TAU) * envelope  # Tono bajo y desagradable
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.5).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
 
 func _play_collect_effect(positive: bool = true) -> void:
 	# Partículas de explosión con el color de la gema
@@ -213,34 +251,60 @@ func _play_collect_effect(positive: bool = true) -> void:
 func _play_collect_sound(positive: bool) -> void:
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
-	audio.max_distance = 15.0  # Más lejos para que se escuche mejor
-	audio.unit_size = 2.0
-	audio.volume_db = 6.0  # MÁS VOLUMEN
+	audio.max_distance = 20.0
+	audio.unit_size = 3.0
+	audio.volume_db = 8.0  # MÁS VOLUMEN
 	
 	# Generar tono procedural (sin archivos de audio)
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
-	generator.buffer_length = 0.15
+	generator.buffer_length = 0.1
 	
 	audio.stream = generator
 	audio.play()
 	
 	print("[Gem] 🔊 Reproduciendo sonido: ", "positivo" if positive else "negativo")
 	
-	# Generar onda de sonido simple
+	# Generar onda de sonido MEJORADA - SIMILAR A CITYWORLD
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		var hz = 1200.0 if positive else 300.0  # Tono más agudo para positivo
-		var frames = int(generator.mix_rate * 0.15)
-		
-		for i in range(frames):
-			var t = float(i) / generator.mix_rate
-			var amplitude = 0.6 * (1.0 - t / 0.15)  # Fade out, más fuerte
-			var sample = sin(t * hz * TAU) * amplitude
-			playback.push_frame(Vector2(sample, sample))
+		if positive:
+			# SONIDO POSITIVO - Épico según tipo de gema
+			var base_hz = 600.0
+			if gem_type == "golden":  # Dorado - sonido épico
+				base_hz = 900.0
+			elif gem_type == "purple":  # Morado - sonido medio
+				base_hz = 750.0
+			else:  # Normal/Verde - sonido suave
+				base_hz = 600.0
+			
+			# Generar sonido con armónicos (más rico) - IGUAL QUE CITYWORLD
+			var frames = int(generator.mix_rate * 0.35)
+			for i in range(frames):
+				var t = float(i) / generator.mix_rate
+				var envelope = 0.6 * (1.0 - t / 0.35)
+				
+				# Tono principal + armónicos
+				var sample = sin(t * base_hz * TAU) * envelope * 0.6
+				sample += sin(t * base_hz * 2.0 * TAU) * envelope * 0.2  # Octava
+				sample += sin(t * base_hz * 1.5 * TAU) * envelope * 0.15  # Quinta
+				
+				# "Ding" al final para gemas doradas
+				if gem_type == "golden":
+					sample += sin(t * 1200.0 * TAU) * envelope * 0.3
+				
+				playback.push_frame(Vector2(sample, sample))
+		else:
+			# SONIDO NEGATIVO (roja) - Buzzer igual que error
+			var frames = int(generator.mix_rate * 0.3)
+			for i in range(frames):
+				var t = float(i) / generator.mix_rate
+				var amplitude = 0.5 * (1.0 - t / 0.3)
+				var sample = sin(t * 250.0 * TAU) * amplitude  # Tono bajo
+				playback.push_frame(Vector2(sample, sample))
 	
 	# Limpiar después de reproducir
-	await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(0.4).timeout
 	if is_instance_valid(audio):
 		audio.queue_free()

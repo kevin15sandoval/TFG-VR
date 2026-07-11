@@ -138,7 +138,9 @@ func _create_game_hud() -> void:
 	if not xr_camera:
 		return
 	
-	# Score (arriba izquierda)
+	print("[VaultVR] 🎨 Creando HUD del juego...")
+	
+	# Score (arriba izquierda) - IGUAL QUE CITYWORLD
 	hud_score = Label3D.new()
 	hud_score.pixel_size = 0.002
 	hud_score.position = Vector3(-0.6, 0.4, -1.2)
@@ -148,21 +150,25 @@ func _create_game_hud() -> void:
 	hud_score.outline_modulate = Color.BLACK
 	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_score.visible = false
+	hud_score.text = "0 pts"
 	xr_camera.add_child(hud_score)
+	print("[VaultVR]   ✅ Score HUD creado")
 	
-	# Timer (arriba derecha)
+	# Timer (arriba derecha) - MÁS VISIBLE IGUAL QUE CITYWORLD
 	hud_timer = Label3D.new()
 	hud_timer.pixel_size = 0.002
 	hud_timer.position = Vector3(0.6, 0.4, -1.2)
-	hud_timer.font_size = 48
+	hud_timer.font_size = 56  # MÁS GRANDE
 	hud_timer.modulate = Color(0.2, 1.0, 0.4)
-	hud_timer.outline_size = 6
+	hud_timer.outline_size = 8  # BORDE MÁS GRUESO
 	hud_timer.outline_modulate = Color.BLACK
 	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_timer.visible = false
+	hud_timer.text = "03:00"
 	xr_camera.add_child(hud_timer)
+	print("[VaultVR]   ✅ Timer HUD creado")
 	
-	# Instrucción (abajo centro)
+	# Instrucción (abajo centro) - IGUAL QUE CITYWORLD
 	hud_instruction = Label3D.new()
 	hud_instruction.pixel_size = 0.002
 	hud_instruction.position = Vector3(0, -0.3, -1.5)
@@ -173,18 +179,22 @@ func _create_game_hud() -> void:
 	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_instruction.visible = false
 	xr_camera.add_child(hud_instruction)
+	print("[VaultVR]   ✅ Instruction HUD creado")
 	
-	# Laser hits counter (centro superior)
+	# Indicador de gemas perdidas (centro superior)
 	hud_laser_hits = Label3D.new()
 	hud_laser_hits.pixel_size = 0.002
 	hud_laser_hits.position = Vector3(0, 0.5, -1.2)
 	hud_laser_hits.font_size = 40
-	hud_laser_hits.modulate = Color(1.0, 0.2, 0.2)
+	hud_laser_hits.modulate = Color(1.0, 0.8, 0.2)
 	hud_laser_hits.outline_size = 6
 	hud_laser_hits.outline_modulate = Color.BLACK
 	hud_laser_hits.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_laser_hits.visible = false
 	xr_camera.add_child(hud_laser_hits)
+	print("[VaultVR]   ✅ Gems info HUD creado")
+	
+	print("[VaultVR] ✅ HUD completo inicializado")
 
 func _create_countdown_ui() -> void:
 	var xr_camera = get_node_or_null("XROrigin3D/XRCamera3D")
@@ -277,16 +287,22 @@ func _hide_waiting_ui() -> void:
 		label_info.visible = false
 
 func _show_game_hud() -> void:
+	print("[VaultVR] 👁️ Mostrando HUD del juego...")
 	if hud_score:
 		hud_score.visible = true
+		hud_score.text = "0 pts"
+		print("[VaultVR]   ✅ Score visible")
 	if hud_timer:
 		hud_timer.visible = true
+		print("[VaultVR]   ✅ Timer visible")
 	if hud_instruction:
 		hud_instruction.visible = true
-		hud_instruction.text = "¡Activa todos los paneles! Evita los láser rojos"
+		hud_instruction.text = "¡Agarra las gemas que vienen hacia ti!"
+		print("[VaultVR]   ✅ Instruction visible")
 	if hud_laser_hits:
 		hud_laser_hits.visible = true
-		hud_laser_hits.text = "❤️❤️❤️❤️❤️"
+		hud_laser_hits.text = "💎 Gemas: 0"
+		print("[VaultVR]   ✅ Gems info visible")
 
 func _hide_game_hud() -> void:
 	if hud_score:
@@ -349,13 +365,33 @@ func _on_game_started() -> void:
 	print("[VaultVR] 🔐 Vault game started")
 
 func _on_panel_collected(panel_id: int, points: int) -> void:
+	# Esta función ahora maneja gemas, no paneles
 	if hud_score and vault_manager:
 		hud_score.text = str(vault_manager.score) + " pts"
+		print("[VaultVR] 🎯 Score actualizado: ", vault_manager.score, " pts")
+		
+		# Feedback visual más fuerte - IGUAL QUE CITYWORLD
 		var tween = create_tween()
-		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
-		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
+		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.5, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.15)
+		
+		# Flash de color según puntos - IGUAL QUE CITYWORLD
+		var original_color = hud_score.modulate
+		if points >= 25:  # Dorado
+			hud_score.modulate = Color(1.0, 0.85, 0.0)
+		elif points >= 15:  # Morado/Verde
+			hud_score.modulate = Color(0.7, 0.0, 1.0)
+		else:  # Normal
+			hud_score.modulate = Color(0.2, 1.0, 0.3)
+		
+		var color_tween = create_tween()
+		color_tween.tween_property(hud_score, "modulate", original_color, 0.5).set_delay(0.2)
 	
-	print("[VaultVR] ✅ Panel ", panel_id, " +", points, " pts")
+	# Actualizar contador de gemas
+	if hud_laser_hits and vault_manager:
+		hud_laser_hits.text = "💎 Gemas: " + str(vault_manager.get("gems_collected", 0))
+	
+	print("[VaultVR] ✅ Gema recogida +", points, " pts | Total: ", vault_manager.score if vault_manager else 0)
 
 func _on_laser_hit() -> void:
 	if hud_laser_hits and vault_manager:
@@ -389,10 +425,13 @@ func _on_timer_updated(remaining: float) -> void:
 		var s = int(remaining) % 60
 		hud_timer.text = "%02d:%02d" % [m, s]
 		
+		# Cambiar color según tiempo restante - IGUAL QUE CITYWORLD
 		if remaining < 30:
 			hud_timer.modulate = Color(1.0, 0.2, 0.2)
 		elif remaining < 60:
 			hud_timer.modulate = Color(1.0, 0.8, 0.0)
+		else:
+			hud_timer.modulate = Color(0.2, 1.0, 0.4)
 
 func _on_game_finished(results: Dictionary) -> void:
 	print("[VaultVR] 🏁 Juego terminado")
