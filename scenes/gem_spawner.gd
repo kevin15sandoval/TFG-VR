@@ -87,7 +87,7 @@ func _create_spawn_portal() -> void:
 	# Crear portal visual brillante con partículas
 	_portal = Node3D.new()
 	get_tree().root.add_child(_portal)  # ⭐ Añadir al ROOT, NO al parent local
-	_portal.global_position = Vector3(0.0, 2.0, -6.0)  # ⭐ Posición GLOBAL absoluta: pared fondo, altura media
+	_portal.global_position = Vector3(0.0, 1.5, -8.0)  # ⭐ MÁS LEJOS: Z=-8.0 para que esté bien enfrente
 	
 	print("[Spawner] 🌀 Portal creado en coordenadas GLOBALES: ", _portal.global_position)
 	
@@ -235,8 +235,7 @@ func _build_queue() -> void:
 	_exercise_queue.shuffle()
 
 func _process(delta: float) -> void:
-	# Mueve las gemas activas HACIA LA CÁMARA (jugador)
-	# Obtener posición de la cámara VR
+	# Mueve las gemas activas EN LÍNEA RECTA HORIZONTAL desde el portal hacia el jugador
 	var camera = get_viewport().get_camera_3d()
 	if not camera:
 		return
@@ -247,11 +246,13 @@ func _process(delta: float) -> void:
 		if is_instance_valid(gem) and not gem.collected:
 			var current_pos = gem.global_position
 			
-			# ⭐ NUEVO: Objetivo = Posición de la cámara (jugador)
-			var target_pos = camera_pos
+			# ⭐ MOVIMIENTO HORIZONTAL: Calcular dirección desde portal hacia jugador (solo X y Z, Y fijo)
+			var portal_pos = _portal.global_position if _portal else Vector3(0, 2, -6)
+			var direction = Vector3(camera_pos.x, current_pos.y, camera_pos.z) - Vector3(portal_pos.x, current_pos.y, portal_pos.z)
+			direction = direction.normalized()
 			
-			# Calcular distancia a la cámara
-			var distance = current_pos.distance_to(target_pos)
+			# Calcular distancia a la cámara (solo horizontal X-Z)
+			var distance_horizontal = Vector2(current_pos.x - camera_pos.x, current_pos.z - camera_pos.z).length()
 			
 			# VELOCIDAD SEGÚN TIPO DE GEMA
 			var speed_multiplier = 1.0
@@ -263,9 +264,9 @@ func _process(delta: float) -> void:
 			
 			var gem_speed = GameManager.get_gem_speed() * speed_multiplier
 			
-			# SI ESTÁ LEJOS → Mover HACIA LA CÁMARA
-			if distance > 0.5:  # Margen de 50cm para detenerse
-				gem.global_position = current_pos.move_toward(target_pos, gem_speed * delta)
+			# SI ESTÁ LEJOS → Mover HORIZONTALMENTE en línea recta
+			if distance_horizontal > 0.5:  # Margen de 50cm para detenerse
+				gem.global_position += direction * gem_speed * delta
 			# SI YA LLEGÓ CERCA → Dar 1.5 segundos para tocarla, luego desaparece
 			else:
 				if not gem.has_meta("arrival_time"):
