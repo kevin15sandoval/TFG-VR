@@ -104,82 +104,113 @@ func _init_openxr() -> void:
 # ─── UI DE SALA DE ESPERA ─────────────────────────────────────────────────────
 
 func _create_waiting_ui() -> void:
+	if not _xr_camera:
+		_xr_camera = get_node_or_null("XROrigin3D/XRCamera3D")
+	if not _xr_camera:
+		return
+	
 	label_status = Label3D.new()
-	label_status.position = Vector3(0, 2.5, -3.0)
-	label_status.font_size = 72
+	label_status.pixel_size = 0.002
+	label_status.position = Vector3(0, 0.2, -1.5)
+	label_status.font_size = 64
 	label_status.modulate = Color(0.2, 0.8, 1.0)
 	label_status.outline_size = 8
 	label_status.outline_modulate = Color.BLACK
-	add_child(label_status)
+	label_status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_xr_camera.add_child(label_status)
 	
 	label_info = Label3D.new()
-	label_info.position = Vector3(0, 2.0, -3.0)
-	label_info.font_size = 36
+	label_info.pixel_size = 0.002
+	label_info.position = Vector3(0, -0.1, -1.5)
+	label_info.font_size = 32
 	label_info.modulate = Color(0.8, 0.8, 0.8)
 	label_info.outline_size = 5
 	label_info.outline_modulate = Color.BLACK
-	add_child(label_info)
+	label_info.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_xr_camera.add_child(label_info)
 
 func _create_game_hud() -> void:
-	# Score
+	if not _xr_camera:
+		_xr_camera = get_node_or_null("XROrigin3D/XRCamera3D")
+	if not _xr_camera:
+		return
+	
+	# Score (arriba izquierda)
 	hud_score = Label3D.new()
-	hud_score.position = Vector3(-3.0, 2.5, -2.0)
+	hud_score.pixel_size = 0.002
+	hud_score.position = Vector3(-0.6, 0.4, -1.2)
 	hud_score.font_size = 48
 	hud_score.modulate = Color(1.0, 0.9, 0.0)
 	hud_score.outline_size = 6
 	hud_score.outline_modulate = Color.BLACK
+	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_score.visible = false
-	add_child(hud_score)
+	_xr_camera.add_child(hud_score)
 	
-	# Timer
+	# Timer (arriba derecha)
 	hud_timer = Label3D.new()
-	hud_timer.position = Vector3(3.0, 2.5, -2.0)
+	hud_timer.pixel_size = 0.002
+	hud_timer.position = Vector3(0.6, 0.4, -1.2)
 	hud_timer.font_size = 48
 	hud_timer.modulate = Color(0.2, 1.0, 0.4)
 	hud_timer.outline_size = 6
 	hud_timer.outline_modulate = Color.BLACK
+	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_timer.visible = false
-	add_child(hud_timer)
+	_xr_camera.add_child(hud_timer)
 	
-	# Peso total
+	# Peso total (izquierda medio)
 	hud_weight = Label3D.new()
-	hud_weight.position = Vector3(-3.0, 2.0, -2.0)
+	hud_weight.pixel_size = 0.002
+	hud_weight.position = Vector3(-0.6, 0.2, -1.2)
 	hud_weight.font_size = 32
 	hud_weight.modulate = Color(1.0, 0.6, 0.2)
 	hud_weight.outline_size = 4
 	hud_weight.outline_modulate = Color.BLACK
+	hud_weight.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_weight.visible = false
-	add_child(hud_weight)
+	_xr_camera.add_child(hud_weight)
 	
-	# Combo
+	# Combo (centro superior)
 	hud_combo = Label3D.new()
-	hud_combo.position = Vector3(0, 2.8, -2.0)
+	hud_combo.pixel_size = 0.002
+	hud_combo.position = Vector3(0, 0.5, -1.2)
 	hud_combo.font_size = 56
 	hud_combo.modulate = Color(1.0, 0.3, 0.9)
 	hud_combo.outline_size = 8
 	hud_combo.outline_modulate = Color.BLACK
+	hud_combo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_combo.visible = false
-	add_child(hud_combo)
+	_xr_camera.add_child(hud_combo)
 	
-	# Instrucción
+	# Instrucción (abajo centro)
 	hud_instruction = Label3D.new()
-	hud_instruction.position = Vector3(0, 1.2, -3.0)
+	hud_instruction.pixel_size = 0.002
+	hud_instruction.position = Vector3(0, -0.3, -1.5)
 	hud_instruction.font_size = 32
 	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
 	hud_instruction.outline_size = 4
 	hud_instruction.outline_modulate = Color.BLACK
+	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_instruction.visible = false
-	add_child(hud_instruction)
+	_xr_camera.add_child(hud_instruction)
 
 func _create_countdown_ui() -> void:
+	if not _xr_camera:
+		_xr_camera = get_node_or_null("XROrigin3D/XRCamera3D")
+	if not _xr_camera:
+		return
+	
 	_countdown_label = Label3D.new()
-	_countdown_label.position = Vector3(0, 2.2, -3.0)
+	_countdown_label.pixel_size = 0.002
+	_countdown_label.position = Vector3(0, 0, -1.2)
 	_countdown_label.font_size = 144
 	_countdown_label.modulate = Color(1.0, 1.0, 0.0)
 	_countdown_label.outline_size = 16
 	_countdown_label.outline_modulate = Color.BLACK
+	_countdown_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_countdown_label.visible = false
-	add_child(_countdown_label)
+	_xr_camera.add_child(_countdown_label)
 
 func _show_countdown() -> void:
 	if not _countdown_label:
