@@ -18,14 +18,24 @@ var _label: Label3D
 var _is_active: bool = true
 var _is_collected: bool = false
 var _particles: CPUParticles3D
+var _original_position: Vector3  # Guardar posición original
 
 func _ready() -> void:
+	_original_position = position  # Guardar posición inicial
 	_create_target_visual()
 	_create_collision_area()
 	if sequence_number > 0:
 		_create_sequence_label()
 	_create_particles()
 	_create_directional_arrow()
+
+func update_sequence_label() -> void:
+	# Actualizar el label si el número de secuencia cambia
+	if sequence_number > 0:
+		if _label:
+			_label.text = str(sequence_number)
+		else:
+			_create_sequence_label()
 
 func _create_target_visual() -> void:
 	_mesh_instance = MeshInstance3D.new()

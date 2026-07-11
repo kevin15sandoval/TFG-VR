@@ -121,6 +121,33 @@ func start_game() -> void:
 	_active_targets.clear()
 	_next_target_index = 0
 	
+	# ═══ RANDOMIZACIÓN DE TARGETS ═══
+	print("[CityManager] 🎲 Randomizando targets...")
+	
+	# 1. SHUFFLE (mezclar) el array de targets para orden aleatorio
+	_targets.shuffle()
+	
+	# 2. REASIGNAR números de secuencia de forma consecutiva (1, 2, 3...)
+	for i in range(_targets.size()):
+		_targets[i].sequence_number = i + 1
+		if _targets[i].has_method("update_sequence_label"):
+			_targets[i].update_sequence_label()  # Actualizar el label visual
+		print("[CityManager]   Target ", _targets[i].target_id, " → secuencia ", _targets[i].sequence_number)
+	
+	# 3. RANDOMIZAR POSICIONES (ligeramente, sin salirse del mapa)
+	for target in _targets:
+		var original_pos = target.position
+		# Añadir offset aleatorio (±2 metros en X/Z, ±1 metro en Y)
+		var random_offset = Vector3(
+			randf_range(-2.0, 2.0),
+			randf_range(-1.0, 1.0),
+			randf_range(-2.0, 2.0)
+		)
+		target.position = original_pos + random_offset
+		print("[CityManager]   Target ", target.target_id, " movido de ", original_pos, " → ", target.position)
+	
+	print("[CityManager] ✅ Targets randomizados")
+	
 	# Ocultar TODOS los targets al inicio
 	print("[CityManager] 🙈 Ocultando todos los targets...")
 	for target in _targets:
@@ -223,12 +250,13 @@ func collect_target(target_id: int, points: int, target_position: Vector3, seque
 	# Verificar secuencia
 	if sequence_number > 0:  # Solo si tiene secuencia
 		if sequence_number != current_sequence_number:
-			# Error de secuencia - SOLO CONTADOR, SIN PENALIZACIÓN
+			# Error de secuencia - SOLO SONIDO, NO PUNTOS, NO EXPLOSIÓN
 			sequence_errors += 1
 			sequence_error.emit(current_sequence_number, sequence_number)
-			print("[CityManager] ⚠️ Secuencia incorrecta (esperado: ", current_sequence_number, ", tocado: ", sequence_number, ") - Solo feedback")
-			_play_error_sound()  # SONIDO DE FEEDBACK (no penalización)
-			return  # No recoger este target, pero no quita puntos
+			print("[CityManager] ⚠️ Secuencia incorrecta (esperado: ", current_sequence_number, ", tocado: ", sequence_number, ") - Solo sonido de error")
+			_play_error_sound()  # SONIDO DE FEEDBACK
+			# NO hacer nada más - el target NO explota, NO da puntos, NO se resetea
+			return
 		else:
 			current_sequence_number += 1
 	
