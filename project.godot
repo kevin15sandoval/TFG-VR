@@ -58,5 +58,6 @@ quality/shading/force_blinn_over_ggx=false
 
 openxr/enabled=true
 openxr/view_configuration=1
-openxr/foveation_level=0
+openxr/foveation_level=2
+openxr/foveation_dynamic=true
 shaders/enabled=true
