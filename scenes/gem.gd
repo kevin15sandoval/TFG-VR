@@ -51,6 +51,15 @@ var _particles: GPUParticles3D
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
+	
+	# CREAR COLLISION SHAPE (esfera para detección)
+	var collision = CollisionShape3D.new()
+	add_child(collision)
+	var sphere_shape = SphereShape3D.new()
+	sphere_shape.radius = 0.3  # Radio de detección (30cm)
+	collision.shape = sphere_shape
+	print("[Gem] ✅ CollisionShape3D creado con radio 0.3m")
+	
 	_mesh_instance = $MeshInstance3D
 	_base_y = global_position.y
 	_create_particles()
