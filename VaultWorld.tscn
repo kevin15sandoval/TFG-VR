@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="4"]
 [ext_resource type="Script" path="res://scenes/control_panel.gd" id="5"]
 [ext_resource type="Script" path="res://scenes/laser_beam.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/vault_model_setup.gd" id="7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.6, 0.75, 0.95, 1)
@@ -106,6 +107,7 @@ mesh = SubResource("BoxMesh_floor")
 shape = SubResource("BoxShape3D_floor")
 
 [node name="VaultModel" parent="." instance=ExtResource("2")]
+script = ExtResource("7")
 
 [node name="VaultGameManager" type="Node" parent="."]
 script = ExtResource("3")
