@@ -10,6 +10,7 @@ var _spawn_timer: Timer
 var _active_gems: Array = []
 var _exercise_queue: Array = []
 var _queue_index: int = 0
+var _portal: Node3D = null  # Portal visual de donde salen las gemas
 
 # ─── Definición de ejercicios por lado ───────────────────────────────────────
 # Posiciones: start = donde aparece la gema, end = destino (hacia el paciente)
@@ -75,7 +76,107 @@ func _ready() -> void:
 	_spawn_timer.one_shot = false
 	_spawn_timer.timeout.connect(_on_spawn_timer)
 	print("[Spawner] ⏱️ Timer de spawn creado")
+	
+	# CREAR PORTAL VISUAL
+	_create_spawn_portal()
+	print("[Spawner] 🌀 Portal de spawn creado")
+	
 	print("═══════════════════════════════════════════════════════════════")
+
+func _create_spawn_portal() -> void:
+	# Crear portal visual brillante con partículas
+	_portal = Node3D.new()
+	get_parent().add_child(_portal)
+	_portal.position = Vector3(-5.0, 1.5, 0.0)  # Posición fija del portal
+	
+	# Anillo exterior giratorio
+	var outer_ring = MeshInstance3D.new()
+	_portal.add_child(outer_ring)
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.8
+	torus.outer_radius = 1.0
+	outer_ring.mesh = torus
+	
+	var mat_outer = StandardMaterial3D.new()
+	mat_outer.albedo_color = Color(0.2, 0.8, 1.0, 0.6)
+	mat_outer.emission_enabled = true
+	mat_outer.emission = Color(0.2, 0.8, 1.0)
+	mat_outer.emission_energy_multiplier = 4.0
+	mat_outer.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_outer.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	outer_ring.material_override = mat_outer
+	
+	# Rotación constante del anillo
+	var tween_outer = create_tween()
+	tween_outer.set_loops()
+	tween_outer.tween_property(outer_ring, "rotation:z", TAU, 3.0).from(0.0)
+	
+	# Anillo interior giratorio (sentido opuesto)
+	var inner_ring = MeshInstance3D.new()
+	_portal.add_child(inner_ring)
+	var torus2 = TorusMesh.new()
+	torus2.inner_radius = 0.4
+	torus2.outer_radius = 0.6
+	inner_ring.mesh = torus2
+	
+	var mat_inner = StandardMaterial3D.new()
+	mat_inner.albedo_color = Color(0.8, 0.2, 1.0, 0.7)
+	mat_inner.emission_enabled = true
+	mat_inner.emission = Color(0.8, 0.2, 1.0)
+	mat_inner.emission_energy_multiplier = 5.0
+	mat_inner.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_inner.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	inner_ring.material_override = mat_inner
+	
+	# Rotación opuesta
+	var tween_inner = create_tween()
+	tween_inner.set_loops()
+	tween_inner.tween_property(inner_ring, "rotation:z", -TAU, 2.0).from(0.0)
+	
+	# Centro brillante (vórtice)
+	var center = MeshInstance3D.new()
+	_portal.add_child(center)
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.3
+	center.mesh = sphere
+	
+	var mat_center = StandardMaterial3D.new()
+	mat_center.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
+	mat_center.emission_enabled = true
+	mat_center.emission = Color(1.0, 1.0, 1.0)
+	mat_center.emission_energy_multiplier = 8.0
+	mat_center.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_center.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	center.material_override = mat_center
+	
+	# Pulso del centro
+	var tween_center = create_tween()
+	tween_center.set_loops()
+	tween_center.tween_property(center, "scale", Vector3.ONE * 1.3, 0.8).set_trans(Tween.TRANS_SINE)
+	tween_center.tween_property(center, "scale", Vector3.ONE * 0.8, 0.8).set_trans(Tween.TRANS_SINE)
+	
+	# Partículas del portal
+	var particles = GPUParticles3D.new()
+	_portal.add_child(particles)
+	particles.emitting = true
+	particles.amount = 50
+	particles.lifetime = 2.0
+	particles.explosiveness = 0.0
+	
+	var particle_mat = ParticleProcessMaterial.new()
+	particle_mat.direction = Vector3.ZERO
+	particle_mat.spread = 180.0
+	particle_mat.initial_velocity_min = 0.5
+	particle_mat.initial_velocity_max = 1.5
+	particle_mat.gravity = Vector3.ZERO
+	particle_mat.scale_min = 0.05
+	particle_mat.scale_max = 0.15
+	particle_mat.color = Color(0.5, 0.8, 1.0, 0.8)
+	
+	particles.process_material = particle_mat
+	particles.draw_pass_1 = SphereMesh.new()
+	
+	print("[Spawner] ✅ Portal creado en posición: ", _portal.position)
 
 func _on_session_started() -> void:
 	print("═══════════════════════════════════════════════════════════════")
@@ -216,6 +317,17 @@ func _spawn_next() -> void:
 	gem.setup(exercise)
 	print("[Spawner]   ✅ Setup completado")
 	
+	# ═══ HACER QUE LA GEMA SALGA DEL PORTAL ═══
+	if _portal:
+		# Posición inicial = Portal
+		gem.global_position = _portal.global_position
+		print("[Spawner]   🌀 Gema spawneada DESDE EL PORTAL: ", _portal.global_position)
+		
+		# Efecto visual de salida del portal
+		_create_portal_spawn_effect(gem.global_position, gem.gem_type)
+	else:
+		print("[Spawner]   ⚠️ Portal no existe, usando posición original")
+	
 	print("[Spawner]   🔗 Conectando señales...")
 	gem.gem_caught.connect(_on_gem_caught.bind(gem))
 	gem.gem_missed.connect(_on_gem_missed.bind(gem))
@@ -225,9 +337,48 @@ func _spawn_next() -> void:
 	print("[Spawner]   📊 Gemas activas: ", _active_gems.size())
 
 	print("[Spawner] ✅ GEMA SPAWNEADA EXITOSAMENTE")
-	print("[Spawner]   - Posición: ", gem.global_position)
+	print("[Spawner]   - Posición inicial (portal): ", gem.global_position)
+	print("[Spawner]   - Posición destino: ", exercise["end"])
 	print("[Spawner]   - Visible: ", gem.visible)
 	print("[Spawner] ═══════════════════════════════════════════════════")
+
+func _create_portal_spawn_effect(position: Vector3, gem_type: String) -> void:
+	# Efecto visual cuando una gema sale del portal
+	var spawn_particles = CPUParticles3D.new()
+	get_parent().add_child(spawn_particles)
+	spawn_particles.global_position = position
+	spawn_particles.emitting = true
+	spawn_particles.one_shot = true
+	spawn_particles.amount = 30
+	spawn_particles.lifetime = 0.8
+	spawn_particles.explosiveness = 1.0
+	
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.05
+	spawn_particles.mesh = sphere
+	
+	spawn_particles.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	spawn_particles.emission_sphere_radius = 0.5
+	spawn_particles.direction = Vector3.ZERO
+	spawn_particles.gravity = Vector3.ZERO
+	spawn_particles.initial_velocity_min = 1.5
+	spawn_particles.initial_velocity_max = 3.0
+	spawn_particles.scale_amount_min = 0.5
+	spawn_particles.scale_amount_max = 1.5
+	
+	# Color según el tipo de gema
+	var gem_colors = {
+		"normal": Color(0.2, 0.6, 1.0),
+		"golden": Color(1.0, 0.85, 0.0),
+		"green": Color(0.0, 0.9, 0.3),
+		"purple": Color(0.7, 0.0, 1.0),
+		"red": Color(1.0, 0.1, 0.1),
+	}
+	spawn_particles.color = gem_colors.get(gem_type, Color.WHITE)
+	
+	# Limpiar después
+	await get_tree().create_timer(1.0).timeout
+	spawn_particles.queue_free()
 
 func _on_gem_caught(gem) -> void:
 	GameManager.on_gem_spawned()
