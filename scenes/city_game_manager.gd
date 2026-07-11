@@ -200,7 +200,7 @@ func _on_timer_tick() -> void:
 		end_game()
 
 func _spawn_next_targets() -> void:
-	# Sistema de spawneo CONTINUO - spawna de 2 en 2 durante TODO el juego
+	# Sistema de spawneo CONTINUO INFINITO - recicla targets cuando se acaban
 	if not game_active or recognition_phase:
 		print("[CityManager] ⏸️ Spawning pausado (recognition_phase=", recognition_phase, ", game_active=", game_active, ")")
 		return
@@ -210,13 +210,25 @@ func _spawn_next_targets() -> void:
 	
 	var spawn_count = 0
 	var attempts = 0
-	var max_attempts = _targets.size()  # Intentar todos los targets
+	var max_attempts = _targets.size() * 2  # Intentar todos los targets (con margen)
 	
 	# Buscar targets que estén inactivos y listos para spawning
 	while spawn_count < _targets_per_spawn and attempts < max_attempts:
 		if _next_target_index >= _targets.size():
-			_next_target_index = 0  # Reiniciar ciclo
-			print("[CityManager] 🔄 Ciclo reiniciado - volviendo al primer target")
+			# REINICIAR CICLO - REORDENAR Y REASIGNAR SECUENCIAS
+			_next_target_index = 0
+			print("[CityManager] 🔄 CICLO COMPLETADO - Reordenando targets...")
+			
+			# SHUFFLE para nuevo orden aleatorio
+			_targets.shuffle()
+			
+			# REASIGNAR secuencias consecutivas desde el número actual
+			for i in range(_targets.size()):
+				_targets[i].sequence_number = current_sequence_number + i
+				if _targets[i].has_method("update_sequence_label"):
+					_targets[i].update_sequence_label()
+			
+			print("[CityManager] ✅ Targets reordenados. Siguiente secuencia: ", current_sequence_number)
 		
 		var target = _targets[_next_target_index]
 		
@@ -226,7 +238,7 @@ func _spawn_next_targets() -> void:
 			target.visible = true
 			_active_targets.append(target)
 			spawn_count += 1
-			print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
+			print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Secuencia: ", target.sequence_number, ", Color: ", target.target_color, ", Puntos: ", target.points, ")")
 		else:
 			print("[CityManager]   ⏭️ Target ", target.target_id, " ya está activo, saltando...")
 		
@@ -238,7 +250,7 @@ func _spawn_next_targets() -> void:
 	else:
 		print("[CityManager] ⚠️ No se pudieron spawnar targets (todos están activos)")
 	
-	# IMPORTANTE: El timer continúa spawneando durante todo el juego
+	# IMPORTANTE: El timer continúa spawneando INFINITAMENTE durante todo el juego
 
 func collect_target(target_id: int, points: int, target_position: Vector3, sequence_number: int) -> void:
 	if not game_active or recognition_phase:

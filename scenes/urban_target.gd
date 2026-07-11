@@ -34,6 +34,13 @@ func update_sequence_label() -> void:
 	if sequence_number > 0:
 		if _label:
 			_label.text = str(sequence_number)
+			# Actualizar colores según el color del globo
+			if target_color.r > 0.5:  # Globo rojo/amarillo → texto oscuro
+				_label.modulate = Color(0.1, 0.1, 0.1, 1.0)
+				_label.outline_modulate = Color.WHITE
+			else:  # Globo verde/azul → texto claro
+				_label.modulate = Color.WHITE
+				_label.outline_modulate = Color(0.1, 0.1, 0.1, 1.0)
 		else:
 			_create_sequence_label()
 
@@ -144,14 +151,32 @@ func _animate_pulse() -> void:
 func _create_sequence_label() -> void:
 	_label = Label3D.new()
 	add_child(_label)
-	_label.position = Vector3(0, 0, 0.3)  # DELANTE del globo (z positivo)
+	
+	# POSICIÓN: CENTRADO EN EL GLOBO (no flotando encima)
+	_label.position = Vector3(0, 0, 0)  # Centro del globo
 	_label.text = str(sequence_number)
-	_label.font_size = 96  # MÁS GRANDE
-	_label.modulate = Color.WHITE
-	_label.outline_size = 16  # BORDE GRUESO
-	_label.outline_modulate = Color.BLACK
+	_label.font_size = 128  # Grande pero no exagerado
+	
+	# COLORES PROFESIONALES - Contraste con el globo
+	if target_color.r > 0.5:  # Globo rojo/amarillo → texto oscuro
+		_label.modulate = Color(0.1, 0.1, 0.1, 1.0)  # Casi negro
+		_label.outline_size = 8
+		_label.outline_modulate = Color.WHITE
+	else:  # Globo verde/azul → texto claro
+		_label.modulate = Color.WHITE
+		_label.outline_size = 8
+		_label.outline_modulate = Color(0.1, 0.1, 0.1, 1.0)
+	
+	# BILLBOARD para que siempre mire al jugador
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.render_priority = 10  # Renderizar encima de todo
+	
+	# RENDER PRIORITY alto para que se vea SOBRE el globo (no detrás)
+	_label.render_priority = 10
+	
+	# PIXEL SIZE más pequeño para que se integre mejor
+	_label.pixel_size = 0.0015  # Más fino y profesional
+	
+	print("[UrbanTarget] 🏷️ Label de secuencia creado: ", sequence_number, " (integrado en globo)")
 
 func _create_particles() -> void:
 	_particles = CPUParticles3D.new()
