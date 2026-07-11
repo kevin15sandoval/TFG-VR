@@ -113,7 +113,7 @@ func end_game() -> void:
 	
 	var elapsed = Time.get_ticks_msec() / 1000.0 - start_time
 	
-	// Calcular métricas
+	# Calcular métricas
 	var avg_dodge_time = 0.0
 	if dodge_times.size() > 0:
 		var total = 0.0
@@ -142,7 +142,7 @@ func end_game() -> void:
 		"session_type": "Equilibrio y Flexibilidad",
 		"date": Time.get_date_string_from_system(),
 		
-		// Métricas terapéuticas
+		# Métricas terapéuticas
 		"avg_dodge_time": avg_dodge_time,
 		"total_movements": total_lasers,
 		"successful_dodges": lasers_dodged,
