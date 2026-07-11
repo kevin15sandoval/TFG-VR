@@ -540,10 +540,30 @@ func _on_timer_updated(remaining: float) -> void:
 			hud_timer.modulate = Color(0.2, 1.0, 0.4)
 
 func _on_game_finished(results: Dictionary) -> void:
-	print("[CityVR] 🏁 Juego terminado")
+	print("═══════════════════════════════════════════════════════════════")
+	print("🏁 JUEGO TERMINADO - GUARDANDO RESULTADOS")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[CityVR] Juego terminado")
+	print("[CityVR] 📊 RESULTADOS A GUARDAR:")
+	print("  - game_type: ", results.get("game_type", ""))
+	print("  - game_name: ", results.get("game_name", ""))
+	print("  - score: ", results.get("score", 0))
+	print("  - targets_collected: ", results.get("targets_collected", 0))
+	print("  - left_side_targets: ", results.get("left_side_targets", 0))
+	print("  - right_side_targets: ", results.get("right_side_targets", 0))
+	print("  - neglect_score: ", results.get("neglect_score", 0))
+	print("  - patient_id: ", results.get("patient_id", ""))
+	print("  - session_id: ", results.get("session_id", ""))
+	
 	_hide_game_hud()
 	
-	firebase_manager.save_results(results)
+	print("[CityVR] 💾 Llamando a firebase_manager.save_results...")
+	if firebase_manager:
+		print("[CityVR] ✅ firebase_manager existe")
+		firebase_manager.save_results(results)
+		print("[CityVR] ✅ save_results llamado")
+	else:
+		print("[CityVR] ❌ ERROR: firebase_manager es NULL!")
 	
 	if label_status:
 		label_status.visible = true
@@ -559,6 +579,7 @@ func _on_game_finished(results: Dictionary) -> void:
 		var neglect = results.get("neglect_score", 0)
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Negligencia: " + str(int(neglect)) + "/100"
 	
+	print("[CityVR] 🧹 Limpiando sesión activa de Firestore...")
 	_clear_firestore_session()
 	
 	await get_tree().create_timer(5.0).timeout

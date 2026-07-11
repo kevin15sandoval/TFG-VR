@@ -338,12 +338,21 @@ func _add_luggage_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["trunk_mobility_score"] = {"integerValue": str(clinical.get("trunk_mobility", 0))}
 	fields["coordination_score"] = {"integerValue": str(clinical.get("coordination", 0))}
 
-func _on_results_saved(result: int, code: int, _headers, _body: PackedByteArray) -> void:
+func _on_results_saved(result: int, code: int, _headers, body: PackedByteArray) -> void:
+	print("═══════════════════════════════════════════════════════════════")
+	print("📡 RESPUESTA DE FIRESTORE AL GUARDAR")
+	print("═══════════════════════════════════════════════════════════════")
+	print("[Firebase] Result: ", result)
+	print("[Firebase] HTTP Code: ", code)
+	print("[Firebase] Body (primeros 200 chars): ", body.get_string_from_utf8().substr(0, 200))
+	
 	if result == HTTPRequest.RESULT_SUCCESS and (code == 200 or code == 201):
-		print("[Firebase] Resultados guardados correctamente")
+		print("[Firebase] ✅✅✅ RESULTADOS GUARDADOS EXITOSAMENTE EN FIRESTORE ✅✅✅")
 		emit_signal("results_saved")
 	else:
-		print("[Firebase] Error al guardar resultados, código: ", code)
+		print("[Firebase] ❌❌❌ ERROR AL GUARDAR RESULTADOS ❌❌❌")
+		print("[Firebase] Código HTTP: ", code)
+		print("[Firebase] Body completo: ", body.get_string_from_utf8())
 		emit_signal("results_error", "Error HTTP " + str(code))
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
