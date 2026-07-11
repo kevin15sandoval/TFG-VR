@@ -130,6 +130,43 @@ func _process(delta: float) -> void:
 var _hand_distances: Dictionary = {}  # Almacenar distancias de manos para detectar movimiento
 var _last_hand_check: float = 0.0
 
+func _find_hand_controller(side: String) -> Node3D:
+	# Buscar controlador de mano (izquierda o derecha) en el árbol de escena
+	# Intenta múltiples nombres posibles
+	var possible_names = []
+	
+	if side == "left":
+		possible_names = ["LeftHand", "Left_Hand", "left_hand", "LeftController", "HandLeft"]
+	else:  # right
+		possible_names = ["RightHand", "Right_Hand", "right_hand", "RightController", "HandRight"]
+	
+	# Intentar cada nombre posible
+	for name in possible_names:
+		var hand = get_tree().root.find_child(name, true, false)
+		if hand:
+			print("[Gem] ✅ Encontrada mano ", side, " con nombre: ", name)
+			return hand
+	
+	# Si no encontró, buscar por tipo XRController3D con tracker específico
+	var root = get_tree().root
+	for child in _get_all_children(root):
+		if child is XRController3D:
+			var tracker_name = child.tracker.to_lower()
+			if side in tracker_name:
+				print("[Gem] ✅ Encontrada mano ", side, " por tracker: ", child.tracker)
+				return child
+	
+	print("[Gem] ⚠️ NO encontrada mano ", side)
+	return null
+
+func _get_all_children(node: Node) -> Array:
+	# Recursivamente obtener todos los hijos
+	var children = []
+	for child in node.get_children():
+		children.append(child)
+		children.append_array(_get_all_children(child))
+	return children
+
 func _check_preparation_movement(delta: float) -> void:
 	# Sistema de preparación: El jugador debe acercar y alejar la mano (flexión/relajación)
 	# para "activar" la gema antes de poder tocarla
@@ -139,9 +176,9 @@ func _check_preparation_movement(delta: float) -> void:
 		return
 	_last_hand_check = 0.0
 	
-	# Buscar controladores XR (manos)
-	var left_hand = get_tree().root.find_child("LeftHand", true, false)
-	var right_hand = get_tree().root.find_child("RightHand", true, false)
+	# Buscar controladores XR (manos) - MEJORADO
+	var left_hand = _find_hand_controller("left")
+	var right_hand = _find_hand_controller("right")
 	
 	var closest_distance = 999.0
 	var hand_name = ""
@@ -152,6 +189,7 @@ func _check_preparation_movement(delta: float) -> void:
 		if dist < closest_distance:
 			closest_distance = dist
 			hand_name = "left"
+			print("[Gem] 🖐️ Mano izquierda detectada a ", dist, "m")
 	
 	# Calcular distancia a mano derecha
 	if right_hand:
@@ -159,6 +197,7 @@ func _check_preparation_movement(delta: float) -> void:
 		if dist < closest_distance:
 			closest_distance = dist
 			hand_name = "right"
+			print("[Gem] 🖐️ Mano derecha detectada a ", dist, "m")
 	
 	# Si hay una mano cerca (< 1.5m), detectar movimiento de acercar/alejar
 	if closest_distance < 1.5 and hand_name != "":

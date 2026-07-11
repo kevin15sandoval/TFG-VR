@@ -272,6 +272,13 @@ func _process(delta: float) -> void:
 				if time_at_position > 3.0:
 					print("[Spawner] ⏰ Gema ", gem.gem_type, " en posición por ", time_at_position, "s - PERDIENDO")
 					gem.miss()
+			
+			# ═══ DETECTAR SI PASÓ DE LARGO SIN TOCAR ═══
+			# Si la gema pasó DETRÁS del jugador (coordenada Z positiva)
+			var player_z = 0.0  # Asumiendo jugador en Z=0
+			if gem.global_position.z > player_z + 2.0:  # 2m detrás del jugador
+				print("[Spawner] ❌ Gema ", gem.gem_type, " PASÓ DE LARGO - Eliminando")
+				gem.miss()  # Ejecutar sonido de error y eliminar
 
 func _on_spawn_timer() -> void:
 	if not GameManager.session_active:
@@ -319,9 +326,12 @@ func _spawn_next() -> void:
 	
 	# ═══ HACER QUE LA GEMA SALGA DEL PORTAL ═══
 	if _portal:
-		# Posición inicial = Portal
+		# Posición inicial = Portal (ignorar exercise["start"])
 		gem.global_position = _portal.global_position
 		print("[Spawner]   🌀 Gema spawneada DESDE EL PORTAL: ", _portal.global_position)
+		
+		# Actualizar exercise_data con nueva posición de inicio (portal)
+		gem.exercise_data["start"] = _portal.global_position
 		
 		# Efecto visual de salida del portal
 		_create_portal_spawn_effect(gem.global_position, gem.gem_type)
