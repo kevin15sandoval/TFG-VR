@@ -1,37 +1,31 @@
 extends Node
 # ─────────────────────────────────────────────────────────────────────────────
-# VaultGameManager — Gestor del juego Laser Vault Escape
-# Coordina láser, paneles, puntuación y métricas terapéuticas
+# VaultGameManager — Gestor del juego Laser Limbo Escape
+# El jugador esquiva láseres que avanzan hacia él (tipo LIMBO)
 # ─────────────────────────────────────────────────────────────────────────────
 
 signal game_started
 signal game_finished(results: Dictionary)
-signal panel_collected(panel_id: int, points: int)
+signal laser_dodged(points: int)
 signal laser_hit
 signal timer_updated(remaining: float)
 
 var game_active: bool = false
 var score: int = 0
 var laser_hits: int = 0
-var panels_collected: int = 0
-var total_panels: int = 0
+var lasers_dodged: int = 0
 var start_time: float = 0.0
 var game_duration: float = 180.0  # 3 minutos por defecto
 var difficulty: String = "Media"
 
 # Métricas terapéuticas
-var panel_times: Array[float] = []
-var movement_range_vertical: Dictionary = {"max": 0.0, "min": 999.0}
-var crosses_midline: int = 0
-var last_panel_side: String = ""
+var dodge_times: Array[float] = []
+var hit_positions: Array[Vector3] = []
 
-# Referencias a nodos
-var _panels: Array = []
-var _lasers: Array = []
 var _timer: Timer
 
 func _ready() -> void:
-	print("[VaultManager] 🔐 Vault Game Manager inicializado")
+	print("[VaultManager] 🔐 Vault Limbo Manager inicializado")
 	
 	_timer = Timer.new()
 	add_child(_timer)
@@ -44,7 +38,8 @@ func _ready() -> void:
 		GameManager.session_finished.connect(_on_game_finished)
 
 func _on_session_started() -> void:
-	print("[VaultManager] 🚀 Iniciando juego Vault Escape")
+	print("[VaultManager] 🚀 Iniciando juego Laser Limbo")
+	await get_tree().create_timer(0.5).timeout
 	start_game()
 
 func start_game() -> void:
@@ -54,11 +49,9 @@ func start_game() -> void:
 	game_active = true
 	score = 0
 	laser_hits = 0
-	panels_collected = 0
-	panel_times.clear()
-	movement_range_vertical = {"max": 0.0, "min": 999.0}
-	crosses_midline = 0
-	last_panel_side = ""
+	lasers_dodged = 0
+	dodge_times.clear()
+	hit_positions.clear()
 	
 	# Aplicar configuración de GameManager
 	if GameManager:
@@ -83,41 +76,25 @@ func _on_timer_tick() -> void:
 	if remaining <= 0:
 		end_game()
 
-func collect_panel(panel_id: int, points: int, panel_position: Vector3) -> void:
+func add_dodge_points(points: int) -> void:
 	if not game_active:
 		return
 	
-	panels_collected += 1
+	lasers_dodged += 1
 	score += points
 	
-	# Registrar tiempo del panel
-	var panel_time = Time.get_ticks_msec() / 1000.0 - start_time
-	panel_times.append(panel_time)
+	var dodge_time = Time.get_ticks_msec() / 1000.0 - start_time
+	dodge_times.append(dodge_time)
 	
-	# Registrar rango vertical
-	movement_range_vertical["max"] = max(movement_range_vertical["max"], panel_position.y)
-	movement_range_vertical["min"] = min(movement_range_vertical["min"], panel_position.y)
-	
-	# Detectar cruce de línea media
-	var current_side = "left" if panel_position.x < 0 else "right"
-	if last_panel_side != "" and last_panel_side != current_side:
-		crosses_midline += 1
-	last_panel_side = current_side
-	
-	panel_collected.emit(panel_id, points)
-	print("[VaultManager] ✅ Panel ", panel_id, " recogido | Score: ", score)
-	
-	# Verificar si se recogieron todos los paneles
-	if panels_collected >= total_panels:
-		print("[VaultManager] 🎉 ¡Todos los paneles recogidos!")
-		end_game()
+	laser_dodged.emit(points)
+	print("[VaultManager] ✅ Láser esquivado +", points, " | Score: ", score, " | Total esquivados: ", lasers_dodged)
 
 func register_laser_hit() -> void:
 	if not game_active:
 		return
 	
 	laser_hits += 1
-	score = max(0, score - 10)  # Penalización
+	score = max(0, score - 15)  # Penalización mayor
 	
 	laser_hit.emit()
 	print("[VaultManager] ⚡ Láser tocado! Hits: ", laser_hits, " | Score: ", score)
@@ -136,71 +113,59 @@ func end_game() -> void:
 	
 	var elapsed = Time.get_ticks_msec() / 1000.0 - start_time
 	
-	# Calcular métricas
-	var avg_time_per_panel = 0.0
-	if panel_times.size() > 0:
-		var total_time = 0.0
-		for t in panel_times:
-			total_time += t
-		avg_time_per_panel = total_time / panel_times.size()
+	// Calcular métricas
+	var avg_dodge_time = 0.0
+	if dodge_times.size() > 0:
+		var total = 0.0
+		for t in dodge_times:
+			total += t
+		avg_dodge_time = total / dodge_times.size()
 	
-	var vertical_range = movement_range_vertical["max"] - movement_range_vertical["min"]
-	var precision = 100.0 * float(panels_collected) / float(max(1, total_panels))
-	var completion = 100.0 * float(panels_collected) / float(max(1, total_panels))
+	var dodge_rate = 0.0
+	var total_lasers = lasers_dodged + laser_hits
+	if total_lasers > 0:
+		dodge_rate = (float(lasers_dodged) / float(total_lasers)) * 100.0
 	
 	var results = {
 		"game_type": "vault_escape",
-		"game_name": "Laser Vault Escape",
+		"game_name": "Laser Limbo Escape",
 		"score": score,
-		"panels_collected": panels_collected,
-		"total_panels": total_panels,
+		"lasers_dodged": lasers_dodged,
 		"laser_hits": laser_hits,
-		"completion_percentage": completion,
+		"dodge_rate_percentage": dodge_rate,
 		"time_elapsed": elapsed,
 		"difficulty": difficulty,
-		"patient_id": GameManager.patient_id,
-		"patient_name": GameManager.patient_name,
-		"session_id": GameManager.session_id,
-		"therapy_side": GameManager.therapy_side,
-		"session_type": GameManager.session_type,
+		"patient_id": GameManager.patient_id if GameManager else "",
+		"patient_name": GameManager.patient_name if GameManager else "",
+		"session_id": GameManager.session_id if GameManager else "",
+		"therapy_side": GameManager.therapy_side if GameManager else "Ambos",
+		"session_type": "Equilibrio y Flexibilidad",
+		"date": Time.get_date_string_from_system(),
 		
-		# Métricas terapéuticas
-		"avg_time_per_panel": avg_time_per_panel,
-		"vertical_range_meters": vertical_range,
-		"crosses_midline": crosses_midline,
-		"precision_percentage": precision,
-		"panel_times": panel_times,
+		// Métricas terapéuticas
+		"avg_dodge_time": avg_dodge_time,
+		"total_movements": total_lasers,
+		"successful_dodges": lasers_dodged,
+		"failed_dodges": laser_hits,
 		
 		# Datos clínicos
-		"motor_control_score": max(0, 100 - (laser_hits * 10)),
-		"planning_score": int(100.0 / max(1.0, avg_time_per_panel / 10.0)),
-		"spatial_awareness_score": crosses_midline * 10,
+		"motor_control_score": max(0, 100 - (laser_hits * 15)),
+		"reaction_time_score": int(max(0, 100 - avg_dodge_time * 10)),
+		"flexibility_score": int(dodge_rate),
 	}
 	
 	game_finished.emit(results)
 	print("[VaultManager] 🏁 Juego terminado")
 	print("  Score: ", score)
-	print("  Paneles: ", panels_collected, "/", total_panels)
-	print("  Toques láser: ", laser_hits)
+	print("  Láseres esquivados: ", lasers_dodged)
+	print("  Toques: ", laser_hits)
+	print("  Tasa de éxito: ", "%.1f" % dodge_rate, "%")
 	print("  Tiempo: ", "%.1f" % elapsed, "s")
-	print("  Rango vertical: ", "%.2f" % vertical_range, "m")
-	print("  Cruces línea media: ", crosses_midline)
 	
 	# Enviar a GameManager si existe
 	if GameManager and GameManager.session_active:
 		GameManager.session_active = false
 		GameManager.session_finished.emit(results)
-
-func register_panel(panel: Node) -> void:
-	_panels.append(panel)
-	total_panels += 1
-	panel.panel_activated.connect(func(id, pts): 
-		collect_panel(id, pts, panel.global_position)
-	)
-
-func register_laser(laser: Node) -> void:
-	_lasers.append(laser)
-	laser.player_hit.connect(register_laser_hit)
 
 func _on_game_finished(_results: Dictionary) -> void:
 	# Cleanup si es necesario

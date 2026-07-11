@@ -1,12 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://50abf907c26e5032"]
+[gd_scene load_steps=2 format=3 uid="uid://laser_beam_scene"]
 
 [ext_resource type="Script" path="res://scenes/laser_beam.gd" id="1"]
 
 [node name="LaserBeam" type="Node3D"]
 script = ExtResource("1")
-laser_length = 5.0
-laser_thickness = 0.05
-move_speed = 0.5
-move_range = 2.0
-blink_enabled = false
-blink_interval = 1.0

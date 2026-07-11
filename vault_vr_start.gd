@@ -49,12 +49,9 @@ func _ready() -> void:
 	# Conectar señales del VaultGameManager
 	vault_manager.game_started.connect(_on_game_started)
 	vault_manager.game_finished.connect(_on_game_finished)
-	vault_manager.panel_collected.connect(_on_panel_collected)
+	vault_manager.laser_dodged.connect(_on_laser_dodged)
 	vault_manager.laser_hit.connect(_on_laser_hit)
 	vault_manager.timer_updated.connect(_on_timer_updated)
-	
-	# Registrar paneles y láser con el manager
-	_register_game_elements()
 	
 	# Conectar GameManager global
 	GameManager.session_started.connect(_on_session_started)
@@ -90,21 +87,6 @@ func _init_openxr() -> void:
 	if xr.is_initialized():
 		get_viewport().use_xr = true
 		print("[VaultVR] ✅ OpenXR activo")
-
-func _register_game_elements() -> void:
-	# Registrar todos los paneles de control
-	var panels_node = get_node_or_null("ControlPanels")
-	if panels_node:
-		for panel in panels_node.get_children():
-			vault_manager.register_panel(panel)
-		print("[VaultVR] ✅ Registrados ", panels_node.get_child_count(), " paneles")
-	
-	# Registrar todos los láser
-	var lasers_node = get_node_or_null("LaserSetup")
-	if lasers_node:
-		for laser in lasers_node.get_children():
-			vault_manager.register_laser(laser)
-		print("[VaultVR] ✅ Registrados ", lasers_node.get_child_count(), " láser")
 
 # ─── UI DE SALA DE ESPERA ─────────────────────────────────────────────────────
 
@@ -181,18 +163,18 @@ func _create_game_hud() -> void:
 	xr_camera.add_child(hud_instruction)
 	print("[VaultVR]   ✅ Instruction HUD creado")
 	
-	# Indicador de gemas perdidas (centro superior)
+	# Indicador de vidas (centro superior)
 	hud_laser_hits = Label3D.new()
 	hud_laser_hits.pixel_size = 0.002
 	hud_laser_hits.position = Vector3(0, 0.5, -1.2)
 	hud_laser_hits.font_size = 40
-	hud_laser_hits.modulate = Color(1.0, 0.8, 0.2)
+	hud_laser_hits.modulate = Color(1.0, 0.2, 0.2)
 	hud_laser_hits.outline_size = 6
 	hud_laser_hits.outline_modulate = Color.BLACK
 	hud_laser_hits.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_laser_hits.visible = false
 	xr_camera.add_child(hud_laser_hits)
-	print("[VaultVR]   ✅ Gems info HUD creado")
+	print("[VaultVR]   ✅ Lives HUD creado")
 	
 	print("[VaultVR] ✅ HUD completo inicializado")
 
@@ -297,12 +279,12 @@ func _show_game_hud() -> void:
 		print("[VaultVR]   ✅ Timer visible")
 	if hud_instruction:
 		hud_instruction.visible = true
-		hud_instruction.text = "¡Agarra las gemas que vienen hacia ti!"
+		hud_instruction.text = "¡Esquiva los láseres que vienen hacia ti!"
 		print("[VaultVR]   ✅ Instruction visible")
 	if hud_laser_hits:
 		hud_laser_hits.visible = true
-		hud_laser_hits.text = "💎 Gemas: 0"
-		print("[VaultVR]   ✅ Gems info visible")
+		hud_laser_hits.text = "❤️❤️❤️❤️❤️"
+		print("[VaultVR]   ✅ Lives visible")
 
 func _hide_game_hud() -> void:
 	if hud_score:
@@ -355,7 +337,7 @@ func _on_session_started() -> void:
 	print("[VaultVR] ▶ Sesión iniciada")
 	_show_game_hud()
 	if label_status:
-		label_status.text = "¡ESCAPANDO!"
+		label_status.text = "¡ESQUIVA LOS LÁSERES!"
 		label_status.modulate = Color(1.0, 0.0, 0.0)
 		label_status.visible = true
 		await get_tree().create_timer(2.0).timeout
@@ -364,37 +346,23 @@ func _on_session_started() -> void:
 func _on_game_started() -> void:
 	print("[VaultVR] 🔐 Vault game started")
 
-func _on_panel_collected(panel_id: int, points: int) -> void:
-	# Esta función ahora maneja gemas, no paneles
+func _on_laser_dodged(points: int) -> void:
+	# Láser esquivado exitosamente
 	if hud_score and vault_manager:
 		hud_score.text = str(vault_manager.score) + " pts"
-		print("[VaultVR] 🎯 Score actualizado: ", vault_manager.score, " pts")
+		print("[VaultVR] ✅ Láser esquivado! +", points, " pts | Total: ", vault_manager.score)
 		
-		# Feedback visual más fuerte - IGUAL QUE CITYWORLD
+		# Feedback visual
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.5, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.15)
 		
-		# Flash de color según puntos - IGUAL QUE CITYWORLD
+		# Flash verde (éxito)
 		var original_color = hud_score.modulate
-		if points >= 25:  # Dorado
-			hud_score.modulate = Color(1.0, 0.85, 0.0)
-		elif points >= 15:  # Morado/Verde
-			hud_score.modulate = Color(0.7, 0.0, 1.0)
-		else:  # Normal
-			hud_score.modulate = Color(0.2, 1.0, 0.3)
+		hud_score.modulate = Color(0.2, 1.0, 0.3)
 		
 		var color_tween = create_tween()
 		color_tween.tween_property(hud_score, "modulate", original_color, 0.5).set_delay(0.2)
-	
-	# Actualizar contador de gemas
-	if hud_laser_hits and vault_manager:
-		var gems_count = 0
-		if vault_manager.has("gems_collected"):
-			gems_count = vault_manager.gems_collected
-		hud_laser_hits.text = "💎 Gemas: " + str(gems_count)
-	
-	print("[VaultVR] ✅ Gema recogida +", points, " pts | Total: ", vault_manager.score if vault_manager else 0)
 
 func _on_laser_hit() -> void:
 	if hud_laser_hits and vault_manager:
@@ -446,16 +414,20 @@ func _on_game_finished(results: Dictionary) -> void:
 	# Mostrar resultado
 	if label_status:
 		label_status.visible = true
-		if results.get("completion_percentage", 0) >= 100:
-			label_status.text = "🎉 ¡ESCAPASTE!"
+		var dodge_rate = results.get("dodge_rate_percentage", 0)
+		if dodge_rate >= 80:
+			label_status.text = "🎉 ¡EXCELENTE!"
 			label_status.modulate = Color(0.2, 1.0, 0.2)
+		elif dodge_rate >= 50:
+			label_status.text = "✅ ¡BIEN HECHO!"
+			label_status.modulate = Color(0.2, 1.0, 0.8)
 		else:
 			label_status.text = "⏰ TIEMPO AGOTADO"
 			label_status.modulate = Color(1.0, 0.5, 0.0)
 	
 	if label_info:
 		label_info.visible = true
-		label_info.text = "Score: " + str(results.get("score", 0)) + " | Paneles: " + str(results.get("panels_collected", 0)) + "/" + str(results.get("total_panels", 0))
+		label_info.text = "Score: " + str(results.get("score", 0)) + " | Esquivados: " + str(results.get("lasers_dodged", 0)) + " | Tocados: " + str(results.get("laser_hits", 0))
 	
 	print("[VaultVR] 🧹 Limpiando sesión activa de Firestore...")
 	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
