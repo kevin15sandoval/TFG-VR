@@ -1,0 +1,7 @@
+c5ff3698|Arreglar archivos tscn: Reemplazar preload() con ExtResource() para evitar errores de parsing
+e9bfd549|Arreglar UIDs de modelos en todos los mundos - Usar UIDs correctos de archivos .import
+ba5881ff|Arreglar visibilidad de iluminación en todos los mundos - Añadir visible=true explícito a DirectionalLight3D
+328e574b|Arreglar iluminación: Añadir Sky, aumentar energía ambiental, añadir OmniLights a todos los mundos
+b302c160|Añadir presets de exportación y escena de nariz
+454fe669|CityWorld: Reducir iluminación, spawneo gradual de targets (2 en 2), sistema de colores/puntos (verde=10, amarillo=20, rojo=30) y feedback visual/sonoro mejorado
+e35c532f|CityWorld: Regresar al HubWorld después del juego y guardar métricas específicas (negligencia, ROM cervical, scores clínicos)

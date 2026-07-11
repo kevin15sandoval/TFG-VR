@@ -25,6 +25,16 @@ import {
 } from "./db";
 import { collection, query, where, limit, onSnapshot } from "firebase/firestore";
 
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPORTS MODULARIZADOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { cx, getInitials, formatDate } from "./utils/helpers";
+import { AVATAR_COLORS, SIDES, DIFFICULTIES, HEIGHTS, SESSION_TYPES, DURATIONS } from "./constants";
+import { MINIGAMES, GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
+import { usePagination } from "./hooks/usePagination";
+import { AvatarIcon, Badge, Card, Modal, ProgressBar } from "./components/shared";
+
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
 // Patient, SessionRecord, SessionConfig, Screen
 
@@ -565,174 +575,27 @@ const GAME_SPECIFICATIONS: Record<string, any> = {
   },
 };
 
-const AVATAR_COLORS = [
-  "bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700",
-  "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700",
-  "bg-pink-100 text-pink-700", "bg-teal-100 text-teal-700",
-];
+// NOTA: AVATAR_COLORS, SIDES, DIFFICULTIES, etc. ahora están en ./constants.ts
+// NOTA: GAME_CONFIG_FIELDS ahora está en ./config/gameConfig.ts
+// NOTA: Funciones cx(), getInitials(), formatDate() ahora están en ./utils/helpers.ts
 
 const DIAGNOSES = ["Ictus isquémico", "Ictus hemorrágico", "AIT recurrente", "Ictus lacunar", "Hemorragia subaracnoidea"];
-const SIDES = ["Izquierdo", "Derecho", "Ambos"];
-const DIFFICULTIES = ["Fácil", "Media", "Difícil"];
-const HEIGHTS = ["Baja", "Media", "Alta", "Mixta"];
-const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco", "Planificación motora", "Navegación espacial", "Fuerza"];
-const DURATIONS = [1, 3, 5, 10];
-
-// ─── CONFIGURACIÓN ESPECÍFICA POR JUEGO ───────────────────────────────────────
-// Define qué parámetros son relevantes para cada juego
-
-const GAME_CONFIG_FIELDS: Record<string, {
-  duration: boolean;
-  therapySide: boolean;
-  difficulty: boolean;
-  heightMode: boolean;
-  sessionType: boolean;
-  customFields?: Array<{
-    key: string;
-    label: string;
-    Icon: any;
-    iconBg: string;
-    iconColor: string;
-    options: Array<{ val: string; label: string }>;
-  }>;
-}> = {
-  // Recolectar gemas - juego clásico de alcance
-  gems: {
-    duration: true,
-    therapySide: true,  // Importante: trabaja un lado específico
-    difficulty: true,
-    heightMode: true,   // Importante: altura de los objetivos
-    sessionType: true,
-  },
-  
-  // Urban Attention Quest - negligencia espacial y rotación cervical
-  urban_attention_quest: {
-    duration: true,
-    therapySide: false,  // NO necesita lado (trabaja ambos con rotación 360°)
-    difficulty: true,
-    heightMode: false,   // NO necesita altura (targets distribuidos en espacio 3D)
-    sessionType: false,  // Tipo fijo: Navegación espacial
-    customFields: [
-      {
-        key: "neglectFocus",
-        label: "Enfoque de negligencia",
-        Icon: Crosshair,
-        iconBg: "bg-cyan-100",
-        iconColor: "text-cyan-600",
-        options: [
-          { val: "balanced", label: "Balanceado" },
-          { val: "left_emphasis", label: "Énfasis izquierdo" },
-          { val: "right_emphasis", label: "Énfasis derecho" },
-          { val: "posterior_emphasis", label: "Énfasis posterior" },
-        ],
-      },
-    ],
-  },
-  
-  // Laser Vault Escape - planificación y memoria espacial
-  vault_escape: {
-    duration: true,
-    therapySide: false,  // Bilateral (ambas manos)
-    difficulty: true,
-    heightMode: true,    // Altura de paneles es importante
-    sessionType: false,  // Tipo fijo: Planificación motora
-    customFields: [
-      {
-        key: "laserPattern",
-        label: "Patrón de láser",
-        Icon: Zap,
-        iconBg: "bg-purple-100",
-        iconColor: "text-purple-600",
-        options: [
-          { val: "static", label: "Estático" },
-          { val: "moving", label: "Móvil" },
-          { val: "blinking", label: "Parpadeante" },
-        ],
-      },
-    ],
-  },
-  
-  // Luggage Handler - fuerza y resistencia
-  luggage_handler: {
-    duration: true,
-    therapySide: false,  // Bilateral (rotación de tronco)
-    difficulty: true,
-    heightMode: false,
-    sessionType: false,  // Tipo fijo: Fuerza y resistencia
-    customFields: [
-      {
-        key: "weightRange",
-        label: "Rango de peso",
-        Icon: Layers,
-        iconBg: "bg-orange-100",
-        iconColor: "text-orange-600",
-        options: [
-          { val: "light", label: "Ligero (1-3kg)" },
-          { val: "medium", label: "Medio (3-5kg)" },
-          { val: "heavy", label: "Pesado (5-7kg)" },
-        ],
-      },
-    ],
-  },
-  
-  // Valores por defecto para juegos sin configuración específica
-  default: {
-    duration: true,
-    therapySide: true,
-    difficulty: true,
-    heightMode: true,
-    sessionType: true,
-  },
-};
 
 const DEFAULT_CONFIG: SessionConfig = {
   patientId: null, duration: 5, therapySide: "Izquierdo",
   difficulty: "Media", heightMode: "Media", sessionType: "Alcance", selectedGame: "",
 };
 
-function cx(...cls: (string | false | null | undefined)[]) {
-  return cls.filter(Boolean).join(" ");
-}
+// NOTA: Funciones cx(), getInitials(), formatDate() ahora están en ./utils/helpers.ts
 
-function getInitials(name: string) {
-  const parts = name.trim().split(" ").filter(Boolean);
-  if (parts.length === 0) return "??";
-  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
-}
+// ─── MINIGAMES — importado desde ./config/gameConfig.ts ──────────────────────
+// MINIGAMES array ahora en config/gameConfig.ts
 
-function formatDate(d: Date) {
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
-}
+// ─── UTILIDADES ────────────────────────────────────────────────────────────────
+// Ya importadas desde módulos
 
-// ─── UTILITIES ────────────────────────────────────────────────────────────────
-
-// ─── SHARED UI COMPONENTS ─────────────────────────────────────────────────────
-
-function AvatarIcon({ initials, colorIdx = 0, size = "md" }: { initials: string; colorIdx?: number; size?: "sm" | "md" | "lg" }) {
-  const sizes = { sm: "w-8 h-8 text-xs", md: "w-10 h-10 text-sm", lg: "w-12 h-12 text-base" };
-  return (
-    <div className={cx("rounded-full flex items-center justify-center font-bold flex-shrink-0", sizes[size], AVATAR_COLORS[colorIdx % AVATAR_COLORS.length])}>
-      {initials}
-    </div>
-  );
-}
-
-function Badge({ children, color = "blue" }: { children: React.ReactNode; color?: string }) {
-  const map: Record<string, string> = {
-    blue: "bg-blue-100 text-blue-700", green: "bg-emerald-100 text-emerald-700",
-    purple: "bg-violet-100 text-violet-700", amber: "bg-amber-100 text-amber-700",
-    red: "bg-rose-100 text-rose-700", gray: "bg-slate-100 text-slate-600",
-  };
-  return <span className={cx("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold", map[color] ?? map.blue)}>{children}</span>;
-}
-
-function ProgressBar({ value, colorClass = "bg-emerald-500" }: { value: number; colorClass?: string }) {
-  return (
-    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-      <div className={cx("h-full rounded-full transition-all duration-700", colorClass)} style={{ width: `${Math.min(value, 100)}%` }} />
-    </div>
-  );
-}
+// ─── COMPONENTES UI COMPARTIDOS ───────────────────────────────────────────────
+// Ya importados desde ./components/shared
 
 function OptionPill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
