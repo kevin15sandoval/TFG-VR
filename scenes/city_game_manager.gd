@@ -223,11 +223,12 @@ func collect_target(target_id: int, points: int, target_position: Vector3, seque
 	# Verificar secuencia
 	if sequence_number > 0:  # Solo si tiene secuencia
 		if sequence_number != current_sequence_number:
-			# Error de secuencia
+			# Error de secuencia - PENALIZACIÓN
 			sequence_errors += 1
 			score = max(0, score - 5)
 			sequence_error.emit(current_sequence_number, sequence_number)
 			print("[CityManager] ❌ Error de secuencia! Esperado: ", current_sequence_number, ", Tocado: ", sequence_number)
+			_play_error_sound()  # SONIDO DE ERROR
 			return
 		else:
 			current_sequence_number += 1
@@ -567,3 +568,28 @@ func _generate_clinical_recommendations(
 		recommendations.append("Rendimiento dentro de parámetros funcionales. Continuar progresión a mayor dificultad.")
 	
 	return recommendations
+
+func _play_error_sound() -> void:
+	# Sonido de error/desaprobación (buzzer)
+	var audio = AudioStreamPlayer.new()
+	add_child(audio)
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Buzzer desagradable (200Hz bajo)
+		var frames = int(generator.mix_rate * 0.4)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var envelope = 0.6 * (1.0 - t / 0.4)
+			var sample = sin(t * 200.0 * TAU) * envelope  # Tono bajo y desagradable
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.5).timeout
+	audio.queue_free()

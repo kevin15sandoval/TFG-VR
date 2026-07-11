@@ -114,37 +114,36 @@ func _setup_vr_quality() -> void:
 		print("[CityVR] ⚠️ OpenXR no disponible, saltando configuración de calidad")
 		return
 	
-	# ═══ SOLUCIÓN ANTI-THROTTLING ═══
-	# CityWorld (procedural_city_5.glb) es MUY pesado, igual que HubWorld
-	# Usar EXACTAMENTE la misma configuración que funcionó en HubWorld
+	# ═══ SOLUCIÓN ANTI-THROTTLING MÁS AGRESIVA ═══
+	# CityWorld es MUY pesado, necesita configuración más conservadora
 	
-	# 1. Eliminar super-sampling (1.7x → 1.0x nativo)
+	# 1. Eliminar super-sampling completamente
 	var viewport = get_viewport()
 	if viewport:
-		viewport.scaling_3d_scale = 1.0  # Resolución nativa, sin super-sampling
-		print("[CityVR]   ✅ Super-sampling: DESACTIVADO (1.0x nativo)")
+		viewport.scaling_3d_scale = 0.9  # Ligeramente bajo resolución nativa para mayor estabilidad
+		print("[CityVR]   ✅ Resolución: 0.9x (conservador)")
 	
-	# 2. Activar Foveated Rendering (CRÍTICO para escenas pesadas)
+	# 2. Foveated Rendering MÁS ALTO (nivel 3)
 	if xr_interface.is_foveation_supported():
-		xr_interface.foveation_level = 2  # Medio (balance perfecto)
-		xr_interface.foveation_dynamic = true  # Se adapta a la carga
-		print("[CityVR]   ✅ Foveated Rendering: NIVEL 2 (medio, dinámico)")
+		xr_interface.foveation_level = 3  # ALTO - más ahorro
+		xr_interface.foveation_dynamic = true
+		print("[CityVR]   ✅ Foveated Rendering: NIVEL 3 (alto, dinámico)")
 	else:
 		print("[CityVR]   ⚠️ Foveated Rendering no soportado")
 	
-	# 3. MSAA optimizado (8x → 4x)
+	# 3. MSAA más bajo
 	if viewport:
-		viewport.msaa_3d = Viewport.MSAA_4X  # Reduce carga sin perder mucha calidad
-		print("[CityVR]   ✅ MSAA: 4X (optimizado)")
+		viewport.msaa_3d = Viewport.MSAA_2X  # Más bajo para estabilidad
+		print("[CityVR]   ✅ MSAA: 2X (conservador)")
 		
-		# Anti-aliasing adicional (TAA + FXAA)
+		# Anti-aliasing adicional
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
 		viewport.use_taa = true
 		print("[CityVR]   ✅ TAA + FXAA: ACTIVADO")
 	
-	print("[CityVR] ✅ Configuración VR optimizada para escenas pesadas")
-	print("[CityVR]   → Previene sobrecalentamiento y throttling")
-	print("[CityVR]   → Calidad estable durante toda la sesión")
+	print("[CityVR] ✅ Configuración VR ULTRA-OPTIMIZADA para escenas pesadas")
+	print("[CityVR]   → Máxima estabilidad térmica")
+	print("[CityVR]   → Calidad constante sin degradación")
 
 func _register_targets() -> void:
 	var targets_node = get_node_or_null("UrbanTargets")
@@ -527,10 +526,16 @@ func _on_timer_updated(remaining: float) -> void:
 		
 		if hud_instruction:
 			hud_instruction.text = "Observa el entorno. El ejercicio comenzará pronto..."
+			hud_instruction.visible = true
 	else:
+		# FASE DE JUEGO - Cambiar instrucción
 		var m = int(remaining) / 60
 		var s = int(remaining) % 60
 		hud_timer.text = "%02d:%02d" % [m, s]
+		
+		if hud_instruction:
+			hud_instruction.text = "¡Mira las señales 2 segundos para activarlas!"
+			hud_instruction.visible = true
 		
 		if remaining < 30:
 			hud_timer.modulate = Color(1.0, 0.2, 0.2)

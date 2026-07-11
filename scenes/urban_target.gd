@@ -134,13 +134,14 @@ func _animate_pulse() -> void:
 func _create_sequence_label() -> void:
 	_label = Label3D.new()
 	add_child(_label)
-	_label.position = Vector3(0, 0.4, 0)
+	_label.position = Vector3(0, 0, 0.3)  # DELANTE del globo (z positivo)
 	_label.text = str(sequence_number)
-	_label.font_size = 64
+	_label.font_size = 96  # MÁS GRANDE
 	_label.modulate = Color.WHITE
-	_label.outline_size = 12
+	_label.outline_size = 16  # BORDE GRUESO
 	_label.outline_modulate = Color.BLACK
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.render_priority = 10  # Renderizar encima de todo
 
 func _create_particles() -> void:
 	_particles = CPUParticles3D.new()
