@@ -357,14 +357,15 @@ func _spawn_next() -> void:
 	
 	# ═══ HACER QUE LA GEMA SALGA DEL PORTAL CON VARIACIÓN DE POSICIÓN ═══
 	if _portal:
-		# ⭐ VARIACIÓN ALEATORIA para ejercicio de ALCANCE
-		var offset_x = randf_range(-1.5, 1.5)  # ±1.5m horizontal (izq/der)
-		var offset_y = randf_range(-0.8, 0.8)  # ±0.8m vertical (arriba/abajo)
+		# ⭐ VARIACIÓN ALEATORIA AUMENTADA para ejercicio de ALCANCE
+		var offset_x = randf_range(-2.5, 2.5)  # ±2.5m horizontal (izq/der) - MÁS AMPLIO
+		var offset_y = randf_range(-1.2, 1.2)  # ±1.2m vertical (arriba/abajo) - MÁS AMPLIO
+		var offset_z = randf_range(-0.5, 0.5)  # ±0.5m profundidad - NUEVA dimensión
 		
 		# Posición inicial = Portal + variación aleatoria
-		gem.global_position = _portal.global_position + Vector3(offset_x, offset_y, 0)
+		gem.global_position = _portal.global_position + Vector3(offset_x, offset_y, offset_z)
 		print("[Spawner]   🌀 Gema spawneada DESDE EL PORTAL: ", gem.global_position)
-		print("[Spawner]   📐 Offset aplicado: X=", offset_x, " Y=", offset_y)
+		print("[Spawner]   📐 Offset aplicado: X=", offset_x, " Y=", offset_y, " Z=", offset_z)
 		
 		# Actualizar exercise_data con nueva posición de inicio (portal + offset)
 		gem.exercise_data["start"] = gem.global_position

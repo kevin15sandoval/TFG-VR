@@ -100,7 +100,7 @@ environment = SubResource("Environment_p1v5b")
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 1.7, 0)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1252140784]
-transform = Transform3D(0.025949992, -6.7031375e-05, 0.99966323, 0.0025830844, 0.99999666, 1.2475192e-10, -0.9996599, 0.0025822145, 0.02595008, 3.6179173, 0.024764597, -0.1434173)
+transform = Transform3D(0.025949992, -6.7031375e-05, 0.99966323, 0.0025830844, 0.99999666, 1.2956329e-10, -0.9996599, 0.0025822145, 0.025950078, 3.6179173, -0.850942, -0.104019254)
 current = true
 fov = 82.1773
 
@@ -109,12 +109,10 @@ tracker = &"left_hand"
 pose = &"grip"
 
 [node name="LeftHandMesh" type="MeshInstance3D" parent="XROrigin3D/LeftHand" unique_id=774290251]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("SphereMesh_lefthand")
 surface_material_override/0 = SubResource("StandardMaterial3D_lefthand")
 
 [node name="LeftHandTrail" type="CPUParticles3D" parent="XROrigin3D/LeftHand" unique_id=1795049184]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 amount = 30
 lifetime = 0.5
 mesh = SubResource("SphereMesh_trail")
@@ -137,12 +135,10 @@ tracker = &"right_hand"
 pose = &"grip"
 
 [node name="RightHandMesh" type="MeshInstance3D" parent="XROrigin3D/RightHand" unique_id=387648289]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("SphereMesh_righthand")
 surface_material_override/0 = SubResource("StandardMaterial3D_righthand")
 
 [node name="RightHandTrail" type="CPUParticles3D" parent="XROrigin3D/RightHand" unique_id=1745199968]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 amount = 30
 lifetime = 0.5
 mesh = SubResource("SphereMesh_trail")
@@ -158,7 +154,6 @@ color = Color(1, 0.4, 0.2, 0.6)
 collision_layer = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="XROrigin3D/RightHand/RightHandArea" unique_id=1101107487]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 shape = SubResource("SphereShape3D_righthand")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=656998741]
@@ -171,7 +166,6 @@ shape = SubResource("BoxShape3D_c6gwx")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0928004, -0.69858927, -0.1055274)
 
 [node name="GemSpawner" type="Node3D" parent="." unique_id=290295990]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("3_eu7l1")
 gem_scene = ExtResource("5_p1v5b")
 

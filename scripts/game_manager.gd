@@ -36,8 +36,8 @@ var session_active:  bool  = false
 # ── SISTEMA DE ENERGÍA DEL JUGADOR ───────────────────────────────────────────
 var player_energy: float = 100.0  # Energía actual (0-100)
 var max_energy: float = 100.0     # Energía máxima
-var energy_cost_per_gem: float = 20.0  # Cuesta 20 energía recolectar una gema
-var energy_recharge_rate: float = 15.0  # Recarga 15 energía por segundo al hacer movimiento
+var energy_cost_per_gem: float = 15.0  # ⭐ Cuesta 15 energía (antes 20) - MÁS PERMISIVO
+var energy_recharge_rate: float = 20.0  # ⭐ Recarga 20 energía/segundo (antes 15) - MÁS RÁPIDO
 signal energy_changed(current: float, max_val: float)  # Señal para actualizar UI
 
 # ── Métricas clínicas por movimiento ─────────────────────────────────────────
@@ -61,7 +61,7 @@ var movements_by_type: Dictionary = {
 
 # ── Velocidades y frecuencias según dificultad ───────────────────────────────
 var GEM_SPEED     := {"Fácil": 0.7, "Media": 1.2, "Difícil": 1.9}
-var SPAWN_INTERVAL:= {"Fácil": 3.0, "Media": 2.0, "Difícil": 1.2}
+var SPAWN_INTERVAL:= {"Fácil": 4.5, "Media": 3.5, "Difícil": 2.5}  # ⭐ AUMENTADO para dar tiempo a recargar
 
 func _ready() -> void:
 	print("[GameManager] Listo")
