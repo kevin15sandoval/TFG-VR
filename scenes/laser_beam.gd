@@ -1,136 +1,157 @@
 extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
-# LaserBeam — Rayo láser que detecta colisión con manos del jugador
+# LaserBeam — Láser que AVANZA hacia el jugador (tipo LIMBO)
+# El jugador debe ESQUIVAR moviendo el cuerpo (agacharse, inclinarse, etc.)
 # ─────────────────────────────────────────────────────────────────────────────
 
 signal player_hit  # Se emite cuando el jugador toca el láser
+signal laser_dodged  # Se emite cuando el jugador esquiva exitosamente
 
-@export var laser_length: float = 5.0
-@export var laser_thickness: float = 0.05
-@export var move_speed: float = 0.5  # Velocidad de movimiento (0 = estático)
-@export var move_range: float = 2.0  # Rango de movimiento
-@export var blink_enabled: bool = false  # Si parpadea
-@export var blink_interval: float = 1.0  # Segundos entre parpadeos
+@export_enum("horizontal_high", "horizontal_mid", "horizontal_low", "vertical_left", "vertical_right", "diagonal") var laser_type: String = "horizontal_mid"
+@export var advance_speed: float = 1.5  # Velocidad de avance hacia el jugador (m/s)
+@export var laser_thickness: float = 0.08
+@export var warn_distance: float = 5.0  # Distancia a la que aparece advertencia
 
 var _mesh_instance: MeshInstance3D
 var _area: Area3D
 var _collision: CollisionShape3D
-var _initial_position: Vector3
-var _move_direction: int = 1
-var _blink_timer: float = 0.0
-var _is_visible: bool = true
+var _warning_area: Area3D
+var _start_position: Vector3
+var _has_warned: bool = false
+var _has_been_dodged: bool = false
+var _player_in_danger: bool = false
+
+# Dimensiones del láser según tipo
+var _laser_dimensions: Dictionary = {
+	"horizontal_high": {"width": 6.0, "height": 0.08, "y_pos": 1.9},  # Agacharse
+	"horizontal_mid": {"width": 6.0, "height": 0.08, "y_pos": 1.3},   # Inclinarse
+	"horizontal_low": {"width": 6.0, "height": 0.08, "y_pos": 0.7},   # Saltar/subir brazos
+	"vertical_left": {"width": 0.08, "height": 3.0, "x_pos": -1.5},   # Inclinarse derecha
+	"vertical_right": {"width": 0.08, "height": 3.0, "x_pos": 1.5},   # Inclinarse izquierda
+	"diagonal": {"width": 8.0, "height": 0.08, "rotation": 45.0},     # Combinar movimientos
+}
 
 func _ready() -> void:
-	_initial_position = global_position
+	_start_position = global_position
 	_create_laser_visual()
-	_create_collision_area()
+	_create_collision_areas()
+	_create_warning_visual()
 
 func _create_laser_visual() -> void:
-	# Crear mesh del láser (cilindro rojo brillante)
+	# Crear mesh del láser según tipo
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance)
 	
-	var cylinder = CylinderMesh.new()
-	cylinder.top_radius = laser_thickness
-	cylinder.bottom_radius = laser_thickness
-	cylinder.height = laser_length
-	_mesh_instance.mesh = cylinder
+	var dims = _laser_dimensions.get(laser_type, _laser_dimensions["horizontal_mid"])
 	
-	# Material emisivo rojo brillante
+	# Usar BoxMesh para láseres rectangulares
+	var box = BoxMesh.new()
+	box.size = Vector3(dims.get("width", 6.0), dims.get("height", 0.08), laser_thickness)
+	_mesh_instance.mesh = box
+	
+	# Ajustar posición Y según tipo
+	if "y_pos" in dims:
+		_mesh_instance.position.y = dims["y_pos"] - 1.5  # Offset desde el centro
+	
+	# Aplicar rotación para diagonales
+	if "rotation" in dims:
+		_mesh_instance.rotation_degrees.z = dims["rotation"]
+	
+	# Material emisivo rojo BRILLANTE y peligroso
 	var material = StandardMaterial3D.new()
-	material.albedo_color = Color(1.0, 0.0, 0.0, 0.9)
+	material.albedo_color = Color(1.0, 0.0, 0.0, 0.95)
 	material.emission_enabled = true
 	material.emission = Color(1.0, 0.0, 0.0)
-	material.emission_energy_multiplier = 3.0
+	material.emission_energy_multiplier = 5.0  # MUY brillante
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mesh_instance.material_override = material
 	
-	# Partículas de chispas en los extremos
-	_create_spark_particles(Vector3(0, laser_length/2, 0))
-	_create_spark_particles(Vector3(0, -laser_length/2, 0))
+	print("[Laser] 🔴 Láser tipo '", laser_type, "' creado en posición: ", global_position)
 
-func _create_spark_particles(pos: Vector3) -> void:
-	var particles = CPUParticles3D.new()
-	_mesh_instance.add_child(particles)
-	particles.position = pos
-	particles.emitting = true
-	particles.amount = 15
-	particles.lifetime = 0.3
-	particles.explosiveness = 0.2
-	
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.01
-	particles.mesh = sphere
-	
-	particles.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	particles.emission_sphere_radius = 0.05
-	particles.direction = Vector3(0, 0, 0)
-	particles.gravity = Vector3(0, -0.5, 0)
-	particles.initial_velocity_min = 0.1
-	particles.initial_velocity_max = 0.3
-	particles.scale_amount_min = 0.5
-	particles.scale_amount_max = 1.0
-	particles.color = Color(1.0, 0.2, 0.0, 1.0)
+func _create_warning_visual() -> void:
+	# Crear indicador visual de advertencia (líneas punteadas que se acercan)
+	# TODO: Implementar sistema de advertencia visual
+	pass
 
-func _create_collision_area() -> void:
+func _create_collision_areas() -> void:
+	var dims = _laser_dimensions.get(laser_type, _laser_dimensions["horizontal_mid"])
+	
+	# Área de colisión principal (toca = fallo)
 	_area = Area3D.new()
 	add_child(_area)
 	_area.collision_layer = 4  # Layer 3 para láser
-	_area.collision_mask = 2   # Detecta manos (layer 2)
+	_area.collision_mask = 2   # Detecta manos y cabeza (layer 2)
 	
 	_collision = CollisionShape3D.new()
 	_area.add_child(_collision)
 	
-	var shape = CylinderShape3D.new()
-	shape.radius = laser_thickness * 1.2  # Un poco más ancho para detección
-	shape.height = laser_length
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(dims.get("width", 6.0), dims.get("height", 0.08) * 2.0, laser_thickness * 2.0)
 	_collision.shape = shape
 	
-	_area.body_entered.connect(_on_body_entered)
-	_area.area_entered.connect(_on_area_entered)
+	# Ajustar posición de colisión según tipo
+	if "y_pos" in dims:
+		_collision.position.y = dims["y_pos"] - 1.5
+	
+	_area.body_entered.connect(_on_player_touch)
+	_area.area_entered.connect(_on_player_touch_area)
+	
+	print("[Laser] ✅ Colisión configurada para tipo: ", laser_type)
 
-func _on_body_entered(_body: Node3D) -> void:
-	_trigger_hit()
-
-func _on_area_entered(_area_node: Area3D) -> void:
-	# Detecta las manos del jugador (Area3D)
-	if _area_node.name.contains("Hand"):
+func _on_player_touch(_body: Node3D) -> void:
+	if not _player_in_danger:
+		_player_in_danger = true
 		_trigger_hit()
 
-func _trigger_hit() -> void:
-	if _is_visible:  # Solo cuenta si el láser está visible
-		print("[Laser] ⚡ Jugador tocó el láser!")
-		player_hit.emit()
-		_flash_effect()
+func _on_player_touch_area(_area_node: Area3D) -> void:
+	# Detecta manos o cabeza del jugador
+	var node_name = _area_node.name.to_lower()
+	if "hand" in node_name or "head" in node_name or "camera" in node_name:
+		if not _player_in_danger:
+			_player_in_danger = true
+			_trigger_hit()
 
-func _flash_effect() -> void:
-	# Efecto de flash cuando se toca
+func _trigger_hit() -> void:
+	print("[Laser] ⚡ ¡JUGADOR TOCÓ EL LÁSER! Tipo: ", laser_type)
+	player_hit.emit()
+	_flash_hit_effect()
+	# El láser desaparece después de tocar
+	await get_tree().create_timer(0.3).timeout
+	queue_free()
+
+func _flash_hit_effect() -> void:
+	# Efecto de flash rojo intenso
 	var tween = create_tween()
-	tween.tween_property(_mesh_instance, "scale", Vector3(1.3, 1.0, 1.3), 0.1)
+	tween.tween_property(_mesh_instance, "scale", Vector3(1.5, 1.5, 1.5), 0.1)
 	tween.tween_property(_mesh_instance, "scale", Vector3.ONE, 0.1)
+	
+	# Cambiar a blanco brillante por un momento
+	var mat = _mesh_instance.material_override as StandardMaterial3D
+	if mat:
+		mat.emission = Color(1.0, 1.0, 1.0)
+		mat.emission_energy_multiplier = 10.0
+		await get_tree().create_timer(0.1).timeout
+		if is_instance_valid(mat):
+			mat.emission = Color(1.0, 0.0, 0.0)
+			mat.emission_energy_multiplier = 5.0
 
 func _process(delta: float) -> void:
-	# Movimiento del láser
-	if move_speed > 0:
-		var offset = sin(Time.get_ticks_msec() / 1000.0 * move_speed * PI) * move_range
-		global_position = _initial_position + transform.basis.x * offset
+	# MOVIMIENTO: Avanzar hacia el jugador (eje Z positivo en sistema local)
+	global_position += global_transform.basis.z * advance_speed * delta
 	
-	# Parpadeo
-	if blink_enabled:
-		_blink_timer += delta
-		if _blink_timer >= blink_interval:
-			_blink_timer = 0.0
-			_toggle_visibility()
+	# Verificar si pasó al jugador sin tocar (ESQUIVADO)
+	if global_position.z > 2.0 and not _has_been_dodged and not _player_in_danger:
+		_has_been_dodged = true
+		print("[Laser] ✅ ¡LÁSER ESQUIVADO! +puntos")
+		laser_dodged.emit()
+		# Desaparecer
+		queue_free()
+	
+	# Eliminar si se fue muy lejos
+	if global_position.z > 5.0:
+		queue_free()
 
-func _toggle_visibility() -> void:
-	_is_visible = !_is_visible
-	_mesh_instance.visible = _is_visible
-	_area.monitoring = _is_visible  # Desactiva colisión cuando invisible
-
-func set_color(color: Color) -> void:
-	if _mesh_instance:
-		var material = _mesh_instance.material_override as StandardMaterial3D
-		if material:
-			material.albedo_color = color
-			material.emission = color
+func set_start_position(pos: Vector3) -> void:
+	_start_position = pos
+	global_position = pos
