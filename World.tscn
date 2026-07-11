@@ -6,12 +6,22 @@
 [ext_resource type="PackedScene" uid="uid://bw0klca1kuqdi" path="res://scenes/gem.tscn" id="5_p1v5b"]
 [ext_resource type="Script" uid="uid://oq6fvrlvhv43" path="res://scripts/firebase_manager.gd" id="6_p1v5b"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.02, 0.02, 0.15, 1)
+sky_horizon_color = Color(0.15, 0.2, 0.35, 1)
+ground_bottom_color = Color(0.01, 0.01, 0.05, 1)
+ground_horizon_color = Color(0.1, 0.15, 0.25, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
 [sub_resource type="Environment" id="Environment_p1v5b"]
 background_mode = 2
+sky = SubResource("Sky_1")
 background_color = Color(0.02, 0.02, 0.08, 1)
 ambient_light_source = 3
 ambient_light_color = Color(0.5, 0.6, 0.8, 1)
-ambient_light_energy = 0.7
+ambient_light_energy = 1.5
 reflected_light_source = 2
 tonemap_mode = 2
 tonemap_exposure = 1.0
@@ -30,7 +40,7 @@ fog_enabled = true
 fog_light_color = Color(0.15, 0.2, 0.35, 1)
 fog_density = 0.02
 adjustment_enabled = true
-adjustment_brightness = 1.0
+adjustment_brightness = 1.2
 adjustment_contrast = 1.1
 adjustment_saturation = 1.05
 
@@ -75,9 +85,21 @@ script = ExtResource("1_bcbcq")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=911772433]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.43177, -0.1195133, -0.56756413)
 visible = true
-light_energy = 0.8
+light_energy = 1.5
 light_color = Color(1, 1, 1, 1)
 shadow_enabled = true
+
+[node name="OmniLight3D_Train" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 2, 0)
+light_energy = 3.0
+light_color = Color(0.6, 0.7, 1, 1)
+omni_range = 25.0
+
+[node name="OmniLight3D_Ambient" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+light_energy = 2.5
+light_color = Color(0.8, 0.9, 1, 1)
+omni_range = 30.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=273835610]
 environment = SubResource("Environment_p1v5b")

@@ -7,18 +7,28 @@
 [ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="5"]
 [ext_resource type="Script" path="res://scenes/luggage_spawner.gd" id="6"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.25, 0.3, 0.35, 1)
+sky_horizon_color = Color(0.45, 0.5, 0.55, 1)
+ground_bottom_color = Color(0.2, 0.2, 0.22, 1)
+ground_horizon_color = Color(0.35, 0.35, 0.4, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
 [sub_resource type="Environment" id="Environment_1"]
-background_mode = 1
+background_mode = 2
+sky = SubResource("Sky_1")
 background_energy_multiplier = 1.4
 ambient_light_source = 3
 ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 1.1
+ambient_light_energy = 2.2
 reflected_light_source = 2
 tonemap_mode = 2
 tonemap_exposure = 1.25
 tonemap_white = 6.0
 adjustment_enabled = true
-adjustment_brightness = 1.18
+adjustment_brightness = 1.35
 adjustment_contrast = 1.05
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
@@ -64,9 +74,21 @@ script = ExtResource("1")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
 light_color = Color(1, 1, 0.98, 1)
-light_energy = 2.2
+light_energy = 3.2
 shadow_enabled = true
 visible = true
+
+[node name="OmniLight3D_Station" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+light_energy = 4.5
+light_color = Color(1, 1, 0.95, 1)
+omni_range = 30.0
+
+[node name="OmniLight3D_Conveyor" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -5)
+light_energy = 3.0
+light_color = Color(0.9, 0.95, 1, 1)
+omni_range = 20.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_1")
