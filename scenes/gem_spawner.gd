@@ -13,32 +13,38 @@ var _queue_index: int = 0
 
 # ─── Definición de ejercicios por lado ───────────────────────────────────────
 # Posiciones: start = donde aparece la gema, end = destino (hacia el paciente)
+# DISTANCIAS SEGÚN COLOR/DIFICULTAD:
+#   - Azul (normal): Cerca (-3.0m)
+#   - Verde (green): Cerca (-3.0m)  
+#   - Morado (purple): Medio (-4.5m)
+#   - Dorado (golden): Lejos (-6.0m)
+#   - Rojo (red): Muy lejos (-7.0m) y más rápido
 
 const EXERCISES_LEFT := [
 	{"name": "Flexión",          "instruction": "Sube el brazo izquierdo",        "type": "normal", "points": 10, "start": Vector3(-3.0, 2.3, -0.3),  "end": Vector3(-0.5, 1.6,  -0.3)},
 	{"name": "Extensión",        "instruction": "Baja el brazo izquierdo",         "type": "green",  "points": 10, "start": Vector3(-3.0, 0.7, -0.3),  "end": Vector3(-0.5, 1.2,  -0.3)},
-	{"name": "Abducción",        "instruction": "Separa el brazo hacia la izq.",   "type": "purple", "points": 15, "start": Vector3(-3.0, 1.5, -1.0),  "end": Vector3(-0.5, 1.5,  -1.0)},
-	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",        "type": "golden", "points": 25, "start": Vector3(-3.0, 1.5,  0.0),  "end": Vector3(-0.5, 1.5,   0.0)},
+	{"name": "Abducción",        "instruction": "Separa el brazo hacia la izq.",   "type": "purple", "points": 15, "start": Vector3(-4.5, 1.5, -1.0),  "end": Vector3(-0.5, 1.5,  -1.0)},
+	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",        "type": "golden", "points": 25, "start": Vector3(-6.0, 1.5,  0.0),  "end": Vector3(-0.5, 1.5,   0.0)},
 	{"name": "Rotación externa", "instruction": "Gira el brazo izq. hacia fuera",  "type": "normal", "points": 10, "start": Vector3(-3.0, 2.0, -0.8),  "end": Vector3(-0.5, 1.6,  -0.8)},
 	{"name": "Rotación interna", "instruction": "Gira el brazo izq. hacia dentro", "type": "green",  "points": 10, "start": Vector3(-3.0, 1.1, -0.5),  "end": Vector3(-0.5, 1.4,  -0.5)},
-	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado izquierdo",  "type": "purple", "points": 15, "start": Vector3(-3.0, 1.5, -1.5),  "end": Vector3(-0.5, 1.5,  -1.5)},
-	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",    "type": "golden", "points": 25, "start": Vector3(-3.0, 2.8, -0.3),  "end": Vector3(-0.5, 2.2,  -0.3)},
+	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado izquierdo",  "type": "purple", "points": 15, "start": Vector3(-4.5, 1.5, -1.5),  "end": Vector3(-0.5, 1.5,  -1.5)},
+	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",    "type": "golden", "points": 25, "start": Vector3(-6.0, 2.8, -0.3),  "end": Vector3(-0.5, 2.2,  -0.3)},
 ]
 
 const EXERCISES_RIGHT := [
 	{"name": "Flexión",          "instruction": "Sube el brazo derecho",           "type": "normal", "points": 10, "start": Vector3(-3.0, 2.3,  0.3),  "end": Vector3(-0.5, 1.6,   0.3)},
 	{"name": "Extensión",        "instruction": "Baja el brazo derecho",            "type": "green",  "points": 10, "start": Vector3(-3.0, 0.7,  0.3),  "end": Vector3(-0.5, 1.2,   0.3)},
-	{"name": "Abducción",        "instruction": "Separa el brazo hacia la der.",    "type": "purple", "points": 15, "start": Vector3(-3.0, 1.5,  1.0),  "end": Vector3(-0.5, 1.5,   1.0)},
-	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",         "type": "golden", "points": 25, "start": Vector3(-3.0, 1.5,  0.0),  "end": Vector3(-0.5, 1.5,   0.0)},
+	{"name": "Abducción",        "instruction": "Separa el brazo hacia la der.",    "type": "purple", "points": 15, "start": Vector3(-4.5, 1.5,  1.0),  "end": Vector3(-0.5, 1.5,   1.0)},
+	{"name": "Aducción",         "instruction": "Lleva el brazo al centro",         "type": "golden", "points": 25, "start": Vector3(-6.0, 1.5,  0.0),  "end": Vector3(-0.5, 1.5,   0.0)},
 	{"name": "Rotación externa", "instruction": "Gira el brazo der. hacia fuera",   "type": "normal", "points": 10, "start": Vector3(-3.0, 2.0,  0.8),  "end": Vector3(-0.5, 1.6,   0.8)},
 	{"name": "Rotación interna", "instruction": "Gira el brazo der. hacia dentro",  "type": "green",  "points": 10, "start": Vector3(-3.0, 1.1,  0.5),  "end": Vector3(-0.5, 1.4,   0.5)},
-	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado derecho",     "type": "purple", "points": 15, "start": Vector3(-3.0, 1.5,  1.5),  "end": Vector3(-0.5, 1.5,   1.5)},
-	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",     "type": "golden", "points": 25, "start": Vector3(-3.0, 2.8,  0.3),  "end": Vector3(-0.5, 2.2,   0.3)},
+	{"name": "Alcance lateral",  "instruction": "Estira hacia el lado derecho",     "type": "purple", "points": 15, "start": Vector3(-4.5, 1.5,  1.5),  "end": Vector3(-0.5, 1.5,   1.5)},
+	{"name": "Alcance alto",     "instruction": "Estira el brazo hacia arriba",     "type": "golden", "points": 25, "start": Vector3(-6.0, 2.8,  0.3),  "end": Vector3(-0.5, 2.2,   0.3)},
 ]
 
 const EXERCISES_BOTH := [
-	{"name": "Flexión bilateral",   "instruction": "Sube ambos brazos",            "type": "golden", "points": 30, "start": Vector3(-3.0, 2.3,  0.0),  "end": Vector3(-0.5, 1.6,   0.0)},
-	{"name": "Apertura bilateral",  "instruction": "Abre los brazos",              "type": "purple", "points": 20, "start": Vector3(-3.0, 1.5,  0.0),  "end": Vector3(-0.5, 1.5,   0.0)},
+	{"name": "Flexión bilateral",   "instruction": "Sube ambos brazos",            "type": "golden", "points": 30, "start": Vector3(-6.0, 2.3,  0.0),  "end": Vector3(-0.5, 1.6,   0.0)},
+	{"name": "Apertura bilateral",  "instruction": "Abre los brazos",              "type": "purple", "points": 20, "start": Vector3(-4.5, 1.5,  0.0),  "end": Vector3(-0.5, 1.5,   0.0)},
 	{"name": "Alcance izquierda",   "instruction": "Estira el brazo izquierdo",    "type": "normal", "points": 10, "start": Vector3(-3.0, 1.5, -1.0),  "end": Vector3(-0.5, 1.5,  -1.0)},
 	{"name": "Alcance derecha",     "instruction": "Estira el brazo derecho",      "type": "normal", "points": 10, "start": Vector3(-3.0, 1.5,  1.0),  "end": Vector3(-0.5, 1.5,   1.0)},
 	{"name": "Flexión alta izq.",   "instruction": "Sube el brazo izquierdo alto", "type": "green",  "points": 15, "start": Vector3(-3.0, 2.8, -0.3),  "end": Vector3(-0.5, 2.2,  -0.3)},
@@ -46,8 +52,8 @@ const EXERCISES_BOTH := [
 ]
 
 const RED_GEMS := [
-	{"name": "¡Evita!",   "instruction": "No toques esta gema roja", "type": "red", "points": -15, "start": Vector3(-3.0, 1.5,  0.0), "end": Vector3(-0.5, 1.5,  0.0)},
-	{"name": "¡Peligro!", "instruction": "Esquiva la gema roja",     "type": "red", "points": -15, "start": Vector3(-3.0, 1.8,  0.3), "end": Vector3(-0.5, 1.6,  0.3)},
+	{"name": "¡Evita!",   "instruction": "No toques esta gema roja", "type": "red", "points": -15, "start": Vector3(-7.0, 1.5,  0.0), "end": Vector3(-0.5, 1.5,  0.0)},
+	{"name": "¡Peligro!", "instruction": "Esquiva la gema roja",     "type": "red", "points": -15, "start": Vector3(-7.0, 1.8,  0.3), "end": Vector3(-0.5, 1.6,  0.3)},
 ]
 
 func _ready() -> void:
@@ -136,11 +142,19 @@ func _process(delta: float) -> void:
 			# Calcular distancia al objetivo
 			var distance = current_pos.distance_to(target_pos)
 			
+			# VELOCIDAD SEGÚN TIPO DE GEMA
+			var speed_multiplier = 1.0
+			match gem.gem_type:
+				"red":    speed_multiplier = 1.5  # Rojas más rápidas (obstáculos)
+				"golden": speed_multiplier = 1.2  # Doradas un poco más rápidas
+				"purple": speed_multiplier = 1.0  # Moradas velocidad normal
+				_:        speed_multiplier = 0.9  # Normal/verdes más lentas
+			
+			var gem_speed = GameManager.get_gem_speed() * speed_multiplier
+			
 			# SI ESTÁ LEJOS → Mover hacia el objetivo
 			if distance > 0.3:  # Margen de 30cm para detenerse
-				gem.global_position = current_pos.move_toward(
-					target_pos, GameManager.get_gem_speed() * delta
-				)
+				gem.global_position = current_pos.move_toward(target_pos, gem_speed * delta)
 			# SI YA LLEGÓ → Mantener posición flotando (NO atravesar)
 			elif distance > 0.05:
 				# Quedarse quieta en el rango de agarre
@@ -155,7 +169,7 @@ func _process(delta: float) -> void:
 				
 				# Dar 3 segundos para agarrarla antes de perderla
 				if time_at_position > 3.0:
-					print("[Spawner] ⏰ Gema en posición por ", time_at_position, "s - PERDIENDO")
+					print("[Spawner] ⏰ Gema ", gem.gem_type, " en posición por ", time_at_position, "s - PERDIENDO")
 					gem.miss()
 
 func _on_spawn_timer() -> void:

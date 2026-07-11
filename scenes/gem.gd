@@ -14,6 +14,8 @@ var exercise_name: String = ""
 var instruction:   String = ""
 var exercise_data: Dictionary = {}
 var collected:     bool   = false
+var is_ready_to_collect: bool = false  # Nueva variable para fase de preparación
+var preparation_progress: float = 0.0  # Progreso de preparación (0.0 - 1.0)
 
 # Colores por tipo de gema (emisión brillante para VR)
 const GEM_COLORS := {
@@ -110,13 +112,113 @@ func _apply_visuals() -> void:
 func _process(delta: float) -> void:
 	if collected:
 		return
+	
 	# Animación de flotación suave
 	_anim_time += delta * 2.0
 	_mesh_instance.position.y = sin(_anim_time) * 0.04
 	# Rotación constante
 	_mesh_instance.rotate_y(delta * 1.5)
+	
+	# ═══ SISTEMA DE PREPARACIÓN TERAPÉUTICA ═══
+	# Detectar si el jugador está haciendo movimiento de preparación (acercar/alejar mano)
+	if not is_ready_to_collect:
+		_check_preparation_movement(delta)
 
 # ─── DETECCIÓN DE COLISIÓN CON MANOS VR ──────────────────────────────────────
+
+var _hand_distances: Dictionary = {}  # Almacenar distancias de manos para detectar movimiento
+var _last_hand_check: float = 0.0
+
+func _check_preparation_movement(delta: float) -> void:
+	# Sistema de preparación: El jugador debe acercar y alejar la mano (flexión/relajación)
+	# para "activar" la gema antes de poder tocarla
+	
+	_last_hand_check += delta
+	if _last_hand_check < 0.1:  # Chequear cada 0.1s
+		return
+	_last_hand_check = 0.0
+	
+	# Buscar controladores XR (manos)
+	var left_hand = get_tree().root.find_child("LeftHand", true, false)
+	var right_hand = get_tree().root.find_child("RightHand", true, false)
+	
+	var closest_distance = 999.0
+	var hand_name = ""
+	
+	# Calcular distancia a mano izquierda
+	if left_hand:
+		var dist = global_position.distance_to(left_hand.global_position)
+		if dist < closest_distance:
+			closest_distance = dist
+			hand_name = "left"
+	
+	# Calcular distancia a mano derecha
+	if right_hand:
+		var dist = global_position.distance_to(right_hand.global_position)
+		if dist < closest_distance:
+			closest_distance = dist
+			hand_name = "right"
+	
+	# Si hay una mano cerca (< 1.5m), detectar movimiento de acercar/alejar
+	if closest_distance < 1.5 and hand_name != "":
+		if not _hand_distances.has(hand_name):
+			_hand_distances[hand_name] = closest_distance
+		else:
+			var prev_distance = _hand_distances[hand_name]
+			var distance_change = prev_distance - closest_distance
+			
+			# Si se acercó y luego se alejó (flexión + relajación)
+			if distance_change > 0.1:  # Se acercó
+				preparation_progress += delta * 0.5  # Aumentar progreso
+				print("[Gem] 💪 Preparación: ", int(preparation_progress * 100), "% (acercando)")
+			elif distance_change < -0.1:  # Se alejó
+				preparation_progress += delta * 0.3  # También cuenta (relajación)
+				print("[Gem] 💪 Preparación: ", int(preparation_progress * 100), "% (alejando)")
+			
+			_hand_distances[hand_name] = closest_distance
+			
+			# Actualizar visual según progreso
+			if _mesh_instance and _mesh_instance.material_override:
+				var mat = _mesh_instance.material_override as StandardMaterial3D
+				# Color más brillante según progreso
+				var base_color = GEM_COLORS.get(gem_type, Color.WHITE)
+				var bright_factor = 1.0 + (preparation_progress * 2.0)  # Más brillante
+				mat.emission_energy_multiplier = GEM_EMISSION.get(gem_type, 2.0) * bright_factor
+			
+			# Si completó la preparación (100%)
+			if preparation_progress >= 1.0:
+				is_ready_to_collect = true
+				print("[Gem] ✅ GEMA ACTIVADA - Lista para recoger!")
+				_play_activation_sound()
+
+func _play_activation_sound() -> void:
+	# Sonido de "activación" cuando la gema está lista
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 15.0
+	audio.volume_db = 4.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Sonido ascendente (activación)
+		var frames = int(generator.mix_rate * 0.2)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var hz = 400.0 + (t * 400.0)  # De 400Hz a 800Hz
+			var envelope = 0.3 * (1.0 - t / 0.2)
+			var sample = sin(t * hz * TAU) * envelope
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.3).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
 
 func _on_body_entered(body: Node) -> void:
 	print("[Gem] 💥 BODY DETECTADO: ", body.name, " | Tipo: ", body.get_class())
@@ -177,6 +279,14 @@ func _on_area_entered(area: Node) -> void:
 func _catch() -> void:
 	if collected:
 		return
+	
+	# ═══ VERIFICAR SI LA GEMA ESTÁ LISTA ═══
+	if not is_ready_to_collect:
+		print("[Gem] ⚠️ Gema NO activada - Necesitas hacer movimiento de preparación (", int(preparation_progress * 100), "%)")
+		# Sonido de "bloqueado"
+		_play_blocked_sound()
+		return
+	
 	collected = true
 	
 	# Determinar si es positivo o negativo
@@ -191,6 +301,35 @@ func _catch() -> void:
 	
 	await get_tree().create_timer(0.3).timeout
 	queue_free()
+
+func _play_blocked_sound() -> void:
+	# Sonido de "bloqueado" cuando intentas agarrar sin preparación
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 15.0
+	audio.volume_db = 2.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Sonido descendente (bloqueado)
+		var frames = int(generator.mix_rate * 0.15)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var hz = 300.0 - (t * 100.0)  # De 300Hz a 200Hz (descendente)
+			var envelope = 0.2
+			var sample = sin(t * hz * TAU) * envelope
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.2).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
 
 func _trigger_haptic_feedback(positive: bool) -> void:
 	# Vibración en controladores XR
@@ -213,7 +352,10 @@ func miss() -> void:
 	if collected:
 		return
 	collected = true
-	print("[Gem] ⏭ Perdida: ", gem_type, " - REPRODUCIENDO SONIDO DE ERROR")
+	
+	# Solo cuenta como "perdida" si llegó al rango y NO la preparaste/tocaste
+	# NO cuenta si simplemente pasó de largo sin llegar al rango
+	print("[Gem] ⏭ Perdida: ", gem_type, " - Progreso de preparación: ", int(preparation_progress * 100), "%")
 	
 	# SONIDO DE ERROR cuando se pierde una gema
 	_play_miss_sound()
