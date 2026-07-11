@@ -141,6 +141,7 @@ metadata/zone_name = "green"
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/GreenZone" unique_id=174330778]
+transform = Transform3D(-0.90296805, 0, -0.42970768, 0, 2.54803, 0, 0.42970768, 0, -0.90296805, -0.46469927, 1.5606704, 0)
 mesh = SubResource("PlaneMesh_green")
 
 [node name="YellowZone" type="Area3D" parent="PlacementZones" unique_id=1171028867 groups=["placement_zone"]]
