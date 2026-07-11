@@ -97,7 +97,7 @@ omni_range = 30.0
 environment = SubResource("Environment_p1v5b")
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1685417226]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 1.7, 0)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1252140784]
 transform = Transform3D(0.025949992, -6.7031375e-05, 0.99966323, 0.0025830844, 0.99999666, 1.2475192e-10, -0.9996599, 0.0025822145, 0.02595008, 3.6179173, 0.024764597, -0.1434173)

@@ -87,7 +87,7 @@ func _create_spawn_portal() -> void:
 	# Crear portal visual brillante con partículas
 	_portal = Node3D.new()
 	get_tree().root.add_child(_portal)  # ⭐ Añadir al ROOT, NO al parent local
-	_portal.global_position = Vector3(0.0, 1.5, -8.0)  # ⭐ MÁS LEJOS: Z=-8.0 para que esté bien enfrente
+	_portal.global_position = Vector3(-8.0, 1.5, 0.0)  # ⭐ Rotado 90°: portal a la IZQUIERDA (X negativo)
 	
 	print("[Spawner] 🌀 Portal creado en coordenadas GLOBALES: ", _portal.global_position)
 	
@@ -235,7 +235,7 @@ func _build_queue() -> void:
 	_exercise_queue.shuffle()
 
 func _process(delta: float) -> void:
-	# Mueve las gemas activas EN LÍNEA RECTA HORIZONTAL desde el portal hacia el jugador
+	# Mueve las gemas activas EN LÍNEA RECTA desde el portal (izquierda) hacia el jugador (derecha)
 	var camera = get_viewport().get_camera_3d()
 	if not camera:
 		return
@@ -246,13 +246,13 @@ func _process(delta: float) -> void:
 		if is_instance_valid(gem) and not gem.collected:
 			var current_pos = gem.global_position
 			
-			# ⭐ MOVIMIENTO HORIZONTAL: Calcular dirección desde portal hacia jugador (solo X y Z, Y fijo)
-			var portal_pos = _portal.global_position if _portal else Vector3(0, 2, -6)
-			var direction = Vector3(camera_pos.x, current_pos.y, camera_pos.z) - Vector3(portal_pos.x, current_pos.y, portal_pos.z)
-			direction = direction.normalized()
+			# ⭐ MOVIMIENTO: Portal está a la izquierda (X=-8), jugador al centro (X≈0)
+			# Dirección = desde posición actual hacia cámara (solo X, Y y Z fijos)
+			var target_x = camera_pos.x
+			var direction = Vector3(1, 0, 0) if target_x > current_pos.x else Vector3(-1, 0, 0)
 			
-			# Calcular distancia a la cámara (solo horizontal X-Z)
-			var distance_horizontal = Vector2(current_pos.x - camera_pos.x, current_pos.z - camera_pos.z).length()
+			# Calcular distancia horizontal a la cámara (solo en X)
+			var distance_horizontal = abs(current_pos.x - camera_pos.x)
 			
 			# VELOCIDAD SEGÚN TIPO DE GEMA
 			var speed_multiplier = 1.0
@@ -264,7 +264,7 @@ func _process(delta: float) -> void:
 			
 			var gem_speed = GameManager.get_gem_speed() * speed_multiplier
 			
-			# SI ESTÁ LEJOS → Mover HORIZONTALMENTE en línea recta
+			# SI ESTÁ LEJOS → Mover HORIZONTALMENTE hacia el jugador (eje X)
 			if distance_horizontal > 0.5:  # Margen de 50cm para detenerse
 				gem.global_position += direction * gem_speed * delta
 			# SI YA LLEGÓ CERCA → Dar 1.5 segundos para tocarla, luego desaparece
@@ -282,14 +282,9 @@ func _process(delta: float) -> void:
 					gem.miss()  # Sonido error + desaparecer
 			
 			# ═══ DETECTAR SI PASÓ DE LARGO (detrás de la cámara) ═══
-			# Calcular si está detrás usando el vector "forward" de la cámara
-			var camera_forward = -camera.global_transform.basis.z
-			var to_gem = (current_pos - camera_pos).normalized()
-			var dot = camera_forward.dot(to_gem)
-			
-			# Si dot < -0.5 → la gema está detrás del jugador
-			if dot < -0.5:
-				print("[Spawner] ❌ Gema ", gem.gem_type, " DETRÁS DEL JUGADOR - Eliminando")
+			# En el nuevo sistema: si la gema pasa más allá del jugador en X (X > camera_pos.x + 1m)
+			if current_pos.x > camera_pos.x + 1.5:
+				print("[Spawner] ❌ Gema ", gem.gem_type, " PASÓ DE LARGO - Eliminando")
 				gem.miss()
 
 func _on_spawn_timer() -> void:
@@ -336,14 +331,19 @@ func _spawn_next() -> void:
 	gem.setup(exercise)
 	print("[Spawner]   ✅ Setup completado")
 	
-	# ═══ HACER QUE LA GEMA SALGA DEL PORTAL ═══
+	# ═══ HACER QUE LA GEMA SALGA DEL PORTAL CON VARIACIÓN DE POSICIÓN ═══
 	if _portal:
-		# Posición inicial = Portal (ignorar exercise["start"])
-		gem.global_position = _portal.global_position
-		print("[Spawner]   🌀 Gema spawneada DESDE EL PORTAL: ", _portal.global_position)
+		# ⭐ VARIACIÓN ALEATORIA para ejercicio de ALCANCE
+		var offset_x = randf_range(-1.5, 1.5)  # ±1.5m horizontal (izq/der)
+		var offset_y = randf_range(-0.8, 0.8)  # ±0.8m vertical (arriba/abajo)
 		
-		# Actualizar exercise_data con nueva posición de inicio (portal)
-		gem.exercise_data["start"] = _portal.global_position
+		# Posición inicial = Portal + variación aleatoria
+		gem.global_position = _portal.global_position + Vector3(offset_x, offset_y, 0)
+		print("[Spawner]   🌀 Gema spawneada DESDE EL PORTAL: ", gem.global_position)
+		print("[Spawner]   📐 Offset aplicado: X=", offset_x, " Y=", offset_y)
+		
+		# Actualizar exercise_data con nueva posición de inicio (portal + offset)
+		gem.exercise_data["start"] = gem.global_position
 		
 		# Efecto visual de salida del portal
 		_create_portal_spawn_effect(gem.global_position, gem.gem_type)
@@ -359,7 +359,7 @@ func _spawn_next() -> void:
 	print("[Spawner]   📊 Gemas activas: ", _active_gems.size())
 
 	print("[Spawner] ✅ GEMA SPAWNEADA EXITOSAMENTE")
-	print("[Spawner]   - Posición inicial (portal): ", gem.global_position)
+	print("[Spawner]   - Posición inicial (portal+offset): ", gem.global_position)
 	print("[Spawner]   - Posición destino: ", exercise["end"])
 	print("[Spawner]   - Visible: ", gem.visible)
 	print("[Spawner] ═══════════════════════════════════════════════════")
