@@ -1,6 +1,6 @@
 @echo off
 echo ╔═══════════════════════════════════════════════════════════════╗
-echo ║         EXPORT RAPIDO - CityWorld v3.9.6 FIXED              ║
+echo ║         EXPORT RAPIDO - CityWorld v3.9.7 PERFECT            ║
 echo ╚═══════════════════════════════════════════════════════════════╝
 echo.
 echo [1/3] Limpiando cache .godot...
@@ -22,22 +22,23 @@ if %errorlevel% equ 0 (
     echo      ✓ Sin errores de compilacion
 )
 echo.
-echo [3/3] Exportando APK v3.9.6...
-"C:\Program Files\Godot_v4.6.1_stable_win64.exe" --headless --export-release "APK_0.0.2" "builds\NeuroVRRehab_v3.9.6_FIXED.apk"
+echo [3/3] Exportando APK v3.9.7...
+"C:\Program Files\Godot_v4.6.1_stable_win64.exe" --headless --export-release "APK_0.0.2" "builds\NeuroVRRehab_v3.9.7_PERFECT.apk"
 echo.
-if exist "builds\NeuroVRRehab_v3.9.6_FIXED.apk" (
+if exist "builds\NeuroVRRehab_v3.9.7_PERFECT.apk" (
     echo ╔═══════════════════════════════════════════════════════════════╗
     echo ║                  ✓ EXPORT COMPLETADO                         ║
     echo ╚═══════════════════════════════════════════════════════════════╝
     echo.
-    echo APK: builds\NeuroVRRehab_v3.9.6_FIXED.apk
+    echo APK: builds\NeuroVRRehab_v3.9.7_PERFECT.apk
     echo.
-    echo CAMBIOS EN ESTA VERSION:
-    echo   • Pantalla negra ARREGLADA ^(calidad VR revertida^)
-    echo   • Numeros de secuencia DELANTE de globos
-    echo   • Sonido de error SIN penalizacion
-    echo   • Instruccion actualizada durante juego
-    echo   • Modelos Sketchfab problematicos excluidos
+    echo CAMBIOS EN ESTA VERSION v3.9.7:
+    echo   • ✓ Secuencias RANDOMIZADAS cada juego
+    echo   • ✓ Posiciones de globos RANDOMIZADAS
+    echo   • ✓ Explosion SIN puntos cuando es secuencia incorrecta
+    echo   • ✓ Numeros de secuencia DELANTE de globos
+    echo   • ✓ Sonido de error sin penalizacion
+    echo   • ✓ Instruccion actualizada durante juego
     echo.
 ) else (
     echo ╔═══════════════════════════════════════════════════════════════╗
