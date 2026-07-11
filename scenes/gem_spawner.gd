@@ -87,7 +87,7 @@ func _create_spawn_portal() -> void:
 	# Crear portal visual brillante con partículas
 	_portal = Node3D.new()
 	get_parent().add_child(_portal)
-	_portal.position = Vector3(-5.0, 1.5, 0.0)  # Posición fija del portal
+	_portal.position = Vector3(-5.0, 1.6, 0.0)  # Posición fija del portal (frente al jugador, altura pecho)
 	
 	# Anillo exterior giratorio
 	var outer_ring = MeshInstance3D.new()

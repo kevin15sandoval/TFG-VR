@@ -675,12 +675,12 @@ func _on_session_finished(results: Dictionary) -> void:
 		firebase_manager.stop_polling()
 		print("[VR] ✅ Polling detenido")
 	
-	# Volver a sala de espera después de 3 segundos
+	# Esperar 3 segundos antes de regresar
 	await get_tree().create_timer(3.0).timeout
-	print("[VR] 🔄 Volviendo a sala de espera...")
-	waiting_mode = true
-	_show_waiting_message()
-	firebase_manager.start_polling()  # Reactivar polling para la siguiente sesión
+	
+	# Regresar al HubWorld (igual que CityWorld)
+	print("[VR] 🔄 Regresando al HubWorld...")
+	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _clear_firestore_session() -> void:
 	# Llamada HTTP DELETE para limpiar sesión activa
