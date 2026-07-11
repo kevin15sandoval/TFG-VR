@@ -16,6 +16,7 @@ var exercise_data: Dictionary = {}
 var collected:     bool   = false
 var is_ready_to_collect: bool = false  # Nueva variable para fase de preparación
 var preparation_progress: float = 0.0  # Progreso de preparación (0.0 - 1.0)
+var _last_progress_milestone: float = 0.0  # Para reproducir sonidos de progreso
 
 # Colores por tipo de gema (emisión brillante para VR)
 const GEM_COLORS := {
@@ -177,6 +178,17 @@ func _check_preparation_movement(delta: float) -> void:
 			
 			_hand_distances[hand_name] = closest_distance
 			
+			# ═══ SONIDOS DE PROGRESO CADA 25% ═══
+			if preparation_progress >= 0.25 and _last_progress_milestone < 0.25:
+				_last_progress_milestone = 0.25
+				_play_progress_beep(1)
+			elif preparation_progress >= 0.5 and _last_progress_milestone < 0.5:
+				_last_progress_milestone = 0.5
+				_play_progress_beep(2)
+			elif preparation_progress >= 0.75 and _last_progress_milestone < 0.75:
+				_last_progress_milestone = 0.75
+				_play_progress_beep(3)
+			
 			# Actualizar visual según progreso
 			if _mesh_instance and _mesh_instance.material_override:
 				var mat = _mesh_instance.material_override as StandardMaterial3D
@@ -190,13 +202,72 @@ func _check_preparation_movement(delta: float) -> void:
 				is_ready_to_collect = true
 				print("[Gem] ✅ GEMA ACTIVADA - Lista para recoger!")
 				_play_activation_sound()
+				_show_ready_feedback()  # NUEVO: Mostrar "¡LISTO!"
 
-func _play_activation_sound() -> void:
-	# Sonido de "activación" cuando la gema está lista
+func _show_ready_feedback() -> void:
+	# Mostrar texto flotante "¡LISTO!" cuando la gema está preparada
+	var ready_label = Label3D.new()
+	add_child(ready_label)
+	ready_label.position = Vector3(0, 0.5, 0)
+	ready_label.pixel_size = 0.003
+	ready_label.text = "¡LISTO!"
+	ready_label.font_size = 72
+	ready_label.modulate = Color(0.2, 1.0, 0.3)  # Verde brillante
+	ready_label.outline_size = 12
+	ready_label.outline_modulate = Color.BLACK
+	ready_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	
+	# Animación: aparece y desaparece
+	var tween = create_tween()
+	tween.tween_property(ready_label, "position", Vector3(0, 0.8, 0), 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(ready_label, "modulate:a", 0.0, 0.8).set_delay(0.3)
+	tween.tween_callback(ready_label.queue_free)
+	
+	# Hacer la gema brillar MUCHO
+	if _mesh_instance and _mesh_instance.material_override:
+		var mat = _mesh_instance.material_override as StandardMaterial3D
+		var base_color = GEM_COLORS.get(gem_type, Color.WHITE)
+		
+		# Flash brillante
+		var flash_tween = create_tween()
+		flash_tween.tween_property(mat, "emission_energy_multiplier", 8.0, 0.2)
+		flash_tween.tween_property(mat, "emission_energy_multiplier", GEM_EMISSION.get(gem_type, 2.0) * 2.0, 0.3)
+
+func _play_progress_beep(level: int) -> void:
+	# Beep corto para indicar progreso (25%, 50%, 75%)
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
 	audio.max_distance = 15.0
-	audio.volume_db = 4.0
+	audio.volume_db = 2.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.05
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Beep corto, más agudo según el nivel
+		var hz = 400.0 + (level * 150.0)  # 550Hz, 700Hz, 850Hz
+		var frames = int(generator.mix_rate * 0.08)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var envelope = 0.3 * (1.0 - t / 0.08)
+			var sample = sin(t * hz * TAU) * envelope
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.1).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
+
+func _play_activation_sound() -> void:
+	# Sonido de "¡RECARGADO!" - épico y satisfactorio
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 20.0
+	audio.volume_db = 8.0  # MÁS VOLUMEN
 	
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
@@ -204,19 +275,31 @@ func _play_activation_sound() -> void:
 	audio.stream = generator
 	audio.play()
 	
+	print("[Gem] 🔊 Reproduciendo sonido de RECARGA")
+	
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		# Sonido ascendente (activación)
-		var frames = int(generator.mix_rate * 0.2)
+		# Sonido ascendente épico con armónicos (como "power up")
+		var frames = int(generator.mix_rate * 0.4)
 		for i in range(frames):
 			var t = float(i) / generator.mix_rate
-			var hz = 400.0 + (t * 400.0)  # De 400Hz a 800Hz
-			var envelope = 0.3 * (1.0 - t / 0.2)
-			var sample = sin(t * hz * TAU) * envelope
+			var progress = t / 0.4
+			var hz = 300.0 + (progress * 600.0)  # De 300Hz a 900Hz (ascendente)
+			var envelope = 0.6 * (1.0 - progress * 0.3)  # Mantiene volumen
+			
+			# Tono principal + armónicos para sonido más rico
+			var sample = sin(t * hz * TAU) * envelope * 0.6
+			sample += sin(t * hz * 2.0 * TAU) * envelope * 0.2  # Octava
+			sample += sin(t * hz * 1.5 * TAU) * envelope * 0.15  # Quinta
+			
+			# "Ding" final
+			if progress > 0.7:
+				sample += sin(t * 1200.0 * TAU) * envelope * 0.4
+			
 			playback.push_frame(Vector2(sample, sample))
 	
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.5).timeout
 	if is_instance_valid(audio):
 		audio.queue_free()
 
