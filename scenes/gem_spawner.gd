@@ -61,6 +61,10 @@ func _ready() -> void:
 	print("═══════════════════════════════════════════════════════════════")
 	print("═══ 🎯 GEM SPAWNER INICIALIZADO ═══")
 	print("═══════════════════════════════════════════════════════════════")
+	
+	# ⭐ LIMPIAR PORTALES HUÉRFANOS de sesiones anteriores
+	_cleanup_orphan_portals()
+	
 	print("[Spawner] Verificando GameManager...")
 	if GameManager:
 		print("[Spawner] ✅ GameManager existe")
@@ -83,9 +87,21 @@ func _ready() -> void:
 	
 	print("═══════════════════════════════════════════════════════════════")
 
+func _cleanup_orphan_portals() -> void:
+	# Limpiar cualquier portal que haya quedado de sesiones anteriores
+	print("[Spawner] 🧹 Buscando portales huérfanos...")
+	var root = get_tree().root
+	for child in root.get_children():
+		if child.name.begins_with("@Node3D@") or child.has_meta("is_gem_portal"):
+			print("[Spawner] 🗑️ Encontrado portal huérfano: ", child.name, " - Eliminando...")
+			child.queue_free()
+	print("[Spawner] ✅ Limpieza de huérfanos completada")
+
 func _create_spawn_portal() -> void:
 	# Crear portal visual brillante con partículas
 	_portal = Node3D.new()
+	_portal.name = "GemPortal"  # ⭐ Nombre único
+	_portal.set_meta("is_gem_portal", true)  # ⭐ Marcador para limpieza
 	get_tree().root.add_child(_portal)  # ⭐ Añadir al ROOT, NO al parent local
 	_portal.global_position = Vector3(-8.0, 1.5, 0.0)  # ⭐ Rotado 90°: portal a la IZQUIERDA (X negativo)
 	
@@ -208,8 +224,16 @@ func _on_session_started() -> void:
 	print("═══════════════════════════════════════════════════════════════")
 
 func _on_session_finished(_results: Dictionary) -> void:
+	print("[Spawner] 🏁 Sesión terminada, limpiando...")
 	_spawn_timer.stop()
 	_clear_all_gems()
+	
+	# ⭐ DESTRUIR EL PORTAL para que no aparezca en otras escenas
+	if _portal and is_instance_valid(_portal):
+		print("[Spawner] 🗑️ Destruyendo portal...")
+		_portal.queue_free()
+		_portal = null
+		print("[Spawner] ✅ Portal destruido")
 
 func _build_queue() -> void:
 	var side = GameManager.therapy_side

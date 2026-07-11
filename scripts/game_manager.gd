@@ -205,6 +205,9 @@ func finish_session() -> void:
 		return
 	game_finished  = true
 	session_active = false
+	
+	print("[GameManager] 🏁 Finalizando sesión...")
+	print("[GameManager] Limpiando IDs de sesión...")
 
 	var elapsed   = get_elapsed_time()
 	var accuracy  = _calculate_accuracy()
@@ -269,6 +272,13 @@ func finish_session() -> void:
 	print("Puntuación: ", score, " | Precisión: ", accuracy, "% | Tiempo: ", elapsed, "s")
 	print("Movimientos: ", movements_summary)
 	emit_signal("session_finished", results)
+	
+	# ⭐ RESETEAR IDs para evitar auto-inicio en próxima escena
+	print("[GameManager] 🧹 Reseteando IDs de sesión...")
+	patient_id = ""
+	session_id = ""
+	patient_name = ""
+	print("[GameManager] ✅ IDs limpiados")
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 
