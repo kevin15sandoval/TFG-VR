@@ -268,8 +268,9 @@ func _try_activate() -> void:
 	_activation_effect()
 	_play_activation_sound()
 	
+	# Esperar antes de resetear (NO destruir)
 	await get_tree().create_timer(0.5).timeout
-	queue_free()
+	reset_target()
 
 func _activation_effect() -> void:
 	# Explosión de partículas según puntuación
@@ -322,7 +323,7 @@ func _activation_effect() -> void:
 func _create_shockwave() -> void:
 	# Onda de choque expansiva
 	var shockwave = MeshInstance3D.new()
-	get_parent().add_child(shockwave)
+	get_tree().root.add_child(shockwave)  # Agregar al root, NO al parent que puede destruirse
 	shockwave.global_position = global_position
 	
 	var torus = TorusMesh.new()
@@ -343,14 +344,12 @@ func _create_shockwave() -> void:
 	var tween = create_tween()
 	tween.tween_property(shockwave, "scale", Vector3.ONE * 8.0, 0.6).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(material, "albedo_color:a", 0.0, 0.6)
-	
-	await get_tree().create_timer(0.7).timeout
-	shockwave.queue_free()
+	tween.tween_callback(shockwave.queue_free)
 
 func _show_points_popup() -> void:
 	# Label flotante mostrando puntos ganados
 	var popup = Label3D.new()
-	get_parent().add_child(popup)
+	get_tree().root.add_child(popup)  # Agregar al root, NO al parent que puede destruirse
 	popup.global_position = global_position + Vector3(0, 0.5, 0)
 	popup.pixel_size = 0.003
 	popup.text = "+" + str(points) + " pts!"
@@ -365,14 +364,12 @@ func _show_points_popup() -> void:
 	tween.tween_property(popup, "global_position", popup.global_position + Vector3(0, 1.5, 0), 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(popup, "modulate:a", 0.0, 1.0).set_delay(0.3)
 	tween.parallel().tween_property(popup, "scale", Vector3.ONE * 1.5, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	
-	await get_tree().create_timer(1.2).timeout
-	popup.queue_free()
+	tween.tween_callback(popup.queue_free)
 
 func _play_activation_sound() -> void:
 	# Sonido más rico y satisfactorio
 	var audio = AudioStreamPlayer3D.new()
-	get_parent().add_child(audio)
+	get_tree().root.add_child(audio)  # Agregar al root, NO al parent que puede destruirse
 	audio.global_position = global_position
 	audio.max_distance = 20.0
 	audio.unit_size = 5.0
@@ -439,3 +436,30 @@ func highlight(enabled: bool) -> void:
 		# Volver a normal
 		var tween = create_tween()
 		tween.tween_property(_mesh_instance, "scale", Vector3.ONE, 0.3)
+
+func reset_target() -> void:
+	# Resetear target para reutilización (en lugar de queue_free)
+	_is_collected = false
+	_gaze_time = 0.0
+	_being_gazed = false
+	
+	# Ocultar y desactivar
+	visible = false
+	_is_active = false
+	
+	if _mesh_instance:
+		_mesh_instance.scale = Vector3.ONE
+		var mat = _mesh_instance.material_override as StandardMaterial3D
+		if mat:
+			mat.emission = target_color
+			mat.emission_energy_multiplier = 4.0
+	
+	# Resetear barra de progreso
+	var progress_bar = _mesh_instance.get_node_or_null("GazeProgressBar") as MeshInstance3D
+	if progress_bar:
+		var cylinder = progress_bar.mesh as CylinderMesh
+		if cylinder:
+			cylinder.height = 0.0
+			progress_bar.position.y = -0.4
+	
+	print("[UrbanTarget] 🔄 Target ", target_id, " reseteado para reutilización")

@@ -171,24 +171,32 @@ func _spawn_next_targets() -> void:
 	if not game_active or recognition_phase:
 		return
 	
-	# Si quedan targets disponibles, spawna el siguiente grupo
-	if _next_target_index < _targets.size():
-		var spawn_count = min(_targets_per_spawn, _targets.size() - _next_target_index)
-		
-		for i in range(spawn_count):
-			if _next_target_index < _targets.size():
-				var target = _targets[_next_target_index]
-				target.set_active(true)
-				target.visible = true
-				_active_targets.append(target)
-				_next_target_index += 1
-				print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
-	else:
-		# Si ya spawneamos todos, REINICIAR para que sigan apareciendo
-		_next_target_index = 0
-		print("[CityManager] 🔄 Reiniciando ciclo de targets - continúan apareciendo hasta que termine el tiempo")
+	var spawn_count = 0
 	
-	# IMPORTANTE: NO detener el timer - debe seguir spawneando durante todo el juego
+	# Buscar targets que estén inactivos y listos para spawning
+	for i in range(_targets_per_spawn):
+		if _next_target_index >= _targets.size():
+			_next_target_index = 0  # Reiniciar ciclo
+		
+		var target = _targets[_next_target_index]
+		
+		# Solo spawnar si el target está inactivo (ya fue recogido o nunca activado)
+		if not target.visible and not target._is_active:
+			target.set_active(true)
+			target.visible = true
+			_active_targets.append(target)
+			spawn_count += 1
+			print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
+		
+		_next_target_index += 1
+		
+		if spawn_count >= _targets_per_spawn:
+			break
+	
+	if spawn_count > 0:
+		print("[CityManager] ✅ Spawneados ", spawn_count, " targets. Siguiente spawn en ", _spawn_interval, " segundos")
+	
+	# IMPORTANTE: El timer continúa spawneando durante todo el juego
 
 func collect_target(target_id: int, points: int, target_position: Vector3, sequence_number: int) -> void:
 	if not game_active or recognition_phase:

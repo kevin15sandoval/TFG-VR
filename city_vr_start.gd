@@ -153,18 +153,20 @@ func _create_game_hud() -> void:
 	hud_score.outline_modulate = Color.BLACK
 	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_score.visible = false
+	hud_score.text = "0 pts"
 	_xr_camera.add_child(hud_score)
 	
-	# Timer (arriba derecha)
+	# Timer (arriba derecha) - MÁS VISIBLE
 	hud_timer = Label3D.new()
 	hud_timer.pixel_size = 0.002
 	hud_timer.position = Vector3(0.6, 0.4, -1.2)
-	hud_timer.font_size = 48
+	hud_timer.font_size = 56  # MÁS GRANDE
 	hud_timer.modulate = Color(0.2, 1.0, 0.4)
-	hud_timer.outline_size = 6
+	hud_timer.outline_size = 8  # BORDE MÁS GRUESO
 	hud_timer.outline_modulate = Color.BLACK
 	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_timer.visible = false
+	hud_timer.text = "03:00"  # Texto inicial
 	_xr_camera.add_child(hud_timer)
 	
 	# Instrucción (abajo centro)
@@ -202,6 +204,8 @@ func _create_game_hud() -> void:
 	hud_asymmetry.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_asymmetry.visible = false
 	_xr_camera.add_child(hud_asymmetry)
+	
+	print("[CityVR] ✅ HUD creado - Timer inicializado")
 
 func _create_countdown_ui() -> void:
 	if not _xr_camera:
