@@ -114,36 +114,34 @@ func _setup_vr_quality() -> void:
 		print("[CityVR] ⚠️ OpenXR no disponible, saltando configuración de calidad")
 		return
 	
-	# ═══ SOLUCIÓN ANTI-THROTTLING MÁS AGRESIVA ═══
-	# CityWorld es MUY pesado, necesita configuración más conservadora
+	# ═══ CONFIGURACIÓN EQUILIBRADA Y SEGURA ═══
 	
-	# 1. Eliminar super-sampling completamente
+	# 1. Resolución nativa (segura)
 	var viewport = get_viewport()
 	if viewport:
-		viewport.scaling_3d_scale = 0.9  # Ligeramente bajo resolución nativa para mayor estabilidad
-		print("[CityVR]   ✅ Resolución: 0.9x (conservador)")
+		viewport.scaling_3d_scale = 1.0  # Nativo (seguro)
+		print("[CityVR]   ✅ Resolución: 1.0x (nativo)")
 	
-	# 2. Foveated Rendering MÁS ALTO (nivel 3)
+	# 2. Foveated Rendering medio-alto
 	if xr_interface.is_foveation_supported():
-		xr_interface.foveation_level = 3  # ALTO - más ahorro
+		xr_interface.foveation_level = 2  # Medio (equilibrado)
 		xr_interface.foveation_dynamic = true
-		print("[CityVR]   ✅ Foveated Rendering: NIVEL 3 (alto, dinámico)")
+		print("[CityVR]   ✅ Foveated Rendering: NIVEL 2 (medio, dinámico)")
 	else:
 		print("[CityVR]   ⚠️ Foveated Rendering no soportado")
 	
-	# 3. MSAA más bajo
+	# 3. MSAA equilibrado
 	if viewport:
-		viewport.msaa_3d = Viewport.MSAA_2X  # Más bajo para estabilidad
-		print("[CityVR]   ✅ MSAA: 2X (conservador)")
+		viewport.msaa_3d = Viewport.MSAA_4X  # Equilibrado
+		print("[CityVR]   ✅ MSAA: 4X (equilibrado)")
 		
 		# Anti-aliasing adicional
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
 		viewport.use_taa = true
 		print("[CityVR]   ✅ TAA + FXAA: ACTIVADO")
 	
-	print("[CityVR] ✅ Configuración VR ULTRA-OPTIMIZADA para escenas pesadas")
-	print("[CityVR]   → Máxima estabilidad térmica")
-	print("[CityVR]   → Calidad constante sin degradación")
+	print("[CityVR] ✅ Configuración VR equilibrada y segura")
+	print("[CityVR]   → Previene throttling sin comprometer calidad")
 
 func _register_targets() -> void:
 	var targets_node = get_node_or_null("UrbanTargets")
