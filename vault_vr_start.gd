@@ -415,13 +415,18 @@ func _on_game_finished(results: Dictionary) -> void:
 		label_info.visible = true
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Paneles: " + str(results.get("panels_collected", 0)) + "/" + str(results.get("total_panels", 0))
 	
-	_clear_firestore_session()
+	print("[VaultVR] 🧹 Limpiando sesión activa de Firestore...")
+	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
+	print("[VaultVR] ✅ Sesión limpiada completamente")
 	
-	await get_tree().create_timer(5.0).timeout
-	print("[VaultVR] 🔄 Volviendo a sala de espera...")
-	waiting_mode = true
-	_show_waiting_message()
-	firebase_manager.start_polling()
+	print("[VaultVR] 🛑 Deteniendo polling de Firebase...")
+	if firebase_manager:
+		firebase_manager.stop_polling()
+		print("[VaultVR] ✅ Polling detenido")
+	
+	await get_tree().create_timer(3.0).timeout
+	print("[VaultVR] 🔄 Regresando al HubWorld...")
+	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _on_session_finished(results: Dictionary) -> void:
 	pass  # Manejado por _on_game_finished

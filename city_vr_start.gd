@@ -583,9 +583,15 @@ func _on_game_finished(results: Dictionary) -> void:
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Negligencia: " + str(int(neglect)) + "/100"
 	
 	print("[CityVR] 🧹 Limpiando sesión activa de Firestore...")
-	_clear_firestore_session()
+	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
+	print("[CityVR] ✅ Sesión limpiada completamente")
 	
-	await get_tree().create_timer(5.0).timeout
+	print("[CityVR] 🛑 Deteniendo polling de Firebase...")
+	if firebase_manager:
+		firebase_manager.stop_polling()
+		print("[CityVR] ✅ Polling detenido")
+	
+	await get_tree().create_timer(3.0).timeout
 	print("[CityVR] 🔄 Regresando al HubWorld...")
 	
 	# Regresar al HubWorld

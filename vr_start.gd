@@ -667,10 +667,16 @@ func _on_session_finished(results: Dictionary) -> void:
 	
 	# Limpiar sesión activa en Firestore para evitar auto-inicio
 	print("[VR] 🧹 Limpiando sesión de Firestore...")
-	_clear_firestore_session()
+	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
+	print("[VR] ✅ Sesión limpiada completamente")
 	
-	# Volver a sala de espera después de 5 segundos
-	await get_tree().create_timer(5.0).timeout
+	print("[VR] 🛑 Deteniendo polling de Firebase...")
+	if firebase_manager:
+		firebase_manager.stop_polling()
+		print("[VR] ✅ Polling detenido")
+	
+	# Volver a sala de espera después de 3 segundos
+	await get_tree().create_timer(3.0).timeout
 	print("[VR] 🔄 Volviendo a sala de espera...")
 	waiting_mode = true
 	_show_waiting_message()

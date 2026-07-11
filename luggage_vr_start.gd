@@ -401,13 +401,18 @@ func _on_game_finished(results: Dictionary) -> void:
 		var total_weight = results.get("total_weight_moved", 0)
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Peso: " + str(int(total_weight)) + "kg"
 	
-	_clear_firestore_session()
+	print("[LuggageVR] 🧹 Limpiando sesión activa de Firestore...")
+	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
+	print("[LuggageVR] ✅ Sesión limpiada completamente")
 	
-	await get_tree().create_timer(5.0).timeout
-	print("[LuggageVR] 🔄 Volviendo a sala de espera...")
-	waiting_mode = true
-	_show_waiting_message()
-	firebase_manager.start_polling()
+	print("[LuggageVR] 🛑 Deteniendo polling de Firebase...")
+	if firebase_manager:
+		firebase_manager.stop_polling()
+		print("[LuggageVR] ✅ Polling detenido")
+	
+	await get_tree().create_timer(3.0).timeout
+	print("[LuggageVR] 🔄 Regresando al HubWorld...")
+	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _on_session_finished(results: Dictionary) -> void:
 	pass
