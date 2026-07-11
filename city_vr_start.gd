@@ -17,8 +17,10 @@ var waiting_mode := true
 @onready var hud_sequence: Label3D = null
 @onready var hud_asymmetry: Label3D = null
 
-var _countdown_label: Label3D = null
-var _ambient_audio: AudioStreamPlayer = null
+var _gaze_time: float = 0.0
+var _required_gaze_time: float = 2.0  # 2 segundos mirando
+var _being_gazed: bool = false
+
 var _xr_camera: XRCamera3D = null
 
 func _ready() -> void:
@@ -39,8 +41,7 @@ func _ready() -> void:
 	_init_openxr()
 	_create_waiting_ui()
 	_create_game_hud()
-	_create_countdown_ui()
-	_setup_ambient_audio()
+	# Countdown eliminado - causaba crashes en Meta Quest
 	
 	# Obtener CityGameManager
 	city_manager = get_node_or_null("CityGameManager")
@@ -300,12 +301,14 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	_hide_waiting_ui()
 	
 	GameManager.apply_config(config)
-	await _show_countdown()
+	
+	# ELIMINAR COUNTDOWN - Inicia directo sin animación
+	await get_tree().create_timer(0.5).timeout
 	GameManager.start_session()
 
 func _on_config_loaded(config: Dictionary) -> void:
 	GameManager.apply_config(config)
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(0.5).timeout
 	GameManager.start_session()
 
 func _on_config_error(_msg: String) -> void:
@@ -322,8 +325,7 @@ func _on_config_error(_msg: String) -> void:
 	})
 	
 	_hide_waiting_ui()
-	await get_tree().create_timer(1.0).timeout
-	await _show_countdown()
+	await get_tree().create_timer(0.5).timeout
 	GameManager.start_session()
 
 func _on_session_started() -> void:
