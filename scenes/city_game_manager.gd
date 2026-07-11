@@ -85,6 +85,7 @@ func start_game() -> void:
 	if game_active:
 		return
 	
+	print("[CityManager] 🚀 Iniciando juego...")
 	game_active = true
 	recognition_phase = true
 	recognition_timer = 0.0
@@ -121,9 +122,14 @@ func start_game() -> void:
 	_next_target_index = 0
 	
 	# Ocultar TODOS los targets al inicio
+	print("[CityManager] 🙈 Ocultando todos los targets...")
 	for target in _targets:
 		target.set_active(false)
 		target.visible = false
+		# Asegurarse de que están reseteados
+		if target.has_method("reset_target"):
+			target.reset_target()
+	print("[CityManager] ✅ Todos los targets ocultos y reseteados")
 	
 	if GameManager:
 		difficulty = GameManager.difficulty
@@ -169,14 +175,21 @@ func _on_timer_tick() -> void:
 func _spawn_next_targets() -> void:
 	# Sistema de spawneo CONTINUO - spawna de 2 en 2 durante TODO el juego
 	if not game_active or recognition_phase:
+		print("[CityManager] ⏸️ Spawning pausado (recognition_phase=", recognition_phase, ", game_active=", game_active, ")")
 		return
 	
+	print("[CityManager] 🎲 Intentando spawnar targets...")
+	print("[CityManager]   - Índice actual: ", _next_target_index, "/", _targets.size())
+	
 	var spawn_count = 0
+	var attempts = 0
+	var max_attempts = _targets.size()  # Intentar todos los targets
 	
 	# Buscar targets que estén inactivos y listos para spawning
-	for i in range(_targets_per_spawn):
+	while spawn_count < _targets_per_spawn and attempts < max_attempts:
 		if _next_target_index >= _targets.size():
 			_next_target_index = 0  # Reiniciar ciclo
+			print("[CityManager] 🔄 Ciclo reiniciado - volviendo al primer target")
 		
 		var target = _targets[_next_target_index]
 		
@@ -187,14 +200,16 @@ func _spawn_next_targets() -> void:
 			_active_targets.append(target)
 			spawn_count += 1
 			print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
+		else:
+			print("[CityManager]   ⏭️ Target ", target.target_id, " ya está activo, saltando...")
 		
 		_next_target_index += 1
-		
-		if spawn_count >= _targets_per_spawn:
-			break
+		attempts += 1
 	
 	if spawn_count > 0:
 		print("[CityManager] ✅ Spawneados ", spawn_count, " targets. Siguiente spawn en ", _spawn_interval, " segundos")
+	else:
+		print("[CityManager] ⚠️ No se pudieron spawnar targets (todos están activos)")
 	
 	# IMPORTANTE: El timer continúa spawneando durante todo el juego
 

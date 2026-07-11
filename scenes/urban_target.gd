@@ -439,27 +439,36 @@ func highlight(enabled: bool) -> void:
 
 func reset_target() -> void:
 	# Resetear target para reutilización (en lugar de queue_free)
+	print("[UrbanTarget] 🔄 Reseteando target ", target_id, "...")
+	
 	_is_collected = false
+	_is_active = false
 	_gaze_time = 0.0
 	_being_gazed = false
 	
-	# Ocultar y desactivar
+	# Ocultar completamente
 	visible = false
-	_is_active = false
 	
 	if _mesh_instance:
 		_mesh_instance.scale = Vector3.ONE
+		_mesh_instance.visible = true
 		var mat = _mesh_instance.material_override as StandardMaterial3D
 		if mat:
 			mat.emission = target_color
 			mat.emission_energy_multiplier = 4.0
+			mat.albedo_color = Color(target_color.r, target_color.g, target_color.b, 1.0)
 	
 	# Resetear barra de progreso
-	var progress_bar = _mesh_instance.get_node_or_null("GazeProgressBar") as MeshInstance3D
-	if progress_bar:
-		var cylinder = progress_bar.mesh as CylinderMesh
-		if cylinder:
-			cylinder.height = 0.0
-			progress_bar.position.y = -0.4
+	if _mesh_instance:
+		var progress_bar = _mesh_instance.get_node_or_null("GazeProgressBar") as MeshInstance3D
+		if progress_bar:
+			var cylinder = progress_bar.mesh as CylinderMesh
+			if cylinder:
+				cylinder.height = 0.0
+				progress_bar.position.y = -0.4
 	
-	print("[UrbanTarget] 🔄 Target ", target_id, " reseteado para reutilización")
+	# Reactivar partículas
+	if _particles:
+		_particles.emitting = true
+	
+	print("[UrbanTarget] ✅ Target ", target_id, " reseteado y listo para reutilización")

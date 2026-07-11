@@ -141,7 +141,10 @@ func _create_game_hud() -> void:
 	if not _xr_camera:
 		_xr_camera = get_node_or_null("XROrigin3D/XRCamera3D")
 	if not _xr_camera:
+		print("[CityVR] ❌ ERROR: No se encontró XRCamera3D para crear HUD")
 		return
+	
+	print("[CityVR] 🎨 Creando HUD del juego...")
 	
 	# Score (arriba izquierda)
 	hud_score = Label3D.new()
@@ -155,6 +158,7 @@ func _create_game_hud() -> void:
 	hud_score.visible = false
 	hud_score.text = "0 pts"
 	_xr_camera.add_child(hud_score)
+	print("[CityVR]   ✅ Score HUD creado")
 	
 	# Timer (arriba derecha) - MÁS VISIBLE
 	hud_timer = Label3D.new()
@@ -168,6 +172,7 @@ func _create_game_hud() -> void:
 	hud_timer.visible = false
 	hud_timer.text = "03:00"  # Texto inicial
 	_xr_camera.add_child(hud_timer)
+	print("[CityVR]   ✅ Timer HUD creado")
 	
 	# Instrucción (abajo centro)
 	hud_instruction = Label3D.new()
@@ -180,6 +185,7 @@ func _create_game_hud() -> void:
 	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_instruction.visible = false
 	_xr_camera.add_child(hud_instruction)
+	print("[CityVR]   ✅ Instruction HUD creado")
 	
 	# Secuencia actual (centro superior)
 	hud_sequence = Label3D.new()
@@ -192,6 +198,7 @@ func _create_game_hud() -> void:
 	hud_sequence.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_sequence.visible = false
 	_xr_camera.add_child(hud_sequence)
+	print("[CityVR]   ✅ Sequence HUD creado")
 	
 	# Indicador de asimetría (negligencia) (abajo)
 	hud_asymmetry = Label3D.new()
@@ -204,8 +211,11 @@ func _create_game_hud() -> void:
 	hud_asymmetry.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	hud_asymmetry.visible = false
 	_xr_camera.add_child(hud_asymmetry)
+	print("[CityVR]   ✅ Asymmetry HUD creado")
 	
-	print("[CityVR] ✅ HUD creado - Timer inicializado")
+	print("[CityVR] ✅ HUD completo inicializado")
+
+var _countdown_label: Label3D = null
 
 func _create_countdown_ui() -> void:
 	if not _xr_camera:
@@ -225,25 +235,49 @@ func _create_countdown_ui() -> void:
 	_xr_camera.add_child(_countdown_label)
 
 func _show_countdown() -> void:
+	# Crear countdown UI si no existe
 	if not _countdown_label:
-		return
+		if not _xr_camera:
+			_xr_camera = get_node_or_null("XROrigin3D/XRCamera3D")
+		if not _xr_camera:
+			print("[CityVR] ❌ No se puede crear countdown, XRCamera3D no encontrada")
+			return
+		
+		_countdown_label = Label3D.new()
+		_countdown_label.pixel_size = 0.003
+		_countdown_label.position = Vector3(0, 0, -1.5)
+		_countdown_label.font_size = 144
+		_countdown_label.modulate = Color(1.0, 1.0, 0.0)
+		_countdown_label.outline_size = 16
+		_countdown_label.outline_modulate = Color.BLACK
+		_countdown_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_countdown_label.visible = false
+		_xr_camera.add_child(_countdown_label)
 	
-	print("[CityVR] 🎬 Iniciando countdown SIN AUDIO...")
+	print("[CityVR] 🎬 Iniciando countdown VISUAL (sin audio)...")
 	_countdown_label.visible = true
 	_countdown_label.scale = Vector3.ONE
 	
+	# Countdown: 3, 2, 1
 	for i in range(3, 0, -1):
 		print("[CityVR] Countdown: ", i)
 		_countdown_label.text = str(i)
 		_countdown_label.modulate = Color(1.0, 0.3, 0.0) if i == 1 else Color(1.0, 1.0, 0.0)
-		_countdown_label.scale = Vector3.ONE * 2.0
+		
+		# Animación de escala
+		var tween = create_tween()
+		tween.tween_property(_countdown_label, "scale", Vector3.ONE * 2.5, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(_countdown_label, "scale", Vector3.ONE * 1.8, 0.7).set_trans(Tween.TRANS_SINE)
 		
 		await get_tree().create_timer(1.0).timeout
 	
+	# ¡EXPLORA!
 	print("[CityVR] Countdown: ¡EXPLORA!")
 	_countdown_label.text = "¡EXPLORA!"
 	_countdown_label.modulate = Color(0.2, 1.0, 0.8)
-	_countdown_label.scale = Vector3.ONE * 3.0
+	
+	var tween = create_tween()
+	tween.tween_property(_countdown_label, "scale", Vector3.ONE * 3.5, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	
 	await get_tree().create_timer(1.0).timeout
 	_countdown_label.visible = false
@@ -270,17 +304,37 @@ func _hide_waiting_ui() -> void:
 		label_info.visible = false
 
 func _show_game_hud() -> void:
+	print("[CityVR] 👁️ Mostrando HUD del juego...")
 	if hud_score:
 		hud_score.visible = true
+		print("[CityVR]   ✅ Score visible")
+	else:
+		print("[CityVR]   ❌ hud_score es null!")
+		
 	if hud_timer:
 		hud_timer.visible = true
+		print("[CityVR]   ✅ Timer visible")
+	else:
+		print("[CityVR]   ❌ hud_timer es null!")
+		
 	if hud_instruction:
 		hud_instruction.visible = true
 		hud_instruction.text = "¡Mira las señales 2 segundos para activarlas!"
+		print("[CityVR]   ✅ Instruction visible")
+	else:
+		print("[CityVR]   ❌ hud_instruction es null!")
+		
 	if hud_sequence:
 		hud_sequence.visible = true
+		print("[CityVR]   ✅ Sequence visible")
+	else:
+		print("[CityVR]   ❌ hud_sequence es null!")
+		
 	if hud_asymmetry:
 		hud_asymmetry.visible = true
+		print("[CityVR]   ✅ Asymmetry visible")
+	else:
+		print("[CityVR]   ❌ hud_asymmetry es null!")
 
 func _hide_game_hud() -> void:
 	if hud_score:
@@ -306,13 +360,16 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	
 	GameManager.apply_config(config)
 	
-	# ELIMINAR COUNTDOWN - Inicia directo sin animación
+	# RESTAURAR COUNTDOWN VISUAL (sin audio para evitar crashes)
 	await get_tree().create_timer(0.5).timeout
+	await _show_countdown()
+	
 	GameManager.start_session()
 
 func _on_config_loaded(config: Dictionary) -> void:
 	GameManager.apply_config(config)
 	await get_tree().create_timer(0.5).timeout
+	await _show_countdown()
 	GameManager.start_session()
 
 func _on_config_error(_msg: String) -> void:
@@ -330,6 +387,7 @@ func _on_config_error(_msg: String) -> void:
 	
 	_hide_waiting_ui()
 	await get_tree().create_timer(0.5).timeout
+	await _show_countdown()
 	GameManager.start_session()
 
 func _on_session_started() -> void:
