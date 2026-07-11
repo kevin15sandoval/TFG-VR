@@ -223,13 +223,12 @@ func collect_target(target_id: int, points: int, target_position: Vector3, seque
 	# Verificar secuencia
 	if sequence_number > 0:  # Solo si tiene secuencia
 		if sequence_number != current_sequence_number:
-			# Error de secuencia - PENALIZACIÓN
+			# Error de secuencia - SOLO CONTADOR, SIN PENALIZACIÓN
 			sequence_errors += 1
-			score = max(0, score - 5)
 			sequence_error.emit(current_sequence_number, sequence_number)
-			print("[CityManager] ❌ Error de secuencia! Esperado: ", current_sequence_number, ", Tocado: ", sequence_number)
-			_play_error_sound()  # SONIDO DE ERROR
-			return
+			print("[CityManager] ⚠️ Secuencia incorrecta (esperado: ", current_sequence_number, ", tocado: ", sequence_number, ") - Solo feedback")
+			_play_error_sound()  # SONIDO DE FEEDBACK (no penalización)
+			return  # No recoger este target, pero no quita puntos
 		else:
 			current_sequence_number += 1
 	
