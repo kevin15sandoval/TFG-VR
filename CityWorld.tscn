@@ -70,3 +70,167 @@ script = ExtResource("3")
 
 [node name="FirebaseManager" type="Node" parent="."]
 script = ExtResource("4")
+
+[node name="UrbanTargets" type="Node3D" parent="."]
+
+[node name="Target1" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 2, -5)
+script = preload("res://scenes/urban_target.gd")
+target_id = 1
+points = 10
+target_type = "window"
+sequence_number = 1
+target_color = Color(0.2, 1, 0.3, 1)
+
+[node name="Target2" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1.5, -6)
+script = preload("res://scenes/urban_target.gd")
+target_id = 2
+points = 10
+target_type = "lamp"
+sequence_number = 2
+target_color = Color(0.2, 1, 0.3, 1)
+
+[node name="Target3" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.8, 2)
+script = preload("res://scenes/urban_target.gd")
+target_id = 3
+points = 10
+target_type = "door"
+sequence_number = 3
+target_color = Color(1, 0.9, 0.2, 1)
+
+[node name="Target4" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 2.5, 3)
+script = preload("res://scenes/urban_target.gd")
+target_id = 4
+points = 15
+target_type = "traffic_sign"
+sequence_number = 4
+target_color = Color(1, 0.9, 0.2, 1)
+
+[node name="Target5" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -8)
+script = preload("res://scenes/urban_target.gd")
+target_id = 5
+points = 15
+target_type = "window"
+sequence_number = 5
+target_color = Color(1, 0.9, 0.2, 1)
+
+[node name="Target6" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 1, -2)
+script = preload("res://scenes/urban_target.gd")
+target_id = 6
+points = 10
+target_type = "lamp"
+sequence_number = 6
+target_color = Color(0.2, 1, 0.3, 1)
+
+[node name="Target7" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.2, -3)
+script = preload("res://scenes/urban_target.gd")
+target_id = 7
+points = 10
+target_type = "window"
+sequence_number = 7
+target_color = Color(0.2, 1, 0.3, 1)
+
+[node name="Target8" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.8, 7)
+script = preload("res://scenes/urban_target.gd")
+target_id = 8
+points = 20
+target_type = "door"
+sequence_number = 8
+target_color = Color(1, 0.2, 0.2, 1)
+
+[node name="Target9" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 2.2, 6)
+script = preload("res://scenes/urban_target.gd")
+target_id = 9
+points = 20
+target_type = "traffic_sign"
+sequence_number = 9
+target_color = Color(1, 0.2, 0.2, 1)
+
+[node name="Target10" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 3.5, 4)
+script = preload("res://scenes/urban_target.gd")
+target_id = 10
+points = 15
+target_type = "window"
+sequence_number = 10
+target_color = Color(1, 0.9, 0.2, 1)
+
+[node name="Target11" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.5, 0)
+script = preload("res://scenes/urban_target.gd")
+target_id = 11
+points = 10
+target_type = "lamp"
+sequence_number = 11
+target_color = Color(0.2, 1, 0.3, 1)
+
+[node name="Target12" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.5, 5)
+script = preload("res://scenes/urban_target.gd")
+target_id = 12
+points = 20
+target_type = "door"
+sequence_number = 12
+target_color = Color(1, 0.2, 0.2, 1)
+
+[node name="Target13" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.8, 8)
+script = preload("res://scenes/urban_target.gd")
+target_id = 13
+points = 25
+target_type = "traffic_sign"
+sequence_number = 13
+target_color = Color(1, 0.2, 0.2, 1)
+
+[node name="Target14" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2, 7)
+script = preload("res://scenes/urban_target.gd")
+target_id = 14
+points = 25
+target_type = "window"
+sequence_number = 14
+target_color = Color(1, 0.2, 0.2, 1)
+
+[node name="Target15" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.8, -7)
+script = preload("res://scenes/urban_target.gd")
+target_id = 15
+points = 15
+target_type = "lamp"
+sequence_number = 15
+target_color = Color(1, 0.9, 0.2, 1)
+
+[node name="Target16" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 3.2, -7)
+script = preload("res://scenes/urban_target.gd")
+target_id = 16
+points = 20
+target_type = "door"
+sequence_number = 16
+target_color = Color(1, 0.2, 0.2, 1)
+
+[node name="Target17" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 1.8, -4)
+script = preload("res://scenes/urban_target.gd")
+target_id = 17
+points = 15
+target_type = "window"
+sequence_number = 17
+target_color = Color(1, 0.9, 0.2, 1)
+
+[node name="Target18" type="Node3D" parent="UrbanTargets"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 1.2, -5)
+script = preload("res://scenes/urban_target.gd")
+target_id = 18
+points = 20
+target_type = "traffic_sign"
+sequence_number = 18
+target_color = Color(1, 0.2, 0.2, 1)
