@@ -34,13 +34,19 @@ func update_sequence_label() -> void:
 	if sequence_number > 0:
 		if _label:
 			_label.text = str(sequence_number)
-			# Actualizar colores según el color del globo
-			if target_color.r > 0.5:  # Globo rojo/amarillo → texto oscuro
-				_label.modulate = Color(0.1, 0.1, 0.1, 1.0)
-				_label.outline_modulate = Color.WHITE
-			else:  # Globo verde/azul → texto claro
-				_label.modulate = Color.WHITE
-				_label.outline_modulate = Color(0.1, 0.1, 0.1, 1.0)
+			# USAR MISMA LÓGICA DE COLORES ULTRA CONTRASTADOS
+			if target_color.r > 0.5 and target_color.g < 0.5:  # Globo ROJO → texto blanco
+				_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+				_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+			elif target_color.r > 0.5 and target_color.g > 0.5:  # Globo AMARILLO → texto negro
+				_label.modulate = Color(0.0, 0.0, 0.0, 1.0)
+				_label.outline_modulate = Color(1.0, 1.0, 1.0, 1.0)
+			elif target_color.g > 0.5:  # Globo VERDE → texto blanco
+				_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+				_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+			else:  # Globo AZUL → texto blanco
+				_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+				_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
 		else:
 			_create_sequence_label()
 
@@ -152,31 +158,45 @@ func _create_sequence_label() -> void:
 	_label = Label3D.new()
 	add_child(_label)
 	
-	# POSICIÓN: CENTRADO EN EL GLOBO (no flotando encima)
-	_label.position = Vector3(0, 0, 0)  # Centro del globo
+	# POSICIÓN: CENTRADO EN EL GLOBO ligeramente al frente
+	_label.position = Vector3(0, 0, 0.3)  # 30cm al frente para evitar oclusión
 	_label.text = str(sequence_number)
-	_label.font_size = 128  # Grande pero no exagerado
+	_label.font_size = 256  # ⭐ MUY GRANDE para máxima visibilidad
 	
-	# COLORES PROFESIONALES - Contraste con el globo
-	if target_color.r > 0.5:  # Globo rojo/amarillo → texto oscuro
-		_label.modulate = Color(0.1, 0.1, 0.1, 1.0)  # Casi negro
-		_label.outline_size = 8
-		_label.outline_modulate = Color.WHITE
-	else:  # Globo verde/azul → texto claro
-		_label.modulate = Color.WHITE
-		_label.outline_size = 8
-		_label.outline_modulate = Color(0.1, 0.1, 0.1, 1.0)
+	# COLORES ULTRA CONTRASTADOS - MÁXIMA VISIBILIDAD
+	if target_color.r > 0.5 and target_color.g < 0.5:  # Globo ROJO → texto blanco con borde negro
+		_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
+		_label.outline_size = 20  # Borde GRUESO
+		_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
+	elif target_color.r > 0.5 and target_color.g > 0.5:  # Globo AMARILLO → texto negro con borde blanco
+		_label.modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
+		_label.outline_size = 20  # Borde GRUESO
+		_label.outline_modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
+	elif target_color.g > 0.5:  # Globo VERDE → texto blanco con borde negro
+		_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
+		_label.outline_size = 20  # Borde GRUESO
+		_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
+	else:  # Globo AZUL → texto blanco con borde negro
+		_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
+		_label.outline_size = 20  # Borde GRUESO
+		_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
 	
-	# BILLBOARD para que siempre mire al jugador
+	# BILLBOARD para que SIEMPRE mire al jugador
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	
-	# RENDER PRIORITY alto para que se vea SOBRE el globo (no detrás)
-	_label.render_priority = 10
+	# RENDER PRIORITY MÁXIMO para que se vea SIEMPRE ENCIMA
+	_label.render_priority = 100  # Prioridad súper alta
 	
-	# PIXEL SIZE más pequeño para que se integre mejor
-	_label.pixel_size = 0.0015  # Más fino y profesional
+	# PIXEL SIZE ajustado para legibilidad perfecta
+	_label.pixel_size = 0.001  # Texto nítido y profesional
 	
-	print("[UrbanTarget] 🏷️ Label de secuencia creado: ", sequence_number, " (integrado en globo)")
+	# NO_DEPTH_TEST para que se vea incluso a través de objetos
+	_label.no_depth_test = true
+	
+	# ALPHA CUT para bordes limpios
+	_label.alpha_cut = BaseMaterial3D.ALPHA_CUT_OPAQUE_PREPASS
+	
+	print("[UrbanTarget] 🏷️ Label ULTRA VISIBLE creado: ", sequence_number, " (blanco/negro, tamaño 256, sin depth test)")
 
 func _create_particles() -> void:
 	_particles = CPUParticles3D.new()
