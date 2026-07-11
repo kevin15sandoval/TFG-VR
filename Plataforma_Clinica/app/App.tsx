@@ -578,6 +578,113 @@ const HEIGHTS = ["Baja", "Media", "Alta", "Mixta"];
 const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco", "Planificación motora", "Navegación espacial", "Fuerza"];
 const DURATIONS = [1, 3, 5, 10];
 
+// ─── CONFIGURACIÓN ESPECÍFICA POR JUEGO ───────────────────────────────────────
+// Define qué parámetros son relevantes para cada juego
+
+const GAME_CONFIG_FIELDS: Record<string, {
+  duration: boolean;
+  therapySide: boolean;
+  difficulty: boolean;
+  heightMode: boolean;
+  sessionType: boolean;
+  customFields?: Array<{
+    key: string;
+    label: string;
+    Icon: any;
+    iconBg: string;
+    iconColor: string;
+    options: Array<{ val: string; label: string }>;
+  }>;
+}> = {
+  // Recolectar gemas - juego clásico de alcance
+  gems: {
+    duration: true,
+    therapySide: true,  // Importante: trabaja un lado específico
+    difficulty: true,
+    heightMode: true,   // Importante: altura de los objetivos
+    sessionType: true,
+  },
+  
+  // Urban Attention Quest - negligencia espacial y rotación cervical
+  urban_attention_quest: {
+    duration: true,
+    therapySide: false,  // NO necesita lado (trabaja ambos con rotación 360°)
+    difficulty: true,
+    heightMode: false,   // NO necesita altura (targets distribuidos en espacio 3D)
+    sessionType: false,  // Tipo fijo: Navegación espacial
+    customFields: [
+      {
+        key: "neglectFocus",
+        label: "Enfoque de negligencia",
+        Icon: Crosshair,
+        iconBg: "bg-cyan-100",
+        iconColor: "text-cyan-600",
+        options: [
+          { val: "balanced", label: "Balanceado" },
+          { val: "left_emphasis", label: "Énfasis izquierdo" },
+          { val: "right_emphasis", label: "Énfasis derecho" },
+          { val: "posterior_emphasis", label: "Énfasis posterior" },
+        ],
+      },
+    ],
+  },
+  
+  // Laser Vault Escape - planificación y memoria espacial
+  vault_escape: {
+    duration: true,
+    therapySide: false,  // Bilateral (ambas manos)
+    difficulty: true,
+    heightMode: true,    // Altura de paneles es importante
+    sessionType: false,  // Tipo fijo: Planificación motora
+    customFields: [
+      {
+        key: "laserPattern",
+        label: "Patrón de láser",
+        Icon: Zap,
+        iconBg: "bg-purple-100",
+        iconColor: "text-purple-600",
+        options: [
+          { val: "static", label: "Estático" },
+          { val: "moving", label: "Móvil" },
+          { val: "blinking", label: "Parpadeante" },
+        ],
+      },
+    ],
+  },
+  
+  // Luggage Handler - fuerza y resistencia
+  luggage_handler: {
+    duration: true,
+    therapySide: false,  // Bilateral (rotación de tronco)
+    difficulty: true,
+    heightMode: false,
+    sessionType: false,  // Tipo fijo: Fuerza y resistencia
+    customFields: [
+      {
+        key: "weightRange",
+        label: "Rango de peso",
+        Icon: Layers,
+        iconBg: "bg-orange-100",
+        iconColor: "text-orange-600",
+        options: [
+          { val: "light", label: "Ligero (1-3kg)" },
+          { val: "medium", label: "Medio (3-5kg)" },
+          { val: "heavy", label: "Pesado (5-7kg)" },
+        ],
+      },
+    ],
+  },
+  
+  // Valores por defecto para juegos sin configuración específica
+  default: {
+    duration: true,
+    therapySide: true,
+    difficulty: true,
+    heightMode: true,
+    sessionType: true,
+  },
+};
+
 const DEFAULT_CONFIG: SessionConfig = {
   patientId: null, duration: 5, therapySide: "Izquierdo",
   difficulty: "Media", heightMode: "Media", sessionType: "Alcance", selectedGame: "",
@@ -1302,23 +1409,121 @@ function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onL
       {step === 3 && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
-            {[
-              { key: "duration" as const, label: "Duración", Icon: Timer, iconBg: "bg-blue-100", iconColor: "text-blue-600", options: DURATIONS.map(d => ({ val: d, label: `${d} min` })) },
-              { key: "therapySide" as const, label: "Lado a trabajar", Icon: Hand, iconBg: "bg-violet-100", iconColor: "text-violet-600", options: SIDES.map(s => ({ val: s, label: s })) },
-              { key: "difficulty" as const, label: "Dificultad", Icon: Zap, iconBg: "bg-amber-100", iconColor: "text-amber-600", options: DIFFICULTIES.map(d => ({ val: d, label: d })) },
-              { key: "heightMode" as const, label: "Altura de objetivos", Icon: Layers, iconBg: "bg-emerald-100", iconColor: "text-emerald-600", options: HEIGHTS.map(h => ({ val: h, label: h })) },
-              { key: "sessionType" as const, label: "Tipo de sesión", Icon: Target, iconBg: "bg-rose-100", iconColor: "text-rose-600", options: SESSION_TYPES.map(t => ({ val: t, label: t })) },
-            ].map(({ key, label, Icon, iconBg, iconColor, options }) => (
-              <Card key={key} className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={cx("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}><Icon size={14} className={iconColor} /></div>
-                  <SectionLabel>{label}</SectionLabel>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {options.map(o => <OptionPill key={String(o.val)} label={o.label} selected={config[key] === o.val} onClick={() => set(key, o.val)} />)}
-                </div>
-              </Card>
-            ))}
+            {(() => {
+              // Obtener configuración del juego seleccionado
+              const gameConfig = GAME_CONFIG_FIELDS[config.selectedGame] || GAME_CONFIG_FIELDS.default;
+              
+              // Construir array de fields según configuración del juego
+              const fields = [];
+              
+              // Duración (siempre presente)
+              if (gameConfig.duration) {
+                fields.push({
+                  key: "duration" as const,
+                  label: "Duración",
+                  Icon: Timer,
+                  iconBg: "bg-blue-100",
+                  iconColor: "text-blue-600",
+                  options: DURATIONS.map(d => ({ val: d, label: `${d} min` })),
+                });
+              }
+              
+              // Lado a trabajar (solo si el juego lo requiere)
+              if (gameConfig.therapySide) {
+                fields.push({
+                  key: "therapySide" as const,
+                  label: "Lado a trabajar",
+                  Icon: Hand,
+                  iconBg: "bg-violet-100",
+                  iconColor: "text-violet-600",
+                  options: SIDES.map(s => ({ val: s, label: s })),
+                });
+              }
+              
+              // Dificultad (casi siempre presente)
+              if (gameConfig.difficulty) {
+                fields.push({
+                  key: "difficulty" as const,
+                  label: "Dificultad",
+                  Icon: Zap,
+                  iconBg: "bg-amber-100",
+                  iconColor: "text-amber-600",
+                  options: DIFFICULTIES.map(d => ({ val: d, label: d })),
+                });
+              }
+              
+              // Altura de objetivos (solo para juegos de alcance)
+              if (gameConfig.heightMode) {
+                fields.push({
+                  key: "heightMode" as const,
+                  label: "Altura de objetivos",
+                  Icon: Layers,
+                  iconBg: "bg-emerald-100",
+                  iconColor: "text-emerald-600",
+                  options: HEIGHTS.map(h => ({ val: h, label: h })),
+                });
+              }
+              
+              // Tipo de sesión (solo para juegos genéricos)
+              if (gameConfig.sessionType) {
+                fields.push({
+                  key: "sessionType" as const,
+                  label: "Tipo de sesión",
+                  Icon: Target,
+                  iconBg: "bg-rose-100",
+                  iconColor: "text-rose-600",
+                  options: SESSION_TYPES.map(t => ({ val: t, label: t })),
+                });
+              }
+              
+              return fields.map(({ key, label, Icon, iconBg, iconColor, options }) => (
+                <Card key={key} className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cx("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}>
+                      <Icon size={14} className={iconColor} />
+                    </div>
+                    <SectionLabel>{label}</SectionLabel>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map(o => (
+                      <OptionPill 
+                        key={String(o.val)} 
+                        label={o.label} 
+                        selected={config[key] === o.val} 
+                        onClick={() => set(key, o.val)} 
+                      />
+                    ))}
+                  </div>
+                </Card>
+              ));
+            })()}
+            
+            {/* Campos personalizados específicos del juego */}
+            {(() => {
+              const gameConfig = GAME_CONFIG_FIELDS[config.selectedGame];
+              if (!gameConfig || !gameConfig.customFields) return null;
+              
+              return gameConfig.customFields.map(({ key, label, Icon, iconBg, iconColor, options }) => (
+                <Card key={key} className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cx("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}>
+                      <Icon size={14} className={iconColor} />
+                    </div>
+                    <SectionLabel>{label}</SectionLabel>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map(o => (
+                      <OptionPill 
+                        key={o.val} 
+                        label={o.label} 
+                        selected={config[key] === o.val} 
+                        onClick={() => set(key as any, o.val)} 
+                      />
+                    ))}
+                  </div>
+                </Card>
+              ));
+            })()}
           </div>
           <div className="lg:col-span-1">
             <div className="sticky top-6">
@@ -1339,11 +1544,23 @@ function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onL
                   </div>
                 )}
                 <div className="space-y-1.5 text-xs">
-                  {[["Duración", `${config.duration} min`], ["Lado", config.therapySide], ["Dificultad", config.difficulty], ["Altura", config.heightMode], ["Tipo", config.sessionType]].map(([l, v]) => (
-                    <div key={l} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
-                      <span className="text-slate-400">{l}</span><span className="font-bold text-slate-700">{v}</span>
-                    </div>
-                  ))}
+                  {(() => {
+                    const gameConfig = GAME_CONFIG_FIELDS[config.selectedGame] || GAME_CONFIG_FIELDS.default;
+                    const summaryItems = [];
+                    
+                    // Agregar solo los campos relevantes al resumen
+                    summaryItems.push(["Duración", `${config.duration} min`]);
+                    if (gameConfig.therapySide) summaryItems.push(["Lado", config.therapySide]);
+                    summaryItems.push(["Dificultad", config.difficulty]);
+                    if (gameConfig.heightMode) summaryItems.push(["Altura", config.heightMode]);
+                    if (gameConfig.sessionType) summaryItems.push(["Tipo", config.sessionType]);
+                    
+                    return summaryItems.map(([l, v]) => (
+                      <div key={l} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
+                        <span className="text-slate-400">{l}</span><span className="font-bold text-slate-700">{v}</span>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </Card>
               <div className="flex gap-2">
