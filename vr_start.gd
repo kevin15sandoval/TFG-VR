@@ -683,11 +683,29 @@ func _on_session_finished(results: Dictionary) -> void:
 	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _clear_firestore_session() -> void:
-	# Llamada HTTP DELETE para limpiar sesión activa
+	print("[VR] 🗑️ Iniciando DELETE de sesión activa en Firestore...")
 	var url = "https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current"
 	var http = HTTPRequest.new()
 	add_child(http)
-	http.request(url, [], HTTPClient.METHOD_DELETE)
-	await http.request_completed
+	
+	print("[VR] 📡 Enviando DELETE a: ", url)
+	var error = http.request(url, [], HTTPClient.METHOD_DELETE)
+	
+	if error != OK:
+		print("[VR] ❌ Error al enviar DELETE: ", error)
+	else:
+		print("[VR] ✅ DELETE enviado correctamente, esperando respuesta...")
+	
+	var response = await http.request_completed
+	var result = response[0]
+	var code = response[1]
+	
+	print("[VR] 📩 Respuesta recibida - Result: ", result, " | HTTP Code: ", code)
+	
+	if code == 200 or code == 204:
+		print("[VR] ✅✅✅ SESIÓN ELIMINADA DE FIRESTORE CORRECTAMENTE ✅✅✅")
+	else:
+		print("[VR] ⚠️ Respuesta inesperada del servidor (puede ser que ya estaba eliminada)")
+	
 	http.queue_free()
-	print("[VR] ✅ Sesión limpiada de Firestore")
+	print("[VR] 🧹 Proceso de limpieza completado")

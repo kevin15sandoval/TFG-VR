@@ -34,19 +34,9 @@ func update_sequence_label() -> void:
 	if sequence_number > 0:
 		if _label:
 			_label.text = str(sequence_number)
-			# USAR MISMA LÓGICA DE COLORES ULTRA CONTRASTADOS
-			if target_color.r > 0.5 and target_color.g < 0.5:  # Globo ROJO → texto blanco
-				_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
-				_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
-			elif target_color.r > 0.5 and target_color.g > 0.5:  # Globo AMARILLO → texto negro
-				_label.modulate = Color(0.0, 0.0, 0.0, 1.0)
-				_label.outline_modulate = Color(1.0, 1.0, 1.0, 1.0)
-			elif target_color.g > 0.5:  # Globo VERDE → texto blanco
-				_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
-				_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
-			else:  # Globo AZUL → texto blanco
-				_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
-				_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+			# SIEMPRE usar texto BLANCO con borde NEGRO (consistente y legible)
+			_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
 		else:
 			_create_sequence_label()
 
@@ -158,42 +148,30 @@ func _create_sequence_label() -> void:
 	_label = Label3D.new()
 	add_child(_label)
 	
-	# POSICIÓN: CENTRADO EN EL GLOBO ligeramente al frente
-	_label.position = Vector3(0, 0, 0.3)  # 30cm al frente para evitar oclusión
+	# POSICIÓN: PERFECTAMENTE CENTRADO EN EL GLOBO
+	_label.position = Vector3(0, 0, 0.28)  # Justo al frente del centro, muy cerca
 	_label.text = str(sequence_number)
-	_label.font_size = 256  # ⭐ MUY GRANDE para máxima visibilidad
+	_label.font_size = 180  # Tamaño equilibrado - grande pero no exagerado
 	
-	# COLORES ULTRA CONTRASTADOS - MÁXIMA VISIBILIDAD
-	if target_color.r > 0.5 and target_color.g < 0.5:  # Globo ROJO → texto blanco con borde negro
-		_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
-		_label.outline_size = 20  # Borde GRUESO
-		_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
-	elif target_color.r > 0.5 and target_color.g > 0.5:  # Globo AMARILLO → texto negro con borde blanco
-		_label.modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
-		_label.outline_size = 20  # Borde GRUESO
-		_label.outline_modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
-	elif target_color.g > 0.5:  # Globo VERDE → texto blanco con borde negro
-		_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
-		_label.outline_size = 20  # Borde GRUESO
-		_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
-	else:  # Globo AZUL → texto blanco con borde negro
-		_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
-		_label.outline_size = 20  # Borde GRUESO
-		_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
+	# COLORES ULTRA CONTRASTADOS Y CONSISTENTES
+	# SIEMPRE: Texto BLANCO con borde NEGRO para máxima legibilidad
+	_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # BLANCO PURO
+	_label.outline_size = 16  # Borde grueso pero equilibrado
+	_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)  # NEGRO PURO
 	
 	# BILLBOARD para que SIEMPRE mire al jugador
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	
-	# RENDER PRIORITY MÁXIMO para que se vea SIEMPRE ENCIMA
-	_label.render_priority = 100  # Prioridad súper alta
+	# RENDER PRIORITY alto para que se vea sobre el globo
+	_label.render_priority = 50
 	
-	# PIXEL SIZE ajustado para legibilidad perfecta
-	_label.pixel_size = 0.001  # Texto nítido y profesional
+	# PIXEL SIZE ajustado para texto nítido y profesional
+	_label.pixel_size = 0.0012  # Balance perfecto entre nitidez y tamaño
 	
-	# NO_DEPTH_TEST para que se vea incluso a través de objetos
+	# NO_DEPTH_TEST para que se vea siempre
 	_label.no_depth_test = true
 	
-	print("[UrbanTarget] 🏷️ Label ULTRA VISIBLE creado: ", sequence_number, " (blanco/negro, tamaño 256, sin depth test)")
+	print("[UrbanTarget] 🏷️ Label profesional creado: ", sequence_number, " (blanco con borde negro, integrado en globo)")
 
 func _create_particles() -> void:
 	_particles = CPUParticles3D.new()

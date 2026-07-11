@@ -601,10 +601,29 @@ func _on_session_finished(results: Dictionary) -> void:
 	pass
 
 func _clear_firestore_session() -> void:
+	print("[CityVR] 🗑️ Iniciando DELETE de sesión activa en Firestore...")
 	var url = "https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current"
 	var http = HTTPRequest.new()
 	add_child(http)
-	http.request(url, [], HTTPClient.METHOD_DELETE)
-	await http.request_completed
+	
+	print("[CityVR] 📡 Enviando DELETE a: ", url)
+	var error = http.request(url, [], HTTPClient.METHOD_DELETE)
+	
+	if error != OK:
+		print("[CityVR] ❌ Error al enviar DELETE: ", error)
+	else:
+		print("[CityVR] ✅ DELETE enviado correctamente, esperando respuesta...")
+	
+	var response = await http.request_completed
+	var result = response[0]
+	var code = response[1]
+	
+	print("[CityVR] 📩 Respuesta recibida - Result: ", result, " | HTTP Code: ", code)
+	
+	if code == 200 or code == 204:
+		print("[CityVR] ✅✅✅ SESIÓN ELIMINADA DE FIRESTORE CORRECTAMENTE ✅✅✅")
+	else:
+		print("[CityVR] ⚠️ Respuesta inesperada del servidor (puede ser que ya estaba eliminada)")
+	
 	http.queue_free()
-	print("[CityVR] ✅ Sesión limpiada")
+	print("[CityVR] 🧹 Proceso de limpieza completado")
