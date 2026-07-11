@@ -112,6 +112,7 @@ script = ExtResource("7")
 
 [node name="Floor" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+visible = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
 mesh = SubResource("BoxMesh_floor")
@@ -120,10 +121,12 @@ mesh = SubResource("BoxMesh_floor")
 shape = SubResource("BoxShape3D_floor")
 
 [node name="StationModel" parent="." instance=ExtResource("2")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, -1, 0)
+visible = true
 
 [node name="ConveyorBelt" parent="." instance=ExtResource("3")]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.2, -4.5)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0.8, -3)
+visible = true
 
 [node name="LuggageGameManager" type="Node" parent="."]
 script = ExtResource("4")
