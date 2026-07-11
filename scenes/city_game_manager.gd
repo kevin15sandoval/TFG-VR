@@ -135,6 +135,7 @@ func start_game() -> void:
 	game_started.emit()
 	print("[CityManager] ⏱️ Fase de reconocimiento iniciada (15 segundos)")
 	print("[CityManager] 🎮 Dificultad: ", difficulty, " | Duración total: ", game_duration, "s")
+	print("[CityManager] 🎯 Total de targets disponibles: ", _targets.size())
 
 func _on_timer_tick() -> void:
 	if not game_active:
@@ -153,7 +154,7 @@ func _on_timer_tick() -> void:
 			start_time = Time.get_ticks_msec() / 1000.0  # Reset timer para fase de juego
 			print("[CityManager] ✅ Fase de reconocimiento completada. ¡Ahora comienza el ejercicio!")
 			
-			# INICIAR SPAWNEO GRADUAL
+			# INICIAR SPAWNEO CONTINUO
 			_spawn_timer.start()
 			_spawn_next_targets()  # Spawna primeros targets inmediatamente
 		return
@@ -166,22 +167,28 @@ func _on_timer_tick() -> void:
 		end_game()
 
 func _spawn_next_targets() -> void:
-	# Spawnar siguiente grupo de targets (1-2 a la vez)
-	if _next_target_index >= _targets.size():
-		print("[CityManager] ✅ Todos los targets spawneados")
-		_spawn_timer.stop()
+	# Sistema de spawneo CONTINUO - spawna de 2 en 2 durante TODO el juego
+	if not game_active or recognition_phase:
 		return
 	
-	var spawn_count = min(_targets_per_spawn, _targets.size() - _next_target_index)
+	# Si quedan targets disponibles, spawna el siguiente grupo
+	if _next_target_index < _targets.size():
+		var spawn_count = min(_targets_per_spawn, _targets.size() - _next_target_index)
+		
+		for i in range(spawn_count):
+			if _next_target_index < _targets.size():
+				var target = _targets[_next_target_index]
+				target.set_active(true)
+				target.visible = true
+				_active_targets.append(target)
+				_next_target_index += 1
+				print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
+	else:
+		# Si ya spawneamos todos, REINICIAR para que sigan apareciendo
+		_next_target_index = 0
+		print("[CityManager] 🔄 Reiniciando ciclo de targets - continúan apareciendo hasta que termine el tiempo")
 	
-	for i in range(spawn_count):
-		if _next_target_index < _targets.size():
-			var target = _targets[_next_target_index]
-			target.set_active(true)
-			target.visible = true
-			_active_targets.append(target)
-			_next_target_index += 1
-			print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
+	# IMPORTANTE: NO detener el timer - debe seguir spawneando durante todo el juego
 
 func collect_target(target_id: int, points: int, target_position: Vector3, sequence_number: int) -> void:
 	if not game_active or recognition_phase:
@@ -210,13 +217,10 @@ func collect_target(target_id: int, points: int, target_position: Vector3, seque
 	_analyze_target_position(target_position, reaction_time)
 	
 	target_collected.emit(target_id, points)
-	print("[CityManager] ✅ Target ", target_id, " recogido | Score: ", score)
+	print("[CityManager] ✅ Target ", target_id, " recogido | Score: ", score, " | Collected: ", targets_collected)
 	
-	# Verificar victoria
-	if targets_collected >= total_targets:
-		print("[CityManager] 🎉 ¡Todos los targets recogidos!")
-		await get_tree().create_timer(1.0).timeout
-		end_game()
+	# NO verificar victoria - el juego termina por tiempo, no por targets completados
+	# Esto permite que los targets sigan apareciendo durante todo el tiempo
 
 func _analyze_target_position(pos: Vector3, reaction_time: float) -> void:
 	# Analizar lado (izquierda/derecha)
@@ -254,6 +258,7 @@ func end_game() -> void:
 	
 	game_active = false
 	_timer.stop()
+	_spawn_timer.stop()  # Detener spawning
 	
 	var elapsed = Time.get_ticks_msec() / 1000.0 - start_time
 	

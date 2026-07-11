@@ -223,7 +223,7 @@ func _show_countdown() -> void:
 	if not _countdown_label:
 		return
 	
-	print("[CityVR] 🎬 Iniciando countdown...")
+	print("[CityVR] 🎬 Iniciando countdown SIN AUDIO...")
 	_countdown_label.visible = true
 	_countdown_label.scale = Vector3.ONE
 	
@@ -233,9 +233,6 @@ func _show_countdown() -> void:
 		_countdown_label.modulate = Color(1.0, 0.3, 0.0) if i == 1 else Color(1.0, 1.0, 0.0)
 		_countdown_label.scale = Vector3.ONE * 2.0
 		
-		# Sonido simple sin await
-		_play_simple_beep(600.0 if i > 0 else 1000.0)
-		
 		await get_tree().create_timer(1.0).timeout
 	
 	print("[CityVR] Countdown: ¡EXPLORA!")
@@ -243,45 +240,9 @@ func _show_countdown() -> void:
 	_countdown_label.modulate = Color(0.2, 1.0, 0.8)
 	_countdown_label.scale = Vector3.ONE * 3.0
 	
-	_play_simple_beep(1000.0)
-	
 	await get_tree().create_timer(1.0).timeout
 	_countdown_label.visible = false
 	print("[CityVR] ✅ Countdown completado")
-
-func _play_simple_beep(frequency: float) -> void:
-	# Beep simple sin await para evitar conflictos
-	var audio = AudioStreamPlayer.new()
-	add_child(audio)
-	
-	var generator = AudioStreamGenerator.new()
-	generator.mix_rate = 22050  # Reducido para menos carga
-	generator.buffer_length = 0.1
-	audio.stream = generator
-	audio.volume_db = -10.0
-	audio.play()
-	
-	# Generar sonido en el siguiente frame
-	call_deferred("_generate_beep_audio", audio, frequency)
-	
-	# Auto-limpiar después de 0.5s
-	get_tree().create_timer(0.5).timeout.connect(func():
-		if is_instance_valid(audio):
-			audio.queue_free()
-	)
-
-func _generate_beep_audio(audio: AudioStreamPlayer, frequency: float) -> void:
-	await get_tree().process_frame
-	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
-	if playback:
-		var generator = audio.stream as AudioStreamGenerator
-		var frames = int(generator.mix_rate * 0.15)
-		
-		for i in range(frames):
-			var t = float(i) / generator.mix_rate
-			var amplitude = 0.3 * (1.0 - t / 0.15)
-			var sample = sin(t * frequency * TAU) * amplitude
-			playback.push_frame(Vector2(sample, sample))
 
 func _setup_ambient_audio() -> void:
 	_ambient_audio = AudioStreamPlayer.new()
