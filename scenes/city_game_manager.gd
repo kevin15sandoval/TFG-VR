@@ -53,6 +53,11 @@ var interrupted_gazes: int = 0  # Veces que perdió fijación
 # Referencias
 var _targets: Array = []
 var _timer: Timer
+var _active_targets: Array = []  # Targets actualmente visibles
+var _spawn_timer: Timer
+var _targets_per_spawn: int = 2  # Spawna de 2 en 2
+var _spawn_interval: float = 5.0  # Cada 5 segundos
+var _next_target_index: int = 0
 
 func _ready() -> void:
 	print("[CityManager] 🏙️ City Game Manager inicializado")
@@ -61,6 +66,12 @@ func _ready() -> void:
 	add_child(_timer)
 	_timer.timeout.connect(_on_timer_tick)
 	_timer.wait_time = 1.0
+	
+	# Timer para spawneo gradual de targets
+	_spawn_timer = Timer.new()
+	add_child(_spawn_timer)
+	_spawn_timer.timeout.connect(_spawn_next_targets)
+	_spawn_timer.wait_time = _spawn_interval
 	
 	if GameManager:
 		GameManager.session_started.connect(_on_session_started)
@@ -105,6 +116,15 @@ func start_game() -> void:
 	visual_search_times.clear()
 	interrupted_gazes = 0
 	
+	# Limpiar spawneo
+	_active_targets.clear()
+	_next_target_index = 0
+	
+	# Ocultar TODOS los targets al inicio
+	for target in _targets:
+		target.set_active(false)
+		target.visible = false
+	
 	if GameManager:
 		difficulty = GameManager.difficulty
 		game_duration = GameManager.session_duration
@@ -132,6 +152,10 @@ func _on_timer_tick() -> void:
 			recognition_phase = false
 			start_time = Time.get_ticks_msec() / 1000.0  # Reset timer para fase de juego
 			print("[CityManager] ✅ Fase de reconocimiento completada. ¡Ahora comienza el ejercicio!")
+			
+			# INICIAR SPAWNEO GRADUAL
+			_spawn_timer.start()
+			_spawn_next_targets()  # Spawna primeros targets inmediatamente
 		return
 	
 	# Fase de juego normal
@@ -140,6 +164,24 @@ func _on_timer_tick() -> void:
 	
 	if remaining <= 0:
 		end_game()
+
+func _spawn_next_targets() -> void:
+	# Spawnar siguiente grupo de targets (1-2 a la vez)
+	if _next_target_index >= _targets.size():
+		print("[CityManager] ✅ Todos los targets spawneados")
+		_spawn_timer.stop()
+		return
+	
+	var spawn_count = min(_targets_per_spawn, _targets.size() - _next_target_index)
+	
+	for i in range(spawn_count):
+		if _next_target_index < _targets.size():
+			var target = _targets[_next_target_index]
+			target.set_active(true)
+			target.visible = true
+			_active_targets.append(target)
+			_next_target_index += 1
+			print("[CityManager] 🎯 Target spawneado: ", target.target_id, " (Color: ", target.target_color, ", Puntos: ", target.points, ")")
 
 func collect_target(target_id: int, points: int, target_position: Vector3, sequence_number: int) -> void:
 	if not game_active or recognition_phase:

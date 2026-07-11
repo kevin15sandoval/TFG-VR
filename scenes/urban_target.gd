@@ -272,44 +272,110 @@ func _try_activate() -> void:
 	queue_free()
 
 func _activation_effect() -> void:
-	# Explosión de partículas
+	# Explosión de partículas según puntuación
 	var explosion = CPUParticles3D.new()
 	get_parent().add_child(explosion)
 	explosion.global_position = global_position
 	explosion.emitting = true
 	explosion.one_shot = true
-	explosion.amount = 80
-	explosion.lifetime = 1.0
+	
+	# Más partículas para mayor puntuación
+	var particle_count = 80
+	if points >= 30:  # Rojo - explosión épica
+		particle_count = 150
+	elif points >= 20:  # Amarillo - explosión media
+		particle_count = 110
+	
+	explosion.amount = particle_count
+	explosion.lifetime = 1.2
 	explosion.explosiveness = 1.0
 	
 	var sphere = SphereMesh.new()
-	sphere.radius = 0.05
+	sphere.radius = 0.08 if points >= 30 else 0.05
 	explosion.mesh = sphere
 	
 	explosion.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	explosion.emission_sphere_radius = 0.2
+	explosion.emission_sphere_radius = 0.3
 	explosion.direction = Vector3.ZERO
-	explosion.gravity = Vector3.ZERO
-	explosion.initial_velocity_min = 2.0
-	explosion.initial_velocity_max = 4.0
+	explosion.gravity = Vector3(0, -1.5, 0)  # Caen con gravedad
+	explosion.initial_velocity_min = 3.0 if points >= 30 else 2.0
+	explosion.initial_velocity_max = 6.0 if points >= 30 else 4.0
 	explosion.scale_amount_min = 0.8
-	explosion.scale_amount_max = 1.5
+	explosion.scale_amount_max = 2.0 if points >= 30 else 1.5
 	explosion.color = target_color
 	
-	# Escala y desvanece
+	# Anillo de expansión
+	_create_shockwave()
+	
+	# Escala y desvanece con rebote
 	var tween = create_tween()
-	tween.tween_property(_mesh_instance, "scale", Vector3.ONE * 3.0, 0.4)
-	tween.parallel().tween_property(_mesh_instance, "modulate:a", 0.0, 0.4)
+	tween.tween_property(_mesh_instance, "scale", Vector3.ONE * 3.5, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_mesh_instance, "modulate:a", 0.0, 0.3)
+	
+	# Mostrar "+XX pts" flotante
+	_show_points_popup()
 	
 	# Limpiar explosión
 	await get_tree().create_timer(1.5).timeout
 	explosion.queue_free()
 
+func _create_shockwave() -> void:
+	# Onda de choque expansiva
+	var shockwave = MeshInstance3D.new()
+	get_parent().add_child(shockwave)
+	shockwave.global_position = global_position
+	
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.3
+	torus.outer_radius = 0.35
+	shockwave.mesh = torus
+	
+	var material = StandardMaterial3D.new()
+	material.albedo_color = Color(target_color.r, target_color.g, target_color.b, 0.8)
+	material.emission_enabled = true
+	material.emission = target_color
+	material.emission_energy_multiplier = 5.0
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shockwave.material_override = material
+	
+	# Expandir y desvanecer
+	var tween = create_tween()
+	tween.tween_property(shockwave, "scale", Vector3.ONE * 8.0, 0.6).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(material, "albedo_color:a", 0.0, 0.6)
+	
+	await get_tree().create_timer(0.7).timeout
+	shockwave.queue_free()
+
+func _show_points_popup() -> void:
+	# Label flotante mostrando puntos ganados
+	var popup = Label3D.new()
+	get_parent().add_child(popup)
+	popup.global_position = global_position + Vector3(0, 0.5, 0)
+	popup.pixel_size = 0.003
+	popup.text = "+" + str(points) + " pts!"
+	popup.font_size = 72
+	popup.modulate = target_color
+	popup.outline_size = 12
+	popup.outline_modulate = Color.BLACK
+	popup.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	
+	# Flotar hacia arriba y desvanecer
+	var tween = create_tween()
+	tween.tween_property(popup, "global_position", popup.global_position + Vector3(0, 1.5, 0), 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(popup, "modulate:a", 0.0, 1.0).set_delay(0.3)
+	tween.parallel().tween_property(popup, "scale", Vector3.ONE * 1.5, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
+	await get_tree().create_timer(1.2).timeout
+	popup.queue_free()
+
 func _play_activation_sound() -> void:
+	# Sonido más rico y satisfactorio
 	var audio = AudioStreamPlayer3D.new()
 	get_parent().add_child(audio)
 	audio.global_position = global_position
-	audio.max_distance = 15.0
+	audio.max_distance = 20.0
+	audio.unit_size = 5.0
 	
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
@@ -320,16 +386,34 @@ func _play_activation_sound() -> void:
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		var hz = 700.0 + (sequence_number * 50.0)  # Tono más alto según secuencia
-		var frames = int(generator.mix_rate * 0.25)
+		# Sonido según puntos (color)
+		var base_hz = 600.0
+		if points >= 30:  # Rojo - sonido épico
+			base_hz = 900.0
+		elif points >= 20:  # Amarillo - sonido medio
+			base_hz = 750.0
+		else:  # Verde - sonido suave
+			base_hz = 600.0
+		
+		# Generar sonido con armónicos (más rico)
+		var frames = int(generator.mix_rate * 0.35)
 		
 		for i in range(frames):
 			var t = float(i) / generator.mix_rate
-			var amplitude = 0.35 * (1.0 - t / 0.25)
-			var sample = sin(t * hz * TAU) * amplitude
+			var envelope = 0.5 * (1.0 - t / 0.35)
+			
+			# Tono principal + armónicos
+			var sample = sin(t * base_hz * TAU) * envelope * 0.6
+			sample += sin(t * base_hz * 2.0 * TAU) * envelope * 0.2  # Octava
+			sample += sin(t * base_hz * 1.5 * TAU) * envelope * 0.15  # Quinta
+			
+			# "Ding" al final para 30pts
+			if points >= 30:
+				sample += sin(t * 1200.0 * TAU) * envelope * 0.3
+			
 			playback.push_frame(Vector2(sample, sample))
 	
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.4).timeout
 	audio.queue_free()
 
 func set_active(active: bool) -> void:

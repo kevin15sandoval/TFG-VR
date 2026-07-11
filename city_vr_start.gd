@@ -364,6 +364,9 @@ func _on_session_started() -> void:
 		label_status.visible = true
 		await get_tree().create_timer(2.0).timeout
 		label_status.visible = false
+	# OCULTAR label_info también
+	if label_info:
+		label_info.visible = false
 
 func _on_game_started() -> void:
 	print("[CityVR] 🏙️ Urban Attention Quest iniciado")
@@ -371,9 +374,23 @@ func _on_game_started() -> void:
 func _on_target_collected(target_id: int, points: int) -> void:
 	if hud_score and city_manager:
 		hud_score.text = str(city_manager.score) + " pts"
+		
+		# Feedback visual más fuerte
 		var tween = create_tween()
-		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
-		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
+		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.5, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.15)
+		
+		# Flash de color según puntos
+		var original_color = hud_score.modulate
+		if points >= 30:  # Rojo
+			hud_score.modulate = Color(1.0, 0.2, 0.2)
+		elif points >= 20:  # Amarillo
+			hud_score.modulate = Color(1.0, 0.9, 0.2)
+		else:  # Verde
+			hud_score.modulate = Color(0.2, 1.0, 0.3)
+		
+		var color_tween = create_tween()
+		color_tween.tween_property(hud_score, "modulate", original_color, 0.5).set_delay(0.2)
 	
 	# Actualizar número de secuencia
 	if hud_sequence and city_manager:
