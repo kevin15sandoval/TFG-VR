@@ -193,9 +193,6 @@ func _create_sequence_label() -> void:
 	# NO_DEPTH_TEST para que se vea incluso a través de objetos
 	_label.no_depth_test = true
 	
-	# ALPHA CUT para bordes limpios
-	_label.alpha_cut = BaseMaterial3D.ALPHA_CUT_OPAQUE_PREPASS
-	
 	print("[UrbanTarget] 🏷️ Label ULTRA VISIBLE creado: ", sequence_number, " (blanco/negro, tamaño 256, sin depth test)")
 
 func _create_particles() -> void:

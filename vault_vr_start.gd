@@ -389,7 +389,10 @@ func _on_panel_collected(panel_id: int, points: int) -> void:
 	
 	# Actualizar contador de gemas
 	if hud_laser_hits and vault_manager:
-		hud_laser_hits.text = "💎 Gemas: " + str(vault_manager.get("gems_collected", 0))
+		var gems_count = 0
+		if vault_manager.has("gems_collected"):
+			gems_count = vault_manager.gems_collected
+		hud_laser_hits.text = "💎 Gemas: " + str(gems_count)
 	
 	print("[VaultVR] ✅ Gema recogida +", points, " pts | Total: ", vault_manager.score if vault_manager else 0)
 
