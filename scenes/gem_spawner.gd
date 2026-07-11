@@ -233,14 +233,22 @@ func _build_queue() -> void:
 	_exercise_queue.shuffle()
 
 func _process(delta: float) -> void:
-	# Mueve las gemas activas hacia su destino
+	# Mueve las gemas activas HACIA LA CÁMARA (jugador)
+	# Obtener posición de la cámara VR
+	var camera = get_viewport().get_camera_3d()
+	if not camera:
+		return
+	
+	var camera_pos = camera.global_position
+	
 	for gem in _active_gems:
 		if is_instance_valid(gem) and not gem.collected:
-			var ex = gem.exercise_data
-			var target_pos = ex["end"]
 			var current_pos = gem.global_position
 			
-			# Calcular distancia al objetivo
+			# ⭐ NUEVO: Objetivo = Posición de la cámara (jugador)
+			var target_pos = camera_pos
+			
+			# Calcular distancia a la cámara
 			var distance = current_pos.distance_to(target_pos)
 			
 			# VELOCIDAD SEGÚN TIPO DE GEMA
@@ -253,32 +261,33 @@ func _process(delta: float) -> void:
 			
 			var gem_speed = GameManager.get_gem_speed() * speed_multiplier
 			
-			# SI ESTÁ LEJOS → Mover hacia el objetivo
-			if distance > 0.3:  # Margen de 30cm para detenerse
+			# SI ESTÁ LEJOS → Mover HACIA LA CÁMARA
+			if distance > 0.5:  # Margen de 50cm para detenerse
 				gem.global_position = current_pos.move_toward(target_pos, gem_speed * delta)
-			# SI YA LLEGÓ → Mantener posición flotando (NO atravesar)
-			elif distance > 0.05:
-				# Quedarse quieta en el rango de agarre
-				pass
-			# SI PASÓ MUCHO TIEMPO SIN AGARRAR → Perderla
+			# SI YA LLEGÓ CERCA → Dar 1.5 segundos para tocarla, luego desaparece
 			else:
 				if not gem.has_meta("arrival_time"):
 					gem.set_meta("arrival_time", Time.get_ticks_msec() / 1000.0)
+					print("[Spawner] ⏰ Gema ", gem.gem_type, " llegó cerca - 1.5s para tocar")
 				
 				var arrival_time = gem.get_meta("arrival_time")
 				var time_at_position = (Time.get_ticks_msec() / 1000.0) - arrival_time
 				
-				# Dar 3 segundos para agarrarla antes de perderla
-				if time_at_position > 3.0:
-					print("[Spawner] ⏰ Gema ", gem.gem_type, " en posición por ", time_at_position, "s - PERDIENDO")
-					gem.miss()
+				# ⭐ CRÍTICO: Solo 1.5 segundos para agarrar, luego DESAPARECE
+				if time_at_position > 1.5:
+					print("[Spawner] ❌ Gema ", gem.gem_type, " NO TOCADA - DESAPARECIENDO")
+					gem.miss()  # Sonido error + desaparecer
 			
-			# ═══ DETECTAR SI PASÓ DE LARGO SIN TOCAR ═══
-			# Si la gema pasó DETRÁS del jugador (coordenada Z positiva)
-			var player_z = 0.0  # Asumiendo jugador en Z=0
-			if gem.global_position.z > player_z + 2.0:  # 2m detrás del jugador
-				print("[Spawner] ❌ Gema ", gem.gem_type, " PASÓ DE LARGO - Eliminando")
-				gem.miss()  # Ejecutar sonido de error y eliminar
+			# ═══ DETECTAR SI PASÓ DE LARGO (detrás de la cámara) ═══
+			# Calcular si está detrás usando el vector "forward" de la cámara
+			var camera_forward = -camera.global_transform.basis.z
+			var to_gem = (current_pos - camera_pos).normalized()
+			var dot = camera_forward.dot(to_gem)
+			
+			# Si dot < -0.5 → la gema está detrás del jugador
+			if dot < -0.5:
+				print("[Spawner] ❌ Gema ", gem.gem_type, " DETRÁS DEL JUGADOR - Eliminando")
+				gem.miss()
 
 func _on_spawn_timer() -> void:
 	if not GameManager.session_active:
