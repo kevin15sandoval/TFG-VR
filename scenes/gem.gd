@@ -14,9 +14,8 @@ var exercise_name: String = ""
 var instruction:   String = ""
 var exercise_data: Dictionary = {}
 var collected:     bool   = false
-var is_ready_to_collect: bool = false  # Nueva variable para fase de preparación
-var preparation_progress: float = 0.0  # Progreso de preparación (0.0 - 1.0)
-var _last_progress_milestone: float = 0.0  # Para reproducir sonidos de progreso
+# SISTEMA DE ENERGÍA GLOBAL - Ya no hay preparación por gema
+var _last_energy_check: float = 0.0
 
 # Colores por tipo de gema (emisión brillante para VR)
 const GEM_COLORS := {
@@ -47,6 +46,7 @@ var _mesh_instance: MeshInstance3D
 var _anim_time: float = 0.0
 var _base_y: float = 0.0
 var _particles: GPUParticles3D
+var _progress_ring: MeshInstance3D  # ⭐ Anillo de progreso visual
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
@@ -63,6 +63,7 @@ func _ready() -> void:
 	_mesh_instance = $MeshInstance3D
 	_base_y = global_position.y
 	_create_particles()
+	_create_progress_ring()  # ⭐ NUEVA barra circular visible
 	_apply_visuals()
 
 func _create_particles() -> void:
@@ -88,6 +89,35 @@ func _create_particles() -> void:
 	_particles.draw_pass_1 = SphereMesh.new()
 	
 	add_child(_particles)
+
+func _create_progress_ring() -> void:
+	# Crear anillo circular de progreso ULTRA VISIBLE alrededor de la gema
+	_progress_ring = MeshInstance3D.new()
+	add_child(_progress_ring)
+	_progress_ring.position = Vector3(0, 0, 0)
+	
+	# Usar TorusMesh para anillo circular
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.35  # Radio interior
+	torus.outer_radius = 0.4   # Radio exterior (anillo de 5cm grosor)
+	torus.rings = 64           # Más suave
+	torus.ring_segments = 8    # Secciones circulares
+	_progress_ring.mesh = torus
+	
+	# Material inicial (vacío/transparente)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.3)  # Blanco semi-transparente
+	mat.emission_enabled = true
+	mat.emission = Color(0.5, 0.5, 0.5)
+	mat.emission_energy_multiplier = 1.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_progress_ring.material_override = mat
+	
+	# Inicialmente invisible (se muestra cuando empieza preparación)
+	_progress_ring.visible = false
+	
+	print("[Gem] 🔄 Anillo de progreso creado (inicialmente invisible)")
 
 func setup(exercise: Dictionary) -> void:
 	exercise_data  = exercise
@@ -129,10 +159,9 @@ func _process(delta: float) -> void:
 	# Rotación constante
 	_mesh_instance.rotate_y(delta * 1.5)
 	
-	# ═══ SISTEMA DE PREPARACIÓN TERAPÉUTICA ═══
-	# Detectar si el jugador está haciendo movimiento de preparación (acercar/alejar mano)
-	if not is_ready_to_collect:
-		_check_preparation_movement(delta)
+	# ═══ SISTEMA DE RECARGA DE ENERGÍA GLOBAL ═══
+	# Detectar si el jugador está haciendo movimiento de flexión/relajación para recargar
+	_check_energy_recharge(delta)
 
 # ─── DETECCIÓN DE COLISIÓN CON MANOS VR ──────────────────────────────────────
 
@@ -176,16 +205,16 @@ func _get_all_children(node: Node) -> Array:
 		children.append_array(_get_all_children(child))
 	return children
 
-func _check_preparation_movement(delta: float) -> void:
-	# Sistema de preparación: El jugador debe acercar y alejar la mano (flexión/relajación)
-	# para "activar" la gema antes de poder tocarla
+func _check_energy_recharge(delta: float) -> void:
+	# Sistema de recarga: El jugador recarga SU energía haciendo flexión/relajación
+	# Esta energía es GLOBAL, no por gema
 	
-	_last_hand_check += delta
-	if _last_hand_check < 0.1:  # Chequear cada 0.1s
+	_last_energy_check += delta
+	if _last_energy_check < 0.1:  # Chequear cada 0.1s
 		return
-	_last_hand_check = 0.0
+	_last_energy_check = 0.0
 	
-	# Buscar controladores XR (manos) - MEJORADO
+	# Buscar controladores XR (manos)
 	var left_hand = _find_hand_controller("left")
 	var right_hand = _find_hand_controller("right")
 	
@@ -198,7 +227,6 @@ func _check_preparation_movement(delta: float) -> void:
 		if dist < closest_distance:
 			closest_distance = dist
 			hand_name = "left"
-			print("[Gem] 🖐️ Mano izquierda detectada a ", dist, "m")
 	
 	# Calcular distancia a mano derecha
 	if right_hand:
@@ -206,51 +234,21 @@ func _check_preparation_movement(delta: float) -> void:
 		if dist < closest_distance:
 			closest_distance = dist
 			hand_name = "right"
-			print("[Gem] 🖐️ Mano derecha detectada a ", dist, "m")
 	
-	# Si hay una mano cerca (< 1.5m), detectar movimiento de acercar/alejar
-	if closest_distance < 1.5 and hand_name != "":
+	# Si hay una mano cerca (< 2.0m), detectar movimiento de acercar/alejar para RECARGAR
+	if closest_distance < 2.0 and hand_name != "":
 		if not _hand_distances.has(hand_name):
 			_hand_distances[hand_name] = closest_distance
 		else:
 			var prev_distance = _hand_distances[hand_name]
 			var distance_change = prev_distance - closest_distance
 			
-			# Si se acercó y luego se alejó (flexión + relajación)
-			if distance_change > 0.1:  # Se acercó
-				preparation_progress += delta * 0.5  # Aumentar progreso
-				print("[Gem] 💪 Preparación: ", int(preparation_progress * 100), "% (acercando)")
-			elif distance_change < -0.1:  # Se alejó
-				preparation_progress += delta * 0.3  # También cuenta (relajación)
-				print("[Gem] 💪 Preparación: ", int(preparation_progress * 100), "% (alejando)")
+			# Si se acercó o se alejó (flexión + relajación) → RECARGAR ENERGÍA GLOBAL
+			if abs(distance_change) > 0.1:
+				GameManager.recharge_energy(delta)
+				print("[Gem] ⚡ Recargando energía global del jugador...")
 			
 			_hand_distances[hand_name] = closest_distance
-			
-			# ═══ SONIDOS DE PROGRESO CADA 25% ═══
-			if preparation_progress >= 0.25 and _last_progress_milestone < 0.25:
-				_last_progress_milestone = 0.25
-				_play_progress_beep(1)
-			elif preparation_progress >= 0.5 and _last_progress_milestone < 0.5:
-				_last_progress_milestone = 0.5
-				_play_progress_beep(2)
-			elif preparation_progress >= 0.75 and _last_progress_milestone < 0.75:
-				_last_progress_milestone = 0.75
-				_play_progress_beep(3)
-			
-			# Actualizar visual según progreso
-			if _mesh_instance and _mesh_instance.material_override:
-				var mat = _mesh_instance.material_override as StandardMaterial3D
-				# Color más brillante según progreso
-				var base_color = GEM_COLORS.get(gem_type, Color.WHITE)
-				var bright_factor = 1.0 + (preparation_progress * 2.0)  # Más brillante
-				mat.emission_energy_multiplier = GEM_EMISSION.get(gem_type, 2.0) * bright_factor
-			
-			# Si completó la preparación (100%)
-			if preparation_progress >= 1.0:
-				is_ready_to_collect = true
-				print("[Gem] ✅ GEMA ACTIVADA - Lista para recoger!")
-				_play_activation_sound()
-				_show_ready_feedback()  # NUEVO: Mostrar "¡LISTO!"
 
 func _show_ready_feedback() -> void:
 	# Mostrar texto flotante "¡LISTO!" cuando la gema está preparada
@@ -411,11 +409,14 @@ func _catch() -> void:
 	if collected:
 		return
 	
-	# ═══ VERIFICAR SI LA GEMA ESTÁ LISTA ═══
-	if not is_ready_to_collect:
-		print("[Gem] ⚠️ Gema NO activada - Necesitas hacer movimiento de preparación (", int(preparation_progress * 100), "%)")
-		# Sonido de "bloqueado"
-		_play_blocked_sound()
+	# ═══ VERIFICAR SI EL JUGADOR TIENE ENERGÍA ═══
+	if not GameManager.has_energy_for_gem():
+		print("[Gem] ⚠️ SIN ENERGÍA - No puedes recolectar (", int(GameManager.player_energy), "/", int(GameManager.max_energy), ")")
+		_play_no_energy_sound()
+		return
+	
+	# ═══ CONSUMIR ENERGÍA ═══
+	if not GameManager.consume_energy():
 		return
 	
 	collected = true
@@ -424,7 +425,7 @@ func _catch() -> void:
 	var is_positive = gem_type != "red"
 	
 	print("[Gem] ", "✅" if is_positive else "❌", " Recogida: ", gem_type, " ", 
-		"+", points if is_positive else points, " pts")
+		"+", points if is_positive else points, " pts | Energía restante: ", int(GameManager.player_energy))
 	
 	_play_collect_effect(is_positive)
 	_trigger_haptic_feedback(is_positive)
@@ -433,12 +434,12 @@ func _catch() -> void:
 	await get_tree().create_timer(0.3).timeout
 	queue_free()
 
-func _play_blocked_sound() -> void:
-	# Sonido de "bloqueado" cuando intentas agarrar sin preparación
+func _play_no_energy_sound() -> void:
+	# Sonido de "sin energía" cuando intentas agarrar sin energía suficiente
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
-	audio.max_distance = 15.0
-	audio.volume_db = 2.0
+	audio.max_distance = 20.0
+	audio.volume_db = 5.0
 	
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
@@ -449,16 +450,17 @@ func _play_blocked_sound() -> void:
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		# Sonido descendente (bloqueado)
-		var frames = int(generator.mix_rate * 0.15)
+		# Sonido de "batería baja" - bips cortos repetidos
+		var frames = int(generator.mix_rate * 0.5)
 		for i in range(frames):
 			var t = float(i) / generator.mix_rate
-			var hz = 300.0 - (t * 100.0)  # De 300Hz a 200Hz (descendente)
-			var envelope = 0.2
-			var sample = sin(t * hz * TAU) * envelope
+			var bip_freq = int(t * 5.0)  # 5 bips
+			var hz = 150.0 if (bip_freq % 2 == 0) else 0.0  # Bip intermitente
+			var envelope = 0.3
+			var sample = sin(t * hz * TAU) * envelope if hz > 0 else 0.0
 			playback.push_frame(Vector2(sample, sample))
 	
-	await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(0.6).timeout
 	if is_instance_valid(audio):
 		audio.queue_free()
 

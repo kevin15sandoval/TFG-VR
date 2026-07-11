@@ -17,6 +17,8 @@ var hud_score: Label3D = null
 var hud_timer: Label3D = null
 var hud_instruction: Label3D = null
 var hud_combo: Label3D = null
+var hud_energy_bar: MeshInstance3D = null  # ⚡ Barra de energía visual
+var hud_energy_label: Label3D = null  # ⚡ Texto de energía
 
 var _combo_count: int = 0
 var _last_gem_time: float = 0.0
@@ -196,6 +198,98 @@ func _create_game_hud() -> void:
 	hud_combo.outline_size = 8
 	hud_combo.outline_modulate = Color.BLACK
 	hud_combo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	hud_combo.visible = false
+	xr_camera.add_child(hud_combo)
+	
+	# ⚡ BARRA DE ENERGÍA (abajo izquierda) - MUY VISIBLE
+	_create_energy_bar(xr_camera)
+
+func _create_energy_bar(xr_camera: Node3D) -> void:
+	# Contenedor para la barra
+	var energy_container = Node3D.new()
+	xr_camera.add_child(energy_container)
+	energy_container.position = Vector3(-0.7, -0.4, -1.0)
+	
+	# Fondo de la barra (gris oscuro)
+	var bg = MeshInstance3D.new()
+	energy_container.add_child(bg)
+	var bg_box = BoxMesh.new()
+	bg_box.size = Vector3(0.4, 0.08, 0.01)
+	bg.mesh = bg_box
+	
+	var bg_mat = StandardMaterial3D.new()
+	bg_mat.albedo_color = Color(0.2, 0.2, 0.2, 0.8)
+	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bg.material_override = bg_mat
+	
+	# Barra de energía (verde/amarillo/rojo según nivel)
+	hud_energy_bar = MeshInstance3D.new()
+	energy_container.add_child(hud_energy_bar)
+	hud_energy_bar.position = Vector3(0, 0, 0.01)  # Delante del fondo
+	
+	var bar_box = BoxMesh.new()
+	bar_box.size = Vector3(0.38, 0.06, 0.01)  # Llena casi todo el fondo
+	hud_energy_bar.mesh = bar_box
+	
+	var bar_mat = StandardMaterial3D.new()
+	bar_mat.albedo_color = Color(0.2, 1.0, 0.3, 1.0)  # Verde
+	bar_mat.emission_enabled = true
+	bar_mat.emission = Color(0.2, 1.0, 0.3)
+	bar_mat.emission_energy_multiplier = 2.0
+	bar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hud_energy_bar.material_override = bar_mat
+	
+	# Label de energía (porcentaje)
+	hud_energy_label = Label3D.new()
+	energy_container.add_child(hud_energy_label)
+	hud_energy_label.position = Vector3(0, 0, 0.02)
+	hud_energy_label.pixel_size = 0.002
+	hud_energy_label.text = "⚡ 100%"
+	hud_energy_label.font_size = 36
+	hud_energy_label.modulate = Color.WHITE
+	hud_energy_label.outline_size = 4
+	hud_energy_label.outline_modulate = Color.BLACK
+	hud_energy_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	
+	# Conectar señal de cambio de energía
+	if not GameManager.energy_changed.is_connected(_on_energy_changed):
+		GameManager.energy_changed.connect(_on_energy_changed)
+	
+	print("[VR] ⚡ Barra de energía creada")
+
+func _on_energy_changed(current: float, max_val: float) -> void:
+	if not hud_energy_bar or not hud_energy_label:
+		return
+	
+	var percentage = (current / max_val) * 100.0
+	hud_energy_label.text = "⚡ " + str(int(percentage)) + "%"
+	
+	# Actualizar escala de la barra (de 0 a 1 en X)
+	var scale_x = current / max_val
+	hud_energy_bar.scale.x = max(0.05, scale_x)  # Mínimo 5% visible
+	
+	# Cambiar color según nivel
+	var bar_mat = hud_energy_bar.material_override as StandardMaterial3D
+	if bar_mat:
+		if percentage > 50:
+			# Verde
+			bar_mat.albedo_color = Color(0.2, 1.0, 0.3, 1.0)
+			bar_mat.emission = Color(0.2, 1.0, 0.3)
+		elif percentage > 20:
+			# Amarillo
+			bar_mat.albedo_color = Color(1.0, 0.9, 0.0, 1.0)
+			bar_mat.emission = Color(1.0, 0.9, 0.0)
+		else:
+			# Rojo (poca energía)
+			bar_mat.albedo_color = Color(1.0, 0.2, 0.2, 1.0)
+			bar_mat.emission = Color(1.0, 0.2, 0.2)
+	
+	# Si la energía está muy baja, hacer parpadear
+	if percentage < 20:
+		var tween = create_tween()
+		tween.tween_property(hud_energy_label, "modulate:a", 0.3, 0.3)
+		tween.tween_property(hud_energy_label, "modulate:a", 1.0, 0.3)
 	hud_combo.visible = false
 	xr_camera.add_child(hud_combo)
 

@@ -33,6 +33,13 @@ var start_time:      float = 0.0
 var game_finished:   bool  = false
 var session_active:  bool  = false
 
+# ── SISTEMA DE ENERGÍA DEL JUGADOR ───────────────────────────────────────────
+var player_energy: float = 100.0  # Energía actual (0-100)
+var max_energy: float = 100.0     # Energía máxima
+var energy_cost_per_gem: float = 20.0  # Cuesta 20 energía recolectar una gema
+var energy_recharge_rate: float = 15.0  # Recarga 15 energía por segundo al hacer movimiento
+signal energy_changed(current: float, max_val: float)  # Señal para actualizar UI
+
 # ── Métricas clínicas por movimiento ─────────────────────────────────────────
 # Cada entrada: { name, exercise_type, completed, time_seconds, side }
 var movement_log: Array = []
@@ -118,6 +125,11 @@ func start_session() -> void:
 	session_active    = true
 	start_time        = Time.get_ticks_msec() / 1000.0
 	_gem_start_time   = start_time
+	
+	# ⚡ RESETEAR ENERGÍA
+	player_energy     = max_energy
+	emit_signal("energy_changed", player_energy, max_energy)
+	print("[GameManager] ⚡ Energía inicial: ", player_energy, "/", max_energy)
 
 	# Reset contadores de movimiento
 	for key in movements_by_type:
@@ -275,3 +287,30 @@ func get_remaining_time() -> float:
 func get_average_time_per_gem() -> float:
 	if gems_collected <= 0: return 0.0
 	return get_elapsed_time() / float(gems_collected)
+
+# ─── SISTEMA DE ENERGÍA ──────────────────────────────────────────────────────
+
+## Verificar si el jugador tiene suficiente energía para recolectar
+func has_energy_for_gem() -> bool:
+	return player_energy >= energy_cost_per_gem
+
+## Consumir energía al recolectar una gema
+func consume_energy() -> bool:
+	if player_energy >= energy_cost_per_gem:
+		player_energy -= energy_cost_per_gem
+		player_energy = max(0.0, player_energy)
+		print("[GameManager] ⚡ Energía consumida: -", energy_cost_per_gem, " → Restante: ", player_energy)
+		emit_signal("energy_changed", player_energy, max_energy)
+		return true
+	return false
+
+## Recargar energía (llamar cuando el jugador hace movimiento de flexión/relajación)
+func recharge_energy(delta: float) -> void:
+	if player_energy < max_energy:
+		player_energy += energy_recharge_rate * delta
+		player_energy = min(max_energy, player_energy)
+		emit_signal("energy_changed", player_energy, max_energy)
+
+## Obtener porcentaje de energía actual
+func get_energy_percentage() -> float:
+	return (player_energy / max_energy) * 100.0
