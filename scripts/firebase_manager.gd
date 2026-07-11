@@ -276,7 +276,9 @@ func _add_vault_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["spatial_awareness_score"] = {"integerValue": str(results.get("spatial_awareness_score", 0))}
 
 func _add_city_fields(fields: Dictionary, results: Dictionary) -> void:
-	fields["completion_percentage"] = {"doubleValue": results.get("completion_percentage", 0.0)}
+	var completion = results.get("completion_percentage", 0.0)
+	fields["accuracy"] = {"integerValue": str(int(completion))}  # Para compatibilidad con la UI de la clínica
+	fields["completion_percentage"] = {"doubleValue": completion}
 	fields["targets_collected"] = {"integerValue": str(results.get("targets_collected", 0))}
 	fields["total_targets"] = {"integerValue": str(results.get("total_targets", 0))}
 	fields["sequence_errors"] = {"integerValue": str(results.get("sequence_errors", 0))}

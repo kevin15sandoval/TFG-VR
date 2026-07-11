@@ -474,10 +474,10 @@ func _on_game_finished(results: Dictionary) -> void:
 	_clear_firestore_session()
 	
 	await get_tree().create_timer(5.0).timeout
-	print("[CityVR] 🔄 Volviendo a sala de espera...")
-	waiting_mode = true
-	_show_waiting_message()
-	firebase_manager.start_polling()
+	print("[CityVR] 🔄 Regresando al HubWorld...")
+	
+	# Regresar al HubWorld
+	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _on_session_finished(results: Dictionary) -> void:
 	pass
