@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://ck3xp9yqcity"]
 
 [ext_resource type="Script" path="res://city_vr_start.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://procedural_city_5" path="res://models/procedural_city_5.glb" id="2"]
+[ext_resource type="PackedScene" uid="uid://ddxaluny1d5ob" path="res://models/procedural_city_5.glb" id="2"]
 [ext_resource type="Script" path="res://scenes/city_game_manager.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="4"]
 [ext_resource type="Script" path="res://scenes/urban_target.gd" id="5"]

@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://dlxp8yqluggage"]
 
 [ext_resource type="Script" path="res://luggage_vr_start.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://luggage_station" path="res://models/abandoned_underground_train_station.glb" id="2"]
-[ext_resource type="PackedScene" uid="uid://conveyor_belt" path="res://models/industrial_conveyor_belt.glb" id="3"]
+[ext_resource type="PackedScene" uid="uid://bjelh7fmw1g1u" path="res://models/abandoned_underground_train_station.glb" id="2"]
+[ext_resource type="PackedScene" uid="uid://bcpf6f7wb45h5" path="res://models/industrial_conveyor_belt.glb" id="3"]
 [ext_resource type="Script" path="res://scenes/luggage_game_manager.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="5"]
 [ext_resource type="Script" path="res://scenes/luggage_spawner.gd" id="6"]

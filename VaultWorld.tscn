@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bj5xp8yqvault"]
 
 [ext_resource type="Script" path="res://vault_vr_start.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://vault_model" path="res://models/cofre_bank.glb" id="2"]
+[ext_resource type="PackedScene" uid="uid://dwafmtotklavw" path="res://models/cofre_bank.glb" id="2"]
 [ext_resource type="Script" path="res://scenes/vault_game_manager.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/firebase_manager.gd" id="4"]
 [ext_resource type="Script" path="res://scenes/control_panel.gd" id="5"]
