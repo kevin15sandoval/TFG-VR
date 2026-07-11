@@ -221,11 +221,19 @@ func collect_target(target_id: int, points: int, target_position: Vector3, seque
 	score += points
 	target_times.append(reaction_time)
 	
+	print("[CityManager] ✅ Target ", target_id, " recogido:")
+	print("  - Puntos: +", points, " | Total score: ", score)
+	print("  - Targets recogidos: ", targets_collected)
+	print("  - Tiempo de reacción: ", "%.2f" % reaction_time, "s")
+	
 	# Analizar posición espacial del target
 	_analyze_target_position(target_position, reaction_time)
 	
 	target_collected.emit(target_id, points)
-	print("[CityManager] ✅ Target ", target_id, " recogido | Score: ", score, " | Collected: ", targets_collected)
+	print("[CityManager] 📊 Métricas actuales:")
+	print("  - Izquierda: ", left_side_targets, " | Derecha: ", right_side_targets)
+	print("  - Arriba: ", high_targets, " | Abajo: ", low_targets)
+	print("  - Frente: ", front_targets, " | Atrás: ", back_targets)
 	
 	# NO verificar victoria - el juego termina por tiempo, no por targets completados
 	# Esto permite que los targets sigan apareciendo durante todo el tiempo

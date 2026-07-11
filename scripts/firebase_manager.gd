@@ -276,6 +276,8 @@ func _add_vault_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["spatial_awareness_score"] = {"integerValue": str(results.get("spatial_awareness_score", 0))}
 
 func _add_city_fields(fields: Dictionary, results: Dictionary) -> void:
+	print("[Firebase] 🏙️ Añadiendo campos específicos de CityWorld:")
+	
 	var completion = results.get("completion_percentage", 0.0)
 	fields["accuracy"] = {"integerValue": str(int(completion))}  # Para compatibilidad con la UI de la clínica
 	fields["completion_percentage"] = {"doubleValue": completion}
@@ -288,6 +290,11 @@ func _add_city_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["neglect_score"] = {"doubleValue": results.get("neglect_score", 0.0)}
 	fields["avg_reaction_time"] = {"doubleValue": results.get("avg_reaction_time", 0.0)}
 	
+	print("  ✅ Score: ", results.get("score", 0))
+	print("  ✅ Targets: ", results.get("targets_collected", 0), "/", results.get("total_targets", 0))
+	print("  ✅ Lado izq: ", results.get("left_side_targets", 0), " | Lado der: ", results.get("right_side_targets", 0))
+	print("  ✅ Asimetría: ", results.get("asymmetry_percentage", 0.0), "% | Negligencia: ", results.get("neglect_score", 0.0))
+	
 	# ROM cervical
 	var cervical = results.get("cervical_rom_degrees", {})
 	fields["cervical_rom_left"] = {"doubleValue": cervical.get("rotation_left", 0.0)}
@@ -296,6 +303,8 @@ func _add_city_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["cervical_rom_flexion"] = {"doubleValue": cervical.get("flexion_down", 0.0)}
 	fields["cervical_rom_total"] = {"doubleValue": cervical.get("total_rom", 0.0)}
 	
+	print("  ✅ ROM cervical total: ", cervical.get("total_rom", 0.0), "°")
+	
 	# Scores clínicos
 	var clinical = results.get("clinical_scores", {})
 	fields["spatial_awareness"] = {"integerValue": str(clinical.get("spatial_awareness", 0))}
@@ -303,6 +312,11 @@ func _add_city_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["processing_speed"] = {"integerValue": str(clinical.get("processing_speed", 0))}
 	fields["cervical_mobility"] = {"integerValue": str(clinical.get("cervical_mobility", 0))}
 	fields["visual_search_efficiency"] = {"integerValue": str(clinical.get("visual_search_efficiency", 0))}
+	
+	print("  ✅ Scores clínicos: conciencia espacial=", clinical.get("spatial_awareness", 0), 
+		  " | orientación=", clinical.get("orientation", 0),
+		  " | velocidad=", clinical.get("processing_speed", 0))
+	print("[Firebase] 💾 Todos los campos de CityWorld añadidos correctamente")
 
 func _add_luggage_fields(fields: Dictionary, results: Dictionary) -> void:
 	fields["accuracy_percentage"] = {"doubleValue": results.get("accuracy_percentage", 0.0)}

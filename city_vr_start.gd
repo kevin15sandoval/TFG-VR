@@ -335,6 +335,12 @@ func _on_config_error(_msg: String) -> void:
 func _on_session_started() -> void:
 	print("[CityVR] ▶ Sesión iniciada")
 	_show_game_hud()
+	
+	# Inicializar score en 0
+	if hud_score:
+		hud_score.text = "0 pts"
+		print("[CityVR] Score HUD inicializado: 0 pts")
+	
 	if label_status:
 		label_status.text = "¡EXPLORANDO!"
 		label_status.modulate = Color(0.2, 1.0, 0.8)
@@ -351,6 +357,7 @@ func _on_game_started() -> void:
 func _on_target_collected(target_id: int, points: int) -> void:
 	if hud_score and city_manager:
 		hud_score.text = str(city_manager.score) + " pts"
+		print("[CityVR] 🎯 Score actualizado: ", city_manager.score, " pts")
 		
 		# Feedback visual más fuerte
 		var tween = create_tween()
@@ -376,7 +383,7 @@ func _on_target_collected(target_id: int, points: int) -> void:
 	# Actualizar asimetría
 	_update_asymmetry_display()
 	
-	print("[CityVR] ✅ Target ", target_id, " +", points, " pts")
+	print("[CityVR] ✅ Target ", target_id, " +", points, " pts | Total: ", city_manager.score if city_manager else 0)
 
 func _on_sequence_error(expected: int, touched: int) -> void:
 	# Flash visual de error
