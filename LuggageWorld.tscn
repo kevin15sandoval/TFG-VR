@@ -31,16 +31,6 @@ tonemap_white = 6.0
 adjustment_enabled = true
 adjustment_brightness = 1.35
 adjustment_contrast = 1.05
-ssao_enabled = true
-ssao_radius = 1.0
-ssao_intensity = 1.5
-ssil_enabled = false
-sdfgi_enabled = false
-glow_enabled = true
-glow_intensity = 0.5
-glow_strength = 0.8
-glow_bloom = 0.1
-volumetric_fog_enabled = false
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
 albedo_color = Color(0.35, 0.35, 0.4, 1)
@@ -87,36 +77,33 @@ shadow_enabled = true
 shadow_bias = 0.05
 shadow_normal_bias = 1.0
 directional_shadow_mode = 1
-directional_shadow_split_1 = 0.1
 directional_shadow_split_2 = 0.3
 directional_shadow_split_3 = 0.6
-directional_shadow_max_distance = 100.0
 
 [node name="OmniLight3D_Station" type="OmniLight3D" parent="." unique_id=169617067]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 light_color = Color(1, 1, 0.95, 1)
 light_energy = 4.5
-omni_range = 30.0
 shadow_enabled = true
 shadow_bias = 0.05
-shadow_normal_bias = 1.0
+omni_range = 30.0
 
 [node name="OmniLight3D_Conveyor" type="OmniLight3D" parent="." unique_id=944671910]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -5)
 light_color = Color(0.9, 0.95, 1, 1)
 light_energy = 3.0
-omni_range = 20.0
 shadow_enabled = true
 shadow_bias = 0.05
-shadow_normal_bias = 1.0
+omni_range = 20.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=57731902]
 environment = SubResource("Environment_1")
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=218339429]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6826041, 0.9480866, -1.625202)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1949892872]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2177811, 1.3255345, -1.3758247)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3048774, 1.2587782, -1.586455)
 
 [node name="LeftHand" type="XRController3D" parent="XROrigin3D" unique_id=819851443]
 tracker = &"left_hand"
@@ -142,7 +129,7 @@ shape = SubResource("BoxShape3D_floor")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.0049436092, -0.005028248)
 
 [node name="StationModel2" parent="." unique_id=943864549 instance=ExtResource("2")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.0049436092, -0.005028248)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.07299149, -0.005028248)
 
 [node name="ConveyorBelt" parent="." unique_id=1884770623 instance=ExtResource("3")]
 transform = Transform3D(0.0070543117, 0, 0, 0, 0.006322506, 0, 0, 0, 0.006263313, 0.2777815, 0.4678248, -2.514721)

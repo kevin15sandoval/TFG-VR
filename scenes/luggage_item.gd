@@ -297,8 +297,6 @@ func _play_error_sound() -> void:
 			var amplitude = 0.6
 			var sample = sin(t * freq * TAU) * amplitude
 			playback.push_frame(Vector2(sample, sample))
-			var sample = sin(t * freq * TAU) * amplitude
-			playback.push_frame(Vector2(sample, sample))
 	
 	await get_tree().create_timer(0.25).timeout
 	if is_instance_valid(audio):

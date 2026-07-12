@@ -12,8 +12,8 @@ signal combo_achieved(combo_count: int)
 signal timer_updated(remaining: float)
 
 var game_active: bool = false
-var recognition_phase: bool = true
-var recognition_time: float = 15.0
+var recognition_phase: bool = false  # DESACTIVAR fase de reconocimiento
+var recognition_time: float = 0.0  # Sin tiempo de reconocimiento
 var recognition_timer: float = 0.0
 
 var score: int = 0
@@ -69,7 +69,7 @@ func start_game() -> void:
 		return
 	
 	game_active = true
-	recognition_phase = true
+	recognition_phase = false  # Sin fase de reconocimiento
 	recognition_timer = 0.0
 	
 	# Reset stats
@@ -102,8 +102,11 @@ func start_game() -> void:
 	start_time = Time.get_ticks_msec() / 1000.0
 	_timer.start()
 	
+	# INICIAR SPAWNER INMEDIATAMENTE
+	_start_spawning()
+	
 	game_started.emit()
-	print("[LuggageManager] ⏱️ Fase de reconocimiento iniciada (15 segundos)")
+	print("[LuggageManager] ✅ Juego iniciado - Spawner activado")
 	print("[LuggageManager] 🎮 Dificultad: ", difficulty, " | Duración: ", game_duration, "s")
 
 func _process(delta: float) -> void:
@@ -115,19 +118,6 @@ func _on_timer_tick() -> void:
 		return
 	
 	var elapsed = Time.get_ticks_msec() / 1000.0 - start_time
-	
-	if recognition_phase:
-		recognition_timer = elapsed
-		var remaining = max(0.0, recognition_time - elapsed)
-		timer_updated.emit(remaining)
-		
-		if remaining <= 0:
-			recognition_phase = false
-			start_time = Time.get_ticks_msec() / 1000.0
-			_start_spawning()
-			print("[LuggageManager] ✅ Fase de reconocimiento completada. ¡Comienza el trabajo!")
-		return
-	
 	var remaining = max(0.0, game_duration - elapsed)
 	timer_updated.emit(remaining)
 	
@@ -137,10 +127,18 @@ func _on_timer_tick() -> void:
 func _start_spawning() -> void:
 	# Iniciar spawner de maletas
 	if _luggage_spawner:
-		_luggage_spawner.start_spawning()
+		if _luggage_spawner.has_method("set_difficulty"):
+			_luggage_spawner.set_difficulty(difficulty)
+		if _luggage_spawner.has_method("start_spawning"):
+			_luggage_spawner.start_spawning()
+			print("[LuggageManager] ✅ Spawner iniciado correctamente")
+		else:
+			push_error("[LuggageManager] ❌ Spawner no tiene método start_spawning")
+	else:
+		push_error("[LuggageManager] ❌ No hay spawner registrado")
 
 func on_luggage_grabbed(luggage: Node, weight: float) -> void:
-	if not game_active or recognition_phase:
+	if not game_active:
 		return
 	
 	is_holding_luggage = true
