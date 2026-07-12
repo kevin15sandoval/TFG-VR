@@ -50,8 +50,9 @@ func _ready() -> void:
 	_setup_physics()
 	_create_grab_area()
 	
-	# Conectar señales de colisión
+	# Conectar señales de colisión con áreas (placement zones)
 	body_entered.connect(_on_body_entered)
+	area_entered.connect(_on_area_entered)
 	
 	print("[Luggage] Maleta ", luggage_id, " creada | Tipo: ", luggage_type, " | Peso: ", weight, "kg")
 
@@ -338,10 +339,18 @@ func _play_grab_sound() -> void:
 		audio.queue_free()
 
 func _on_body_entered(body: Node) -> void:
-	# Detectar si entró en zona de colocación
+	# Detectar si entró en zona de colocación (body)
 	if body.is_in_group("placement_zone") and not has_been_placed:
 		var zone_name = body.get_meta("zone_name", "")
 		if zone_name != "":
+			place_in_zone(zone_name)
+
+func _on_area_entered(area: Area3D) -> void:
+	# Detectar si entró en zona de colocación (area)
+	if area.is_in_group("placement_zone") and not has_been_placed:
+		var zone_name = area.get_meta("zone_name", "")
+		if zone_name != "":
+			print("[Luggage] Maleta ", luggage_id, " entró en zona: ", zone_name)
 			place_in_zone(zone_name)
 
 func get_type_color() -> Color:
