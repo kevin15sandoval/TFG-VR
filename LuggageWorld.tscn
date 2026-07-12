@@ -91,10 +91,9 @@ omni_range = 20.0
 environment = SubResource("Environment_1")
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=218339429]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1949892872]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2177811, 1.3255345, -1.3758247)
 
 [node name="LeftHand" type="XRController3D" parent="XROrigin3D" unique_id=819851443]
 tracker = &"left_hand"
@@ -117,6 +116,10 @@ mesh = SubResource("BoxMesh_floor")
 shape = SubResource("BoxShape3D_floor")
 
 [node name="StationModel" parent="." unique_id=1466332481 instance=ExtResource("2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.0049436092, -0.005028248)
+
+[node name="StationModel2" parent="." unique_id=943864549 instance=ExtResource("2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.0049436092, -0.005028248)
 
 [node name="ConveyorBelt" parent="." unique_id=1884770623 instance=ExtResource("3")]
 transform = Transform3D(0.0070543117, 0, 0, 0, 0.006322506, 0, 0, 0, 0.006263313, 0.2777815, 0.4678248, -2.514721)
@@ -141,7 +144,7 @@ metadata/zone_name = "green"
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/GreenZone" unique_id=174330778]
-transform = Transform3D(2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
+transform = Transform3D(0.45394564, 0, 0, 0, 1, 0, 0, 0, 2, 2.9566107, 0, 0)
 mesh = SubResource("PlaneMesh_green")
 
 [node name="YellowZone" type="Area3D" parent="PlacementZones" unique_id=1171028867 groups=["placement_zone"]]
@@ -149,19 +152,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.3, 0)
 metadata/zone_name = "yellow"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/YellowZone" unique_id=414008404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06760621, 0, 0)
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/YellowZone" unique_id=723033535]
-transform = Transform3D(2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
+transform = Transform3D(0.4362548, 0, 0, 0, 1, 0, 0, 0, 2, 0.7196026, 0.045212626, -0.027795196)
 mesh = SubResource("PlaneMesh_yellow")
 
 [node name="RedZone" type="Area3D" parent="PlacementZones" unique_id=143222567 groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05042386, 0.3, -1)
 metadata/zone_name = "red"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/RedZone" unique_id=546074705]
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/RedZone" unique_id=1438223615]
-transform = Transform3D(2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
+transform = Transform3D(0.44723472, 0, 0, 0, 1, 0, 0, 0, 2, 1.8988252, 0, 0)
 mesh = SubResource("PlaneMesh_red")
