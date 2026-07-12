@@ -7,6 +7,12 @@ extends XRController3D
 var held_luggage: RigidBody3D = null
 var nearby_luggage: RigidBody3D = null
 
+# Para tracking de velocidad del mando
+var previous_position: Vector3 = Vector3.ZERO
+var current_velocity: Vector3 = Vector3.ZERO
+var velocity_samples: Array[Vector3] = []
+const MAX_SAMPLES: int = 5
+
 @onready var grab_area: Area3D = null
 @onready var hand_visual: MeshInstance3D = null
 
@@ -43,9 +49,22 @@ func _ready() -> void:
 	button_pressed.connect(_on_button_pressed)
 	button_released.connect(_on_button_released)
 	
+	previous_position = global_position
+	
 	print("[XRHand] 🎮 Controlador ", tracker, " inicializado")
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# Calcular velocidad del mando
+	if delta > 0:
+		current_velocity = (global_position - previous_position) / delta
+		
+		# Guardar muestra de velocidad
+		velocity_samples.append(current_velocity)
+		if velocity_samples.size() > MAX_SAMPLES:
+			velocity_samples.pop_front()
+		
+		previous_position = global_position
+	
 	# Si tenemos maleta agarrada, moverla con la mano
 	if held_luggage and is_instance_valid(held_luggage):
 		held_luggage.global_position = global_position
@@ -98,8 +117,21 @@ func release_luggage() -> void:
 	var luggage = held_luggage
 	held_luggage = null
 	
+	# Calcular velocidad promedio de las últimas muestras
+	var avg_velocity = Vector3.ZERO
+	if velocity_samples.size() > 0:
+		for vel in velocity_samples:
+			avg_velocity += vel
+		avg_velocity /= velocity_samples.size()
+	
 	if luggage.has_method("release"):
 		luggage.release()
+	
+	# APLICAR VELOCIDAD DE LANZAMIENTO
+	if luggage is RigidBody3D:
+		# Multiplicar por 1.5 para hacer el lanzamiento más potente
+		luggage.linear_velocity = avg_velocity * 1.5
+		print("[XRHand] 🚀 Maleta lanzada con velocidad: ", avg_velocity * 1.5)
 	
 	trigger_haptic_pulse("haptic", 0.0, 0.3, 0.05, 0.0)
 	print("[XRHand] 📦 Maleta soltada por ", tracker)
