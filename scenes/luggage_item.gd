@@ -50,9 +50,8 @@ func _ready() -> void:
 	_setup_physics()
 	_create_grab_area()
 	
-	# Conectar señales de colisión con áreas (placement zones)
+	# Conectar señales de colisión
 	body_entered.connect(_on_body_entered)
-	area_entered.connect(_on_area_entered)
 	
 	print("[Luggage] Maleta ", luggage_id, " creada | Tipo: ", luggage_type, " | Peso: ", weight, "kg")
 
@@ -172,6 +171,24 @@ func _process(delta: float) -> void:
 		print("[Luggage] Maleta ", luggage_id, " cayó al vacío")
 		luggage_dropped.emit(self)
 		queue_free()
+	
+	# VERIFICAR SI ESTÁ EN UNA ZONA DE COLOCACIÓN
+	if not is_grabbed and not has_been_placed:
+		_check_placement_zones()
+
+func _check_placement_zones() -> void:
+	# Buscar todas las zonas de colocación
+	var zones = get_tree().get_nodes_in_group("placement_zone")
+	for zone in zones:
+		if zone is Area3D:
+			# Verificar si esta maleta está dentro del área
+			var overlapping = zone.get_overlapping_bodies()
+			if self in overlapping:
+				var zone_name = zone.get_meta("zone_name", "")
+				if zone_name != "":
+					print("[Luggage] Maleta ", luggage_id, " está en zona: ", zone_name)
+					place_in_zone(zone_name)
+					return
 
 func grab(hand: Node3D) -> void:
 	if is_grabbed:
@@ -339,19 +356,9 @@ func _play_grab_sound() -> void:
 		audio.queue_free()
 
 func _on_body_entered(body: Node) -> void:
-	# Detectar si entró en zona de colocación (body)
-	if body.is_in_group("placement_zone") and not has_been_placed:
-		var zone_name = body.get_meta("zone_name", "")
-		if zone_name != "":
-			place_in_zone(zone_name)
-
-func _on_area_entered(area: Area3D) -> void:
-	# Detectar si entró en zona de colocación (area)
-	if area.is_in_group("placement_zone") and not has_been_placed:
-		var zone_name = area.get_meta("zone_name", "")
-		if zone_name != "":
-			print("[Luggage] Maleta ", luggage_id, " entró en zona: ", zone_name)
-			place_in_zone(zone_name)
+	# Esta función ya no es necesaria para detectar zonas
+	# Las zonas se detectan en _check_placement_zones()
+	pass
 
 func get_type_color() -> Color:
 	return COLORS.get(luggage_type, Color.WHITE)
