@@ -763,8 +763,18 @@ func _on_session_finished(results: Dictionary) -> void:
 	# Limpiar sesión activa en Firestore para evitar auto-inicio
 	if firebase_manager:
 		print("[VR] 🧹 Limpiando sesión de Firestore...")
+		
+		# CRÍTICO: Primero marcar como completed para que Hub no la detecte
+		print("[VR] 🔒 Paso 1/2: Marcar sesión como completed...")
+		await firebase_manager.mark_session_completed()
+		
+		# Esperar 0.5s adicional para asegurar que Firestore procesó el PATCH
+		await get_tree().create_timer(0.5).timeout
+		
+		# Ahora sí DELETE
+		print("[VR] 🗑️ Paso 2/2: Eliminar sesión...")
 		await _clear_firestore_session()  # ESPERAR a que termine la limpieza
-		print("[VR] ✅ Sesión limpiada completamente")
+		print("[VR] ✅ Sesión limpiada completamente (completed + deleted)")
 		
 		print("[VR] 🛑 Deteniendo polling de Firebase...")
 		firebase_manager.stop_polling()

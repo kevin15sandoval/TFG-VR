@@ -178,6 +178,7 @@ export async function publishActiveSession(
     therapySide:  config.therapySide,
     sessionType:  config.sessionType,
     gameId:       config.selectedGame,
+    status:       "pending",                // CRÍTICO: Hub solo detecta sesiones "pending"
     publishedAt:  serverTimestamp(),
   });
 }

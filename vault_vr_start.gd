@@ -428,8 +428,17 @@ func _on_game_finished(results: Dictionary) -> void:
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Esquivados: " + str(results.get("lasers_dodged", 0)) + " | Tocados: " + str(results.get("laser_hits", 0))
 	
 	print("[VaultVR] 🧹 Limpiando sesión activa de Firestore...")
+	
+	# CRÍTICO: Primero marcar como completed para que Hub no la detecte
+	if firebase_manager:
+		print("[VaultVR] 🔒 Paso 1/2: Marcar sesión como completed...")
+		await firebase_manager.mark_session_completed()
+		await get_tree().create_timer(0.5).timeout
+	
+	# Ahora sí DELETE
+	print("[VaultVR] 🗑️ Paso 2/2: Eliminar sesión...")
 	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
-	print("[VaultVR] ✅ Sesión limpiada completamente")
+	print("[VaultVR] ✅ Sesión limpiada completamente (completed + deleted)")
 	
 	print("[VaultVR] 🛑 Deteniendo polling de Firebase...")
 	if firebase_manager:

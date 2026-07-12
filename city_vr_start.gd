@@ -583,8 +583,17 @@ func _on_game_finished(results: Dictionary) -> void:
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Negligencia: " + str(int(neglect)) + "/100"
 	
 	print("[CityVR] 🧹 Limpiando sesión activa de Firestore...")
+	
+	# CRÍTICO: Primero marcar como completed para que Hub no la detecte
+	if firebase_manager:
+		print("[CityVR] 🔒 Paso 1/2: Marcar sesión como completed...")
+		await firebase_manager.mark_session_completed()
+		await get_tree().create_timer(0.5).timeout
+	
+	# Ahora sí DELETE
+	print("[CityVR] 🗑️ Paso 2/2: Eliminar sesión...")
 	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
-	print("[CityVR] ✅ Sesión limpiada completamente")
+	print("[CityVR] ✅ Sesión limpiada completamente (completed + deleted)")
 	
 	print("[CityVR] 🛑 Deteniendo polling de Firebase...")
 	if firebase_manager:

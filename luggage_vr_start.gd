@@ -410,8 +410,17 @@ func _on_game_finished(results: Dictionary) -> void:
 		label_info.text = "Score: " + str(results.get("score", 0)) + " | Peso: " + str(int(total_weight)) + "kg"
 	
 	print("[LuggageVR] 🧹 Limpiando sesión activa de Firestore...")
+	
+	# CRÍTICO: Primero marcar como completed para que Hub no la detecte
+	if firebase_manager:
+		print("[LuggageVR] 🔒 Paso 1/2: Marcar sesión como completed...")
+		await firebase_manager.mark_session_completed()
+		await get_tree().create_timer(0.5).timeout
+	
+	# Ahora sí DELETE
+	print("[LuggageVR] 🗑️ Paso 2/2: Eliminar sesión...")
 	await _clear_firestore_session()  # ESPERAR a que termine la limpieza
-	print("[LuggageVR] ✅ Sesión limpiada completamente")
+	print("[LuggageVR] ✅ Sesión limpiada completamente (completed + deleted)")
 	
 	print("[LuggageVR] 🛑 Deteniendo polling de Firebase...")
 	if firebase_manager:

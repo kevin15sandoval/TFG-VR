@@ -105,6 +105,14 @@ func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) 
 	var fields = data.get("fields", {})
 	print("[Firebase] 📋 Campos disponibles: ", fields.keys())
 	
+	# CRÍTICO: Verificar que el status sea "pending"
+	var status = _get_string(fields, "status", "pending")
+	print("[Firebase] 🔍 Status de sesión: '", status, "'")
+	
+	if status != "pending":
+		print("[Firebase] ⏭️ Sesión NO está pending (status='", status, "'), ignorando")
+		return
+	
 	var session_id = _get_string(fields, "sessionId")
 	print("[Firebase] 🔍 Session ID extraído: '", session_id, "'")
 	print("[Firebase] 🔍 Último session ID: '", _last_session_id, "'")
@@ -356,6 +364,49 @@ func _on_results_saved(result: int, code: int, _headers, body: PackedByteArray) 
 		emit_signal("results_error", "Error HTTP " + str(code))
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+## Marca la sesión actual como "completed" para que el Hub no la detecte de nuevo
+## DEBE llamarse ANTES de hacer DELETE
+func mark_session_completed() -> void:
+	print("═══════════════════════════════════════════════════════════════")
+	print("🔒 MARCANDO SESIÓN COMO COMPLETED (evitar bucle infinito)")
+	print("═══════════════════════════════════════════════════════════════")
+	
+	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE + "?updateMask.fieldPaths=status"
+	var headers = ["Content-Type: application/json"]
+	
+	var body = {
+		"fields": {
+			"status": {"stringValue": "completed"}
+		}
+	}
+	
+	var json_body = JSON.stringify(body)
+	
+	var http = HTTPRequest.new()
+	add_child(http)
+	
+	print("[Firebase] 📡 Enviando PATCH para marcar completed...")
+	var error = http.request(url, headers, HTTPClient.METHOD_PATCH, json_body)
+	
+	if error != OK:
+		print("[Firebase] ❌ Error al marcar sesión completed: ", error)
+		http.queue_free()
+		return
+	
+	# Esperar respuesta
+	var response = await http.request_completed
+	var result = response[0]
+	var code = response[1]
+	
+	if result == HTTPRequest.RESULT_SUCCESS and (code == 200 or code == 204):
+		print("[Firebase] ✅✅✅ SESIÓN MARCADA COMO COMPLETED ✅✅✅")
+		print("[Firebase] El Hub ya NO detectará esta sesión en próximos polls")
+	else:
+		print("[Firebase] ⚠️ Error al marcar completed - HTTP ", code)
+	
+	http.queue_free()
+	print("═══════════════════════════════════════════════════════════════")
 
 func _get_string(fields: Dictionary, key: String, default_val: String = "") -> String:
 	if fields.has(key):
