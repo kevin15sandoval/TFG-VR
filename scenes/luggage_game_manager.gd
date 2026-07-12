@@ -184,33 +184,33 @@ func on_luggage_placed_wrong() -> void:
 		return
 	
 	luggage_wrong_count += 1
-	score = max(0, score - 10)
+	# NO restar puntos, solo resetear combo
 	combo_count = 0
 	
 	luggage_error.emit("wrong_zone")
-	print("[LuggageManager] ❌ Maleta mal colocada | -10 pts")
+	print("[LuggageManager] ❌ Maleta mal colocada (sin penalización)")
 
 func on_luggage_dropped() -> void:
 	if not game_active or recognition_phase:
 		return
 	
 	luggage_dropped_count += 1
-	score = max(0, score - 20)
+	# NO restar puntos, solo resetear combo
 	combo_count = 0
 	
 	luggage_error.emit("dropped")
-	print("[LuggageManager] 💥 Maleta caída | -20 pts")
+	print("[LuggageManager] 💥 Maleta caída (sin penalización)")
 
 func on_luggage_missed() -> void:
 	if not game_active or recognition_phase:
 		return
 	
 	luggage_missed_count += 1
-	score = max(0, score - 5)
+	# NO restar puntos, solo resetear combo
 	combo_count = 0
 	
 	luggage_error.emit("missed")
-	print("[LuggageManager] ⏭️ Maleta perdida | -5 pts")
+	print("[LuggageManager] ⏭️ Maleta perdida (sin penalización)")
 
 func _detect_trunk_rotation(zone: String) -> void:
 	# Detectar rotación según zona

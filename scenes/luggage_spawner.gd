@@ -104,6 +104,9 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 	# Añadir a escena PRIMERO (necesario para que las propiedades se apliquen)
 	get_parent().add_child(luggage)
 	
+	# ESPERAR un frame para que se inicialice
+	await get_tree().process_frame
+	
 	# Configurar propiedades DESPUÉS de añadir a escena
 	luggage.luggage_id = _luggage_counter + 1
 	luggage.luggage_type = type
@@ -112,10 +115,11 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 	luggage.target_zone = config["zone"]
 	
 	print("[LuggageSpawner] 🔧 Maleta configurada:")
-	print("  - luggage_type: ", luggage.luggage_type)
-	print("  - target_zone: ", luggage.target_zone)
+	print("  - luggage_type: '", luggage.luggage_type, "'")
+	print("  - target_zone: '", luggage.target_zone, "'")
 	print("  - weight: ", luggage.weight, "kg")
 	print("  - points: ", luggage.points)
+	print("  - Config original zone: '", config["zone"], "'")
 	
 	# Posicionar en inicio de cinta (con pequeña variación)
 	var spawn_offset = Vector3(

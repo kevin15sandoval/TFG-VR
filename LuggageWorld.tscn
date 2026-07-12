@@ -19,18 +19,19 @@ sky_material = SubResource("ProceduralSkyMaterial_1")
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 2
-background_energy_multiplier = 1.4
+background_energy_multiplier = 1.6
 sky = SubResource("Sky_1")
 ambient_light_source = 3
-ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 2.2
+ambient_light_color = Color(1, 0.98, 0.95, 1)
+ambient_light_energy = 2.5
 reflected_light_source = 2
 tonemap_mode = 2
-tonemap_exposure = 1.25
+tonemap_exposure = 1.3
 tonemap_white = 6.0
 adjustment_enabled = true
-adjustment_brightness = 1.35
-adjustment_contrast = 1.05
+adjustment_brightness = 1.4
+adjustment_contrast = 1.08
+adjustment_saturation = 1.12
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
 albedo_color = Color(0.35, 0.35, 0.4, 1)
@@ -71,28 +72,49 @@ script = ExtResource("1")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=688258329]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
-light_color = Color(1, 1, 0.98, 1)
-light_energy = 2.0
+light_color = Color(1, 0.98, 0.95, 1)
+light_energy = 3.0
 shadow_enabled = true
 directional_shadow_split_3 = 0.6
 
 [node name="OmniLight3D_Station" type="OmniLight3D" parent="." unique_id=169617067]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
-light_color = Color(1, 1, 0.95, 1)
-light_energy = 3.0
-omni_range = 25.0
+light_color = Color(1, 0.95, 0.85, 1)
+light_energy = 3.8
+omni_range = 30.0
 
 [node name="OmniLight3D_Conveyor" type="OmniLight3D" parent="." unique_id=944671910]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -3)
-light_color = Color(0.9, 0.95, 1, 1)
-light_energy = 2.5
-omni_range = 15.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -3)
+light_color = Color(0.85, 0.95, 1, 1)
+light_energy = 3.0
+omni_range = 18.0
+
+[node name="SpotLight3D_Green" type="SpotLight3D" parent="." unique_id=100000001]
+transform = Transform3D(1, 0, 0, 0, -0.707107, 0.707107, 0, -0.707107, -0.707107, -2, 5, 0)
+light_color = Color(0.2, 1, 0.3, 1)
+light_energy = 1.8
+spot_range = 10.0
+spot_angle = 50.0
+
+[node name="SpotLight3D_Yellow" type="SpotLight3D" parent="." unique_id=100000002]
+transform = Transform3D(1, 0, 0, 0, -0.707107, 0.707107, 0, -0.707107, -0.707107, 2, 5, 0)
+light_color = Color(1, 0.9, 0.2, 1)
+light_energy = 1.8
+spot_range = 10.0
+spot_angle = 50.0
+
+[node name="SpotLight3D_Red" type="SpotLight3D" parent="." unique_id=100000003]
+transform = Transform3D(1, 0, 0, 0, -0.707107, 0.707107, 0, -0.707107, -0.707107, 0, 5, -1)
+light_color = Color(0.9, 0.2, 0.2, 1)
+light_energy = 1.8
+spot_range = 10.0
+spot_angle = 50.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=57731902]
 environment = SubResource("Environment_1")
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=218339429]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, -2)
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0.7, -2.5)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1949892872]
 transform = Transform3D(0.98875636, 0, -0.14953537, 0, 1, 0, 0.14953536, 0, 0.98875636, -0.5793973, 1.4075402, -1.012778)
@@ -133,14 +155,17 @@ script = ExtResource("4")
 script = ExtResource("5")
 
 [node name="LuggageSpawner" type="Node3D" parent="." unique_id=997286494]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.28, 1.1, -3.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.28, 1.3, -3.5)
 script = ExtResource("6")
 
 [node name="PlacementZones" type="Node3D" parent="." unique_id=543387993]
 
 [node name="GreenZone" type="Area3D" parent="PlacementZones" unique_id=219457263 groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.5, 0)
+collision_layer = 1
 collision_mask = 4
+monitoring = true
+monitorable = true
 metadata/zone_name = "green"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/GreenZone" unique_id=76749930]
@@ -151,8 +176,11 @@ transform = Transform3D(0.30077067, 0, 0, 0, 0.9174253, 0, 0, 0, 1.1697325, 2.87
 mesh = SubResource("PlaneMesh_green")
 
 [node name="YellowZone" type="Area3D" parent="PlacementZones" unique_id=1171028867 groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.5, 0)
+collision_layer = 1
 collision_mask = 4
+monitoring = true
+monitorable = true
 metadata/zone_name = "yellow"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/YellowZone" unique_id=414008404]
@@ -164,8 +192,11 @@ transform = Transform3D(0.28707382, 0, 0, 0, 1, 0, 0, 0, 2, -2.3664382, 0.195501
 mesh = SubResource("PlaneMesh_yellow")
 
 [node name="RedZone" type="Area3D" parent="PlacementZones" unique_id=143222567 groups=["placement_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05042386, 0.3, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05042386, 0.5, -1)
+collision_layer = 1
 collision_mask = 4
+monitoring = true
+monitorable = true
 metadata/zone_name = "red"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/RedZone" unique_id=546074705]

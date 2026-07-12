@@ -177,32 +177,25 @@ func _process(delta: float) -> void:
 		print("[Luggage] Maleta ", luggage_id, " cayó al vacío")
 		luggage_dropped.emit()
 		queue_free()
-	
-	# VERIFICAR SI ESTÁ EN UNA ZONA DE COLOCACIÓN
-	if not is_grabbed and not has_been_placed:
-		_check_placement_zones()
 
 func _check_placement_zones() -> void:
 	# Buscar todas las zonas de colocación
 	var zones = get_tree().get_nodes_in_group("placement_zone")
 	if zones.size() == 0:
-		print("[Luggage] ⚠️ No hay zonas de colocación en el árbol")
 		return
 	
 	for zone in zones:
 		if zone is Area3D:
-			# Verificar si esta maleta está dentro del área
-			var overlapping = zone.get_overlapping_bodies()
-			if self in overlapping:
+			# Comprobar si la maleta está cerca de la zona (dentro de 1.5m)
+			var distance = global_position.distance_to(zone.global_position)
+			if distance < 1.5:
 				var zone_name = zone.get_meta("zone_name", "")
 				if zone_name != "":
-					print("[Luggage] ✅ Maleta ", luggage_id, " está en zona: ", zone_name, " | Tipo maleta: ", luggage_type)
+					print("[Luggage] ✅ MALETA CERCA DE ZONA (", distance, "m)")
+					print("  - ID: ", luggage_id, " | Tipo: ", luggage_type, " | Target: ", target_zone)
+					print("  - Zona detectada: ", zone_name)
 					place_in_zone(zone_name)
 					return
-				else:
-					print("[Luggage] ⚠️ Zona sin nombre")
-		else:
-			print("[Luggage] ⚠️ Zona no es Area3D: ", zone)
 
 func grab(hand: Node3D) -> void:
 	if is_grabbed:
@@ -234,15 +227,20 @@ func release() -> void:
 	
 	is_grabbed = false
 	grabbed_by = null
-	freeze = false  # Descongelar para que puedan caer en las zonas
+	freeze = false  # Descongelar para física
 	
-	# Aplicar un pequeño impulso hacia abajo (simular soltar)
-	apply_central_impulse(Vector3.DOWN * 2.0)
+	print("[Luggage] 🎯 Maleta ", luggage_id, " soltada - comprobando zonas inmediatamente")
 	
-	print("[Luggage] Maleta ", luggage_id, " soltada en ", global_position, " | Freeze: ", freeze)
+	# COMPROBAR ZONAS INMEDIATAMENTE al soltar
+	await get_tree().process_frame
+	_check_placement_zones()
+	
 	luggage_released.emit(global_position)
 
 func place_in_zone(zone: String) -> void:
+	if has_been_placed:
+		return  # Ya fue colocada, no procesar de nuevo
+	
 	has_been_placed = true
 	
 	print("[Luggage] 🔍 Verificando colocación:")
@@ -252,12 +250,13 @@ func place_in_zone(zone: String) -> void:
 	
 	if zone == target_zone:
 		# Colocación correcta
-		print("[Luggage] ✅ Maleta ", luggage_id, " colocada CORRECTAMENTE en zona ", zone)
+		print("[Luggage] ✅ CORRECTO! Maleta ", luggage_id, " en zona ", zone)
 		_show_success_effect()
 		luggage_placed_correctly.emit(zone, weight, points)
 	else:
 		# Colocación incorrecta
-		print("[Luggage] ❌ Maleta ", luggage_id, " colocada MAL (esperado: ", target_zone, ", real: ", zone, ")")
+		print("[Luggage] ❌ ERROR! Maleta ", luggage_id, " mal colocada")
+		print("    Esperado: ", target_zone, " | Real: ", zone)
 		_show_error_effect()
 		luggage_placed_wrong.emit()
 	
