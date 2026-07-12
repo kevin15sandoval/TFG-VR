@@ -28,7 +28,7 @@ const DIFFICULTY_CONFIG = {
 		"speed": 1.0
 	},
 	"Difícil": {
-		"types": ["green", "yellow", "red", "purple"],
+		"types": ["green", "yellow", "red"],
 		"interval": 2.0,
 		"speed": 1.5
 	}

@@ -1,26 +1,31 @@
 extends XRController3D
 # ─────────────────────────────────────────────────────────────────────────────
-# XRHandLuggage — Controlador VR para agarrar y soltar maletas
+# XRHandLuggage — Hand Tracking para agarrar maletas SIN mandos
+# Usa gesto de pinza (pulgar + índice) para agarrar/soltar
 # ─────────────────────────────────────────────────────────────────────────────
 
 var held_luggage: RigidBody3D = null
 var nearby_luggage: RigidBody3D = null
+var is_pinching: bool = false
+var last_pinch_state: bool = false
 
 @onready var grab_area: Area3D = null
 @onready var hand_visual: MeshInstance3D = null
 
 func _ready() -> void:
-	# Crear visual de mano (esfera)
+	# Crear visual de mano (esfera pequeña)
 	hand_visual = MeshInstance3D.new()
 	var sphere = SphereMesh.new()
-	sphere.radius = 0.05  # 5cm
-	sphere.height = 0.1
+	sphere.radius = 0.03  # 3cm - más pequeño para hand tracking
+	sphere.height = 0.06
 	hand_visual.mesh = sphere
 	
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = Color(1.0, 0.8, 0.6)  # Color piel
 	mat.metallic = 0.0
 	mat.roughness = 0.7
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color.a = 0.7  # Semi-transparente
 	hand_visual.material_override = mat
 	add_child(hand_visual)
 	
@@ -32,18 +37,18 @@ func _ready() -> void:
 	
 	var grab_collision = CollisionShape3D.new()
 	var grab_shape = SphereShape3D.new()
-	grab_shape.radius = 0.25  # 25cm de radio
+	grab_shape.radius = 0.15  # 15cm de radio para hand tracking
 	grab_collision.shape = grab_shape
 	grab_area.add_child(grab_collision)
 	
 	grab_area.body_entered.connect(_on_grab_area_entered)
 	grab_area.body_exited.connect(_on_grab_area_exited)
 	
-	# Conectar botón de agarre
+	# HAND TRACKING: Conectar señales de botones (trigger simula pinza)
 	button_pressed.connect(_on_button_pressed)
 	button_released.connect(_on_button_released)
 	
-	print("[XRHand] Controlador ", tracker, " inicializado para agarrar maletas")
+	print("[XRHand] 🖐️ Hand Tracking activado para ", tracker)
 
 func _process(_delta: float) -> void:
 	# Si tenemos maleta agarrada, moverla con la mano
@@ -51,33 +56,42 @@ func _process(_delta: float) -> void:
 		held_luggage.global_position = global_position
 		held_luggage.global_rotation = global_rotation
 	
-	# Cambiar color de mano si hay maleta cerca
-	if hand_visual:
+	# Cambiar color de mano según estado
+	if hand_visual and hand_visual.material_override:
 		if nearby_luggage and not held_luggage:
-			hand_visual.material_override.albedo_color = Color(0.2, 1.0, 0.3)  # Verde = puede agarrar
+			# Verde = puede agarrar
+			hand_visual.material_override.albedo_color = Color(0.2, 1.0, 0.3, 0.8)
+			hand_visual.scale = Vector3.ONE * 1.5  # Pulsar visual
 		elif held_luggage:
-			hand_visual.material_override.albedo_color = Color(1.0, 0.9, 0.2)  # Amarillo = agarrando
+			# Amarillo = agarrando
+			hand_visual.material_override.albedo_color = Color(1.0, 0.9, 0.2, 0.9)
+			hand_visual.scale = Vector3.ONE * 1.2
 		else:
-			hand_visual.material_override.albedo_color = Color(1.0, 0.8, 0.6)  # Normal
+			# Normal
+			hand_visual.material_override.albedo_color = Color(1.0, 0.8, 0.6, 0.7)
+			hand_visual.scale = Vector3.ONE
 
 func _on_grab_area_entered(body: Node3D) -> void:
 	if body.has_method("grab") and not held_luggage:
 		nearby_luggage = body
-		print("[XRHand] Maleta cerca del controlador ", tracker)
+		print("[XRHand] 🖐️ Maleta detectada cerca de ", tracker)
 
 func _on_grab_area_exited(body: Node3D) -> void:
 	if body == nearby_luggage:
 		nearby_luggage = null
 
 func _on_button_pressed(name: String) -> void:
-	# Agarrar con trigger o grip
-	if name == "trigger_click" or name == "grip_click":
+	# HAND TRACKING: "trigger_click" se activa con gesto de pinza
+	# También soporta "grip_click" como fallback
+	if name == "trigger_click" or name == "grip_click" or name == "select":
+		is_pinching = true
 		if nearby_luggage and not held_luggage and is_instance_valid(nearby_luggage):
 			grab_luggage(nearby_luggage)
 
 func _on_button_released(name: String) -> void:
-	# Soltar con trigger o grip
-	if name == "trigger_click" or name == "grip_click":
+	# Soltar cuando se abre la mano (pinza se suelta)
+	if name == "trigger_click" or name == "grip_click" or name == "select":
+		is_pinching = false
 		if held_luggage:
 			release_luggage()
 
@@ -90,10 +104,11 @@ func grab_luggage(luggage: RigidBody3D) -> void:
 	if luggage.has_method("grab"):
 		luggage.grab(self)
 	
-	# Vibración háptica
-	trigger_haptic_pulse("haptic", 0.0, 0.5, 0.1, 0.0)
+	# Vibración háptica (si está disponible)
+	if has_method("trigger_haptic_pulse"):
+		trigger_haptic_pulse("haptic", 0.0, 0.5, 0.1, 0.0)
 	
-	print("[XRHand] ✅ Maleta agarrada por ", tracker)
+	print("[XRHand] ✅ Maleta agarrada con ", tracker)
 
 func release_luggage() -> void:
 	if not held_luggage:
@@ -106,6 +121,7 @@ func release_luggage() -> void:
 		luggage.release()
 	
 	# Vibración háptica ligera
-	trigger_haptic_pulse("haptic", 0.0, 0.3, 0.05, 0.0)
+	if has_method("trigger_haptic_pulse"):
+		trigger_haptic_pulse("haptic", 0.0, 0.3, 0.05, 0.0)
 	
 	print("[XRHand] 📦 Maleta soltada por ", tracker)
