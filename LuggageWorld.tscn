@@ -100,19 +100,20 @@ omni_range = 20.0
 environment = SubResource("Environment_1")
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=218339429]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6826041, 0.9480866, -1.625202)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1949892872]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3048774, 1.2587782, -1.586455)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
-[node name="LeftHand" type="XRController3D" parent="XROrigin3D" unique_id=819851443]
+[node name="LeftHand" type="XRNode3D" parent="XROrigin3D" unique_id=819851443]
 tracker = &"left_hand"
-pose = &"grip"
+pose = &"skeleton"
 script = ExtResource("7")
 
-[node name="RightHand" type="XRController3D" parent="XROrigin3D" unique_id=1625196241]
+[node name="RightHand" type="XRNode3D" parent="XROrigin3D" unique_id=1625196241]
 tracker = &"right_hand"
-pose = &"grip"
+pose = &"skeleton"
+script = ExtResource("7")
 script = ExtResource("7")
 
 [node name="Floor" type="StaticBody3D" parent="." unique_id=1569504103]
