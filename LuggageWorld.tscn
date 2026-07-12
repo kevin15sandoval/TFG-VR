@@ -95,7 +95,7 @@ environment = SubResource("Environment_1")
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, -2)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1949892872]
-transform = Transform3D(-0.9969827, 0, -0.07762379, 0, 1, 0, 0.07762379, 0, -0.9969827, -0.3777943, 1.0997775, -0.46568775)
+transform = Transform3D(-0.9969827, 0, -0.07762379, 0, 1, 0, 0.07762379, 0, -0.9969827, -0.5041427, 1.4075402, -1.012778)
 
 [node name="LeftHand" type="XRController3D" parent="XROrigin3D" unique_id=819851443]
 tracker = &"left_hand"
@@ -124,7 +124,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.0049436092, -
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.011644244, 0.07299149, -0.005028248)
 
 [node name="ConveyorBelt" parent="." unique_id=1884770623 instance=ExtResource("3")]
-transform = Transform3D(0.00084051525, 0, -0.006218695, 0, 0.0063225054, 0, 0.0070040594, 0, 0.0007462684, -0.026367784, 0.283596, -4.227068)
+transform = Transform3D(0.00084051525, 0, -0.006218695, 0, 0.0063225054, 0, 0.0070040594, 0, 0.0007462684, -0.026367784, 0.56575704, -4.6587195)
 
 [node name="LuggageGameManager" type="Node" parent="." unique_id=982930289]
 script = ExtResource("4")
@@ -140,17 +140,21 @@ script = ExtResource("6")
 
 [node name="GreenZone" type="Area3D" parent="PlacementZones" unique_id=219457263 groups=["placement_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.3, 0)
+monitoring = true
+monitorable = true
 metadata/zone_name = "green"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/GreenZone" unique_id=76749930]
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/GreenZone" unique_id=174330778]
-transform = Transform3D(0.30077067, 0, 0, 0, 0.9174253, 0, 0, 0, 1.1697325, 1.6204449, 0.21205455, 0)
+transform = Transform3D(0.30077067, 0, 0, 0, 0.9174253, 0, 0, 0, 1.1697325, 2.9068518, 0.21205455, 0)
 mesh = SubResource("PlaneMesh_green")
 
 [node name="YellowZone" type="Area3D" parent="PlacementZones" unique_id=1171028867 groups=["placement_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.3, 0)
+monitoring = true
+monitorable = true
 metadata/zone_name = "yellow"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/YellowZone" unique_id=414008404]
@@ -158,11 +162,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06760621, 0, 0)
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/YellowZone" unique_id=723033535]
-transform = Transform3D(0.28707382, 0, 0, 0, 1, 0, 0, 0, 2, -1.1166791, 0.19550133, -0.027795196)
+transform = Transform3D(0.28707382, 0, 0, 0, 1, 0, 0, 0, 2, -2.3664382, 0.19550133, -0.027795196)
 mesh = SubResource("PlaneMesh_yellow")
 
 [node name="RedZone" type="Area3D" parent="PlacementZones" unique_id=143222567 groups=["placement_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05042386, 0.3, -1)
+monitoring = true
+monitorable = true
 metadata/zone_name = "red"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/RedZone" unique_id=546074705]

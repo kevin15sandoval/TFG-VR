@@ -255,10 +255,12 @@ func _hide_waiting_ui() -> void:
 func _show_game_hud() -> void:
 	if hud_score:
 		hud_score.visible = true
+		hud_score.text = "0 pts"  # Inicializar con 0 puntos
 	if hud_timer:
 		hud_timer.visible = true
 	if hud_weight:
 		hud_weight.visible = true
+		hud_weight.text = "💪 0kg"  # Inicializar con 0 kg
 	if hud_instruction:
 		hud_instruction.visible = true
 		hud_instruction.text = "🟢 Izquierda | 🟡 Derecha | 🔴 Atrás"
