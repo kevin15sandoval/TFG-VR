@@ -183,6 +183,9 @@ func grab(hand: Node3D) -> void:
 	# Cambiar a kinematic para control manual
 	freeze = true
 	
+	# Sonido de agarre
+	_play_grab_sound()
+	
 	# Vibración háptica según peso (más pesado = más vibración)
 	var vibration_strength = remap(weight, 2.0, 15.0, 0.2, 0.8)
 	_trigger_haptic_feedback(vibration_strength)
@@ -248,7 +251,8 @@ func _show_error_effect() -> void:
 func _play_success_sound() -> void:
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
-	audio.max_distance = 15.0
+	audio.max_distance = 20.0
+	audio.volume_db = 2.0  # Más alto
 	
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
@@ -258,22 +262,24 @@ func _play_success_sound() -> void:
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		var frames = int(generator.mix_rate * 0.15)
+		# Sonido de "ding" ascendente alegre
+		var frames = int(generator.mix_rate * 0.25)
 		for i in range(frames):
 			var t = float(i) / generator.mix_rate
-			var freq = 800.0 + (i * 200.0 / frames)  # Subir frecuencia
-			var amplitude = 0.3 * (1.0 - t / 0.15)
+			var freq = 600.0 + (i * 400.0 / frames)  # 600Hz → 1000Hz (ascendente)
+			var amplitude = 0.5 * (1.0 - t / 0.25)
 			var sample = sin(t * freq * TAU) * amplitude
 			playback.push_frame(Vector2(sample, sample))
 	
-	await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(0.3).timeout
 	if is_instance_valid(audio):
 		audio.queue_free()
 
 func _play_error_sound() -> void:
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
-	audio.max_distance = 15.0
+	audio.max_distance = 20.0
+	audio.volume_db = 3.0  # Más alto para que se note
 	
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100
@@ -283,11 +289,14 @@ func _play_error_sound() -> void:
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		var frames = int(generator.mix_rate * 0.2)
+		# Sonido de "buzz" descendente (error)
+		var frames = int(generator.mix_rate * 0.3)
 		for i in range(frames):
 			var t = float(i) / generator.mix_rate
-			var freq = 300.0  # Tono bajo
-			var amplitude = 0.4
+			var freq = 400.0 - (i * 150.0 / frames)  # 400Hz → 250Hz (descendente)
+			var amplitude = 0.6
+			var sample = sin(t * freq * TAU) * amplitude
+			playback.push_frame(Vector2(sample, sample))
 			var sample = sin(t * freq * TAU) * amplitude
 			playback.push_frame(Vector2(sample, sample))
 	
@@ -299,6 +308,33 @@ func _trigger_haptic_feedback(strength: float) -> void:
 	# Vibración háptica (requiere controlador XR)
 	if grabbed_by and grabbed_by.has_method("trigger_haptic_pulse"):
 		grabbed_by.trigger_haptic_pulse("haptic", 0.0, strength, 0.1, 0.0)
+
+func _play_grab_sound() -> void:
+	# Sonido rápido de "pop" al agarrar
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 10.0
+	audio.volume_db = 0.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		var frames = int(generator.mix_rate * 0.08)  # Muy corto
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var freq = 500.0
+			var amplitude = 0.4 * (1.0 - t / 0.08)
+			var sample = sin(t * freq * TAU) * amplitude
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.1).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
 
 func _on_body_entered(body: Node) -> void:
 	# Detectar si entró en zona de colocación
