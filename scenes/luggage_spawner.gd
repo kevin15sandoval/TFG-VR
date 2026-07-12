@@ -119,9 +119,10 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 	# Añadir a escena
 	get_parent().add_child(luggage)
 	
-	# IMPORTANTE: Aplicar velocidad hacia ADELANTE (hacia el jugador en +Z)
+	# IMPORTANTE: Desactivar gravedad y aplicar velocidad hacia el jugador
 	if luggage is RigidBody3D:
-		luggage.linear_velocity = Vector3(0, 0, conveyor_speed)  # Velocidad positiva = hacia jugador
+		luggage.gravity_scale = 0.0  # Sin gravedad para que no caiga
+		luggage.linear_velocity = Vector3(0, 0, conveyor_speed * 3.0)  # Velocidad 3x más rápida hacia jugador (+Z)
 	
 	print("[LuggageSpawner] 📦 Maleta spawneada en posición: ", luggage.global_position)
 	

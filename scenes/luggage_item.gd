@@ -183,6 +183,9 @@ func grab(hand: Node3D) -> void:
 	# Cambiar a kinematic para control manual
 	freeze = true
 	
+	# ACTIVAR GRAVEDAD cuando se agarra
+	gravity_scale = 1.0
+	
 	# Sonido de agarre
 	_play_grab_sound()
 	
