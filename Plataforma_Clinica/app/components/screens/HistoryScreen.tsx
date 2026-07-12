@@ -3,7 +3,7 @@ import { ArrowLeft, Download, Filter, Calendar, Trophy, Target, TrendingUp } fro
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { Patient, SessionRecord } from "../../types";
 import { Card, Badge } from "../shared";
-import { formatDate, cx } from "../../utils/helpers";
+import { formatDate, cx, toDate } from "../../utils/helpers";
 import { usePagination } from "../../hooks/usePagination";
 import { generatePatientReport } from "../../pdfReport";
 
@@ -25,13 +25,13 @@ export function HistoryScreen({ patient, sessions, onBack }: HistoryScreenProps)
       const now = new Date();
       const daysAgo = dateFilter === "week" ? 7 : 30;
       filtered = filtered.filter(s => {
-        const sessionDate = new Date(s.date);
+        const sessionDate = toDate(s.date);
         const diff = (now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24);
         return diff <= daysAgo;
       });
     }
     
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return filtered.sort((a, b) => toDate(b.date).getTime() - toDate(a.date).getTime());
   }, [patient, sessions, dateFilter]);
 
   const { currentItems: paginatedSessions, ...pagination } = usePagination(patientSessions, 10);

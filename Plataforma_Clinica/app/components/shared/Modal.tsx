@@ -2,11 +2,14 @@ import { X } from "lucide-react";
 
 interface ModalProps {
   title: string;
+  isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }
 
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, isOpen, onClose, children }: ModalProps) {
+  if (!isOpen) return null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
@@ -21,6 +24,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            type="button"
           >
             <X size={18} />
           </button>

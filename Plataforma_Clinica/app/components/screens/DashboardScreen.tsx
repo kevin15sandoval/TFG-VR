@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import type { Patient, SessionRecord } from "../../types";
 import { Card, Badge } from "../shared";
-import { cx, formatDate } from "../../utils/helpers";
+import { cx, formatDate, toDate } from "../../utils/helpers";
 import { AVATAR_COLORS } from "../../constants";
 
 interface DashboardScreenProps {
@@ -23,7 +23,7 @@ export function DashboardScreen({ patients, sessions, onNavigate }: DashboardScr
       : 0;
     
     const last7Days = sessions.filter(s => {
-      const sessionDate = new Date(s.date);
+      const sessionDate = toDate(s.date);
       const today = new Date();
       const diff = (today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24);
       return diff <= 7;
@@ -36,7 +36,7 @@ export function DashboardScreen({ patients, sessions, onNavigate }: DashboardScr
 
   const recentSessions = useMemo(() => 
     [...sessions]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => toDate(b.date).getTime() - toDate(a.date).getTime())
       .slice(0, 5)
   , [sessions]);
 

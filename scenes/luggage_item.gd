@@ -180,22 +180,41 @@ func _process(delta: float) -> void:
 
 func _check_placement_zones() -> void:
 	# Buscar todas las zonas de colocación
+	print("[Luggage] 🔍 Buscando zonas de colocación...")
 	var zones = get_tree().get_nodes_in_group("placement_zone")
+	print("[Luggage] 📊 Zonas encontradas: ", zones.size())
+	
 	if zones.size() == 0:
+		print("[Luggage] ⚠️ No se encontraron zonas de colocación")
 		return
+	
+	# Buscar la zona MÁS CERCANA (no solo dentro de rango)
+	var closest_zone = null
+	var closest_distance = 999999.0
+	var closest_zone_name = ""
 	
 	for zone in zones:
 		if zone is Area3D:
-			# Comprobar si la maleta está cerca de la zona (dentro de 1.5m)
 			var distance = global_position.distance_to(zone.global_position)
-			if distance < 1.5:
-				var zone_name = zone.get_meta("zone_name", "")
-				if zone_name != "":
-					print("[Luggage] ✅ MALETA CERCA DE ZONA (", distance, "m)")
-					print("  - ID: ", luggage_id, " | Tipo: ", luggage_type, " | Target: ", target_zone)
-					print("  - Zona detectada: ", zone_name)
-					place_in_zone(zone_name)
-					return
+			var zone_name = zone.get_meta("zone_name", "")
+			
+			print("[Luggage] 🎯 Zona: ", zone.name, " | Nombre: '", zone_name, "' | Distancia: ", "%.2f" % distance, "m")
+			
+			# Buscar la más cercana
+			if distance < closest_distance and zone_name != "":
+				closest_distance = distance
+				closest_zone = zone
+				closest_zone_name = zone_name
+	
+	# Si la zona más cercana está dentro de 2.5m, considerar colocación
+	if closest_zone != null and closest_distance < 2.5:
+		print("[Luggage] ✅ ¡MALETA COLOCADA EN ZONA MÁS CERCANA!")
+		print("  - ID: ", luggage_id, " | Tipo: '", luggage_type, "' | Target: '", target_zone, "'")
+		print("  - Zona detectada: '", closest_zone_name, "' | Distancia: ", "%.2f" % closest_distance, "m")
+		print("  - Comparación: '", closest_zone_name, "' == '", target_zone, "' → ", (closest_zone_name == target_zone))
+		place_in_zone(closest_zone_name)
+	else:
+		print("[Luggage] ❌ No se encontró zona cercana (más cercana: ", "%.2f" % closest_distance, "m)")
 
 func grab(hand: Node3D) -> void:
 	if is_grabbed:

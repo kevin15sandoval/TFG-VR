@@ -17,7 +17,7 @@ export function GameDetailModal({ isOpen, onClose, gameId }: GameDetailModalProp
   const Icon = game.Icon;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={game.name} size="large">
+    <Modal isOpen={isOpen} onClose={onClose} title={game.name}>
       <div className="space-y-6">
         {/* Header */}
         <div className={`p-6 rounded-lg ${game.bg}`}>

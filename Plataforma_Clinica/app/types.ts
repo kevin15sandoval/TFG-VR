@@ -122,6 +122,12 @@ export interface SessionRecord {
   };
   
   // Scores clínicos funcionales
+  spatial_awareness?: number;
+  orientation?: number;
+  processing_speed?: number;
+  cervical_mobility?: number;
+  visual_search_efficiency?: number;
+  gaze_stability?: number;
   clinical_scores?: {
     spatial_awareness: number;
     orientation: number;
@@ -144,19 +150,33 @@ export interface SessionRecord {
   target_times?: number[];
   
   // ─── VAULT WORLD (Laser Vault Escape) ──────────────────────────────────────
-  panels_completed?: number;
+  panels_collected?: number;
   total_panels?: number;
+  panels_completed?: number;
+  laser_hits?: number;
   laser_touches?: number;
   avg_time_per_panel?: number;
   planning_score?: number;
+  motor_control_score?: number;
+  spatial_awareness_score?: number;
   executive_function_score?: number;
   inhibitory_control_score?: number;
   spatial_memory_score?: number;
   vault_completion_time?: number;
+  completion_percentage?: number;
+  vertical_range_meters?: number;
+  crosses_midline?: number;
   
   // ─── LUGGAGE WORLD (Luggage Handler) ───────────────────────────────────────
+  luggage_placed?: number;
+  luggage_dropped?: number;
+  luggage_wrong?: number;
   luggage_delivered?: number;
   total_luggage?: number;
+  max_combo?: number;
+  total_weight_moved?: number;
+  max_weight_lifted?: number;
+  time_under_load?: number;
   avg_luggage_weight?: number;
   trunk_rotations_left?: number;
   trunk_rotations_right?: number;
@@ -164,6 +184,7 @@ export interface SessionRecord {
   strength_score?: number;
   endurance_score?: number;
   trunk_mobility_score?: number;
+  coordination_score?: number;
   avg_delivery_time?: number;
   
   // ─── METADATOS ─────────────────────────────────────────────────────────────

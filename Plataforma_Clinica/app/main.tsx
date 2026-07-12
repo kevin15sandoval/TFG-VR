@@ -1,5 +1,6 @@
 import { StrictMode, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import type { User } from "firebase/auth";
 import { onAuthChange } from "./auth";
 import AuthScreen from "./AuthScreen";
@@ -35,7 +36,13 @@ function Root() {
     );
   }
 
-  return user ? <App user={user} /> : <AuthScreen />;
+  return user ? (
+    <BrowserRouter>
+      <App user={user} />
+    </BrowserRouter>
+  ) : (
+    <AuthScreen />
+  );
 }
 
 createRoot(document.getElementById("root")!).render(

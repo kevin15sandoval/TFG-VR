@@ -162,25 +162,19 @@ script = ExtResource("6")
 
 [node name="GreenZone" type="Area3D" parent="PlacementZones" unique_id=219457263 groups=["placement_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.5, 0)
-collision_layer = 1
 collision_mask = 4
-monitoring = true
-monitorable = true
 metadata/zone_name = "green"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/GreenZone" unique_id=76749930]
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/GreenZone" unique_id=174330778]
-transform = Transform3D(0.30077067, 0, 0, 0, 0.9174253, 0, 0, 0, 1.1697325, 2.8773699, 0.21205455, 0)
+transform = Transform3D(0.2995534, 0, 0, 0, 0.9137123, 0, 0, 0, 0.81224734, 3.0088186, 0.21205455, -0.11210644)
 mesh = SubResource("PlaneMesh_green")
 
 [node name="YellowZone" type="Area3D" parent="PlacementZones" unique_id=1171028867 groups=["placement_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.5, 0)
-collision_layer = 1
 collision_mask = 4
-monitoring = true
-monitorable = true
 metadata/zone_name = "yellow"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/YellowZone" unique_id=414008404]
@@ -188,20 +182,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06760621, 0, 0)
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/YellowZone" unique_id=723033535]
-transform = Transform3D(0.28707382, 0, 0, 0, 1, 0, 0, 0, 2, -2.3664382, 0.19550133, -0.027795196)
+transform = Transform3D(0.28707382, 0, 0, 0, 1, 0, 0, 0, 0.8715494, -2.573892, 0.19550133, -0.027795196)
 mesh = SubResource("PlaneMesh_yellow")
 
 [node name="RedZone" type="Area3D" parent="PlacementZones" unique_id=143222567 groups=["placement_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05042386, 0.5, -1)
-collision_layer = 1
 collision_mask = 4
-monitoring = true
-monitorable = true
 metadata/zone_name = "red"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PlacementZones/RedZone" unique_id=546074705]
 shape = SubResource("BoxShape3D_zone")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PlacementZones/RedZone" unique_id=1438223615]
-transform = Transform3D(0.33735105, 0, 0, 0, 1, 0, 0, 0, 1.1303118, 0.30461508, 0.2136215, 0.8297759)
+transform = Transform3D(0.33735105, 0, 0, 0, 1, 0, 0, 0, 0.8325509, 0.30461508, 0.2136215, 0.9181669)
 mesh = SubResource("PlaneMesh_red")

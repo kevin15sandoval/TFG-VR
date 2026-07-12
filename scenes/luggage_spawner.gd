@@ -87,7 +87,7 @@ func _spawn_luggage() -> void:
 	
 	# Crear maleta
 	var luggage_config = LUGGAGE_CONFIG[luggage_type]
-	var luggage = _create_luggage(luggage_type, luggage_config)
+	var luggage = await _create_luggage(luggage_type, luggage_config)
 	
 	if luggage:
 		_luggage_counter += 1
