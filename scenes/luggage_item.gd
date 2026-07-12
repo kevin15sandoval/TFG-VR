@@ -3,11 +3,11 @@ extends RigidBody3D
 # LuggageItem — Maleta individual con peso simulado
 # ─────────────────────────────────────────────────────────────────────────────
 
-signal luggage_grabbed(item: RigidBody3D, weight: float)
-signal luggage_released(item: RigidBody3D, position: Vector3)
-signal luggage_placed_correctly(item: RigidBody3D, zone: String, weight: float, points: int)
-signal luggage_placed_wrong(item: RigidBody3D)
-signal luggage_dropped(item: RigidBody3D)
+signal luggage_grabbed(weight: float)
+signal luggage_released(position: Vector3)
+signal luggage_placed_correctly(zone: String, weight: float, points: int)
+signal luggage_placed_wrong()
+signal luggage_dropped()
 
 @export var luggage_id: int = 0
 @export var luggage_type: String = "green"  # green, yellow, red, purple
@@ -46,14 +46,20 @@ const SIZES = {
 
 func _ready() -> void:
 	spawn_time = Time.get_ticks_msec() / 1000.0
-	_create_visual()
+	# NO crear visual aquí - esperar a que se configuren las propiedades
 	_setup_physics()
-	_create_grab_area()
 	
 	# Conectar señales de colisión
 	body_entered.connect(_on_body_entered)
 	
-	print("[Luggage] Maleta ", luggage_id, " creada | Tipo: ", luggage_type, " | Peso: ", weight, "kg")
+	# Esperar un frame para que las propiedades se configuren desde el spawner
+	await get_tree().process_frame
+	
+	# AHORA sí crear el visual con el color correcto
+	_create_visual()
+	_create_grab_area()
+	
+	print("[Luggage] Maleta ", luggage_id, " creada | Tipo: ", luggage_type, " | Target: ", target_zone, " | Peso: ", weight, "kg")
 
 func _create_visual() -> void:
 	# Crear mesh (caja)
@@ -163,13 +169,13 @@ func _process(delta: float) -> void:
 		# Si está en la cinta y no ha sido agarrada después de 15 segundos, destruir
 		if on_conveyor and lifetime > 15.0 and not has_been_placed:
 			print("[Luggage] Maleta ", luggage_id, " expiró (no agarrada)")
-			luggage_dropped.emit(self)
+			luggage_dropped.emit()
 			queue_free()
 	
 	# Si cae por debajo del mundo
 	if global_position.y < -5.0:
 		print("[Luggage] Maleta ", luggage_id, " cayó al vacío")
-		luggage_dropped.emit(self)
+		luggage_dropped.emit()
 		queue_free()
 	
 	# VERIFICAR SI ESTÁ EN UNA ZONA DE COLOCACIÓN
@@ -179,6 +185,10 @@ func _process(delta: float) -> void:
 func _check_placement_zones() -> void:
 	# Buscar todas las zonas de colocación
 	var zones = get_tree().get_nodes_in_group("placement_zone")
+	if zones.size() == 0:
+		print("[Luggage] ⚠️ No hay zonas de colocación en el árbol")
+		return
+	
 	for zone in zones:
 		if zone is Area3D:
 			# Verificar si esta maleta está dentro del área
@@ -186,9 +196,13 @@ func _check_placement_zones() -> void:
 			if self in overlapping:
 				var zone_name = zone.get_meta("zone_name", "")
 				if zone_name != "":
-					print("[Luggage] Maleta ", luggage_id, " está en zona: ", zone_name)
+					print("[Luggage] ✅ Maleta ", luggage_id, " está en zona: ", zone_name, " | Tipo maleta: ", luggage_type)
 					place_in_zone(zone_name)
 					return
+				else:
+					print("[Luggage] ⚠️ Zona sin nombre")
+		else:
+			print("[Luggage] ⚠️ Zona no es Area3D: ", zone)
 
 func grab(hand: Node3D) -> void:
 	if is_grabbed:
@@ -212,7 +226,7 @@ func grab(hand: Node3D) -> void:
 	_trigger_haptic_feedback(vibration_strength)
 	
 	print("[Luggage] Maleta ", luggage_id, " agarrada | Peso: ", weight, "kg")
-	luggage_grabbed.emit(self, weight)
+	luggage_grabbed.emit(weight)
 
 func release() -> void:
 	if not is_grabbed:
@@ -220,27 +234,32 @@ func release() -> void:
 	
 	is_grabbed = false
 	grabbed_by = null
-	freeze = false
+	freeze = false  # Descongelar para que puedan caer en las zonas
 	
 	# Aplicar un pequeño impulso hacia abajo (simular soltar)
 	apply_central_impulse(Vector3.DOWN * 2.0)
 	
-	print("[Luggage] Maleta ", luggage_id, " soltada en ", global_position)
-	luggage_released.emit(self, global_position)
+	print("[Luggage] Maleta ", luggage_id, " soltada en ", global_position, " | Freeze: ", freeze)
+	luggage_released.emit(global_position)
 
 func place_in_zone(zone: String) -> void:
 	has_been_placed = true
+	
+	print("[Luggage] 🔍 Verificando colocación:")
+	print("  - Tipo maleta (luggage_type): ", luggage_type)
+	print("  - Zona objetivo (target_zone): ", target_zone)
+	print("  - Zona real detectada (zone): ", zone)
 	
 	if zone == target_zone:
 		# Colocación correcta
 		print("[Luggage] ✅ Maleta ", luggage_id, " colocada CORRECTAMENTE en zona ", zone)
 		_show_success_effect()
-		luggage_placed_correctly.emit(self, zone, weight, points)
+		luggage_placed_correctly.emit(zone, weight, points)
 	else:
 		# Colocación incorrecta
 		print("[Luggage] ❌ Maleta ", luggage_id, " colocada MAL (esperado: ", target_zone, ", real: ", zone, ")")
 		_show_error_effect()
-		luggage_placed_wrong.emit(self)
+		luggage_placed_wrong.emit()
 	
 	# Destruir después de un momento
 	await get_tree().create_timer(0.5).timeout

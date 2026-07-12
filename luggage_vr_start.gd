@@ -328,14 +328,20 @@ func _on_game_started() -> void:
 	print("[LuggageVR] 📦 Luggage Handler iniciado")
 
 func _on_luggage_placed(zone: String, weight: float, points: int) -> void:
+	print("[LuggageVR] 📦 _on_luggage_placed llamado | Zona: ", zone, " | Peso: ", weight, "kg | Puntos: ", points)
+	
 	if hud_score and luggage_manager:
+		print("[LuggageVR] 💯 Actualizando score: ", luggage_manager.score, " pts")
 		hud_score.text = str(luggage_manager.score) + " pts"
 		var tween = create_tween()
 		tween.tween_property(hud_score, "scale", Vector3.ONE * 1.3, 0.1)
 		tween.tween_property(hud_score, "scale", Vector3.ONE, 0.1)
+	else:
+		print("[LuggageVR] ⚠️ No se puede actualizar HUD - hud_score: ", hud_score != null, " | manager: ", luggage_manager != null)
 	
 	if hud_weight and luggage_manager:
 		hud_weight.text = "💪 " + str(int(luggage_manager.total_weight_moved)) + "kg"
+		print("[LuggageVR] 💪 Peso total: ", int(luggage_manager.total_weight_moved), "kg")
 	
 	print("[LuggageVR] ✅ Maleta colocada | +", points, " pts")
 

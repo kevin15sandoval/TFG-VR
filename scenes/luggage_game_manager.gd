@@ -137,7 +137,7 @@ func _start_spawning() -> void:
 	else:
 		push_error("[LuggageManager] ❌ No hay spawner registrado")
 
-func on_luggage_grabbed(luggage: Node, weight: float) -> void:
+func on_luggage_grabbed(weight: float) -> void:
 	if not game_active:
 		return
 	
@@ -150,12 +150,12 @@ func on_luggage_grabbed(luggage: Node, weight: float) -> void:
 	
 	print("[LuggageManager] 🤏 Maleta agarrada | Peso: ", weight, "kg")
 
-func on_luggage_released(luggage: Node, position: Vector3) -> void:
+func on_luggage_released(position: Vector3) -> void:
 	is_holding_luggage = false
 	var hold_time = (Time.get_ticks_msec() / 1000.0) - current_load_start
 	placement_times.append(hold_time)
 
-func on_luggage_placed_correctly(luggage: Node, zone: String, weight: float, points: int) -> void:
+func on_luggage_placed_correctly(zone: String, weight: float, points: int) -> void:
 	if not game_active or recognition_phase:
 		return
 	
@@ -164,6 +164,8 @@ func on_luggage_placed_correctly(luggage: Node, zone: String, weight: float, poi
 	total_weight_moved += weight
 	combo_count += 1
 	max_combo = max(max_combo, combo_count)
+	
+	print("[LuggageManager] ✅ Maleta colocada | Zona: ", zone, " | +", points, " pts | Score TOTAL: ", score)
 	
 	# Detectar rotación de tronco
 	_detect_trunk_rotation(zone)
@@ -175,9 +177,9 @@ func on_luggage_placed_correctly(luggage: Node, zone: String, weight: float, poi
 		print("[LuggageManager] 🔥 ¡COMBO x", combo_count, "! +50 pts")
 	
 	luggage_placed.emit(zone, weight, points)
-	print("[LuggageManager] ✅ Maleta colocada | Zona: ", zone, " | +", points, " pts | Score: ", score)
+	print("[LuggageManager] 📊 Emitiendo señal luggage_placed para actualizar HUD")
 
-func on_luggage_placed_wrong(luggage: Node) -> void:
+func on_luggage_placed_wrong() -> void:
 	if not game_active or recognition_phase:
 		return
 	
@@ -188,7 +190,7 @@ func on_luggage_placed_wrong(luggage: Node) -> void:
 	luggage_error.emit("wrong_zone")
 	print("[LuggageManager] ❌ Maleta mal colocada | -10 pts")
 
-func on_luggage_dropped(luggage: Node) -> void:
+func on_luggage_dropped() -> void:
 	if not game_active or recognition_phase:
 		return
 	
@@ -199,7 +201,7 @@ func on_luggage_dropped(luggage: Node) -> void:
 	luggage_error.emit("dropped")
 	print("[LuggageManager] 💥 Maleta caída | -20 pts")
 
-func on_luggage_missed(luggage: Node) -> void:
+func on_luggage_missed() -> void:
 	if not game_active or recognition_phase:
 		return
 	
@@ -404,16 +406,27 @@ func register_spawner(spawner: Node) -> void:
 
 func _on_luggage_spawned(luggage: RigidBody3D) -> void:
 	# Conectar señales de maleta
+	print("[LuggageManager] 🔗 Conectando señales de maleta ID: ", luggage.get("luggage_id"))
+	
 	if luggage.has_signal("luggage_grabbed"):
-		luggage.luggage_grabbed.connect(on_luggage_grabbed.bind(luggage))
+		luggage.luggage_grabbed.connect(on_luggage_grabbed)
+		print("  ✅ luggage_grabbed conectada")
+	
 	if luggage.has_signal("luggage_released"):
-		luggage.luggage_released.connect(on_luggage_released.bind(luggage))
+		luggage.luggage_released.connect(on_luggage_released)
+		print("  ✅ luggage_released conectada")
+	
 	if luggage.has_signal("luggage_placed_correctly"):
-		luggage.luggage_placed_correctly.connect(on_luggage_placed_correctly.bind(luggage))
+		luggage.luggage_placed_correctly.connect(on_luggage_placed_correctly)
+		print("  ✅ luggage_placed_correctly conectada")
+	
 	if luggage.has_signal("luggage_placed_wrong"):
-		luggage.luggage_placed_wrong.connect(on_luggage_placed_wrong.bind(luggage))
+		luggage.luggage_placed_wrong.connect(on_luggage_placed_wrong)
+		print("  ✅ luggage_placed_wrong conectada")
+	
 	if luggage.has_signal("luggage_dropped"):
-		luggage.luggage_dropped.connect(on_luggage_dropped.bind(luggage))
+		luggage.luggage_dropped.connect(on_luggage_dropped)
+		print("  ✅ luggage_dropped conectada")
 
 func update_player_position(pos: Vector3) -> void:
 	_player_position = pos

@@ -101,12 +101,21 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 	
 	var luggage = _luggage_scene.instantiate() as RigidBody3D
 	
-	# Configurar propiedades
-	luggage.set("luggage_id", _luggage_counter + 1)
-	luggage.set("luggage_type", type)
-	luggage.set("weight", config["weight"])
-	luggage.set("points", config["points"])
-	luggage.set("target_zone", config["zone"])
+	# Añadir a escena PRIMERO (necesario para que las propiedades se apliquen)
+	get_parent().add_child(luggage)
+	
+	# Configurar propiedades DESPUÉS de añadir a escena
+	luggage.luggage_id = _luggage_counter + 1
+	luggage.luggage_type = type
+	luggage.weight = config["weight"]
+	luggage.points = config["points"]
+	luggage.target_zone = config["zone"]
+	
+	print("[LuggageSpawner] 🔧 Maleta configurada:")
+	print("  - luggage_type: ", luggage.luggage_type)
+	print("  - target_zone: ", luggage.target_zone)
+	print("  - weight: ", luggage.weight, "kg")
+	print("  - points: ", luggage.points)
 	
 	# Posicionar en inicio de cinta (con pequeña variación)
 	var spawn_offset = Vector3(
@@ -115,9 +124,6 @@ func _create_luggage(type: String, config: Dictionary) -> RigidBody3D:
 		randf_range(-0.1, 0.1)
 	)
 	luggage.global_position = global_position + spawn_offset
-	
-	# Añadir a escena
-	get_parent().add_child(luggage)
 	
 	# IMPORTANTE: Desactivar gravedad y aplicar velocidad hacia el jugador
 	if luggage is RigidBody3D:
