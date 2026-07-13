@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://1053e3987f2d6c58"]
+
+[ext_resource type="Script" path="res://scenes/control_panel.gd" id="1"]
+
+[node name="ControlPanel" type="Node3D"]
+script = ExtResource("1")
+panel_id = 0
+points = 10
+panel_type = "normal"
+sequence_number = -1

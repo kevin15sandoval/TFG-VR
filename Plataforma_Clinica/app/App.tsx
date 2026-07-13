@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, PlayCircle, Gamepad2, History,
   Settings, Brain, TrendingUp, Search, Plus, Eye, Hand,
@@ -20,147 +21,42 @@ import type { Patient, SessionRecord, SessionConfig, Screen } from "./types";
 import {
   subscribePatients, subscribeSessions,
   addPatient, updatePatient, deletePatient,
-  addSession, updateSession, seedIfEmpty, publishActiveSession,
-  createDeviceLink, subscribeDeviceLink, sendSessionToDevice,
+  addSession, updateSession, publishActiveSession,
+  createDeviceLink, subscribeDeviceLink, sendSessionToDevice, db,
 } from "./db";
+import { collection, query, where, limit, onSnapshot } from "firebase/firestore";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPORTS MODULARIZADOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { ConnectDevicePage } from "./pages/ConnectDevicePage";
+import { ResultsPage } from "./pages/ResultsPage.tsx";
+import { GameSpecPage } from "./pages/GameSpecPage";
+import { SessionDetailPage } from "./pages/SessionDetailPage";
+import { PatientProfilePage } from "./pages/PatientProfilePage";
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { cx, getInitials, formatDate } from "./utils/helpers";
+import { AVATAR_COLORS, SIDES, DIFFICULTIES, HEIGHTS, SESSION_TYPES, DURATIONS } from "./constants";
+import { MINIGAMES, GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
+import { usePagination } from "./hooks/usePagination";
+import { AvatarIcon, Badge, Card, Modal, ProgressBar } from "./components/shared";
 
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
 // Patient, SessionRecord, SessionConfig, Screen
 
-// ─── DATOS DE SEED (solo se usan si Firestore está vacío) ─────────────────────
-
-const SEED_PATIENTS: Omit<Patient, "id">[] = [
-  { name: "Carmen Rodríguez López",   initials: "CR", age: 67, affectedSide: "Izquierdo", lastSession: "20 jun 2026", progress: 72, diagnosis: "Ictus isquémico",    sessions: 24, status: "activo",   colorIdx: 0, notes: "Buena tolerancia al esfuerzo." },
-  { name: "José Manuel García Vega",  initials: "JG", age: 58, affectedSide: "Derecho",   lastSession: "19 jun 2026", progress: 45, diagnosis: "Ictus hemorrágico",  sessions: 12, status: "activo",   colorIdx: 1, notes: "Inicio reciente. Progreso estable." },
-  { name: "María Antonia Pérez Ruiz", initials: "MP", age: 74, affectedSide: "Ambos",     lastSession: "18 jun 2026", progress: 88, diagnosis: "Ictus isquémico",    sessions: 38, status: "activo",   colorIdx: 2, notes: "Excelente adherencia. Cerca del alta." },
-  { name: "Antonio Fernández Sanz",   initials: "AF", age: 62, affectedSide: "Derecho",   lastSession: "17 jun 2026", progress: 31, diagnosis: "AIT recurrente",     sessions:  8, status: "activo",   colorIdx: 3, notes: "Requiere supervisión continua." },
-  { name: "Isabel Martínez Torres",   initials: "IM", age: 70, affectedSide: "Izquierdo", lastSession: "15 jun 2026", progress: 60, diagnosis: "Ictus isquémico",    sessions: 19, status: "activo",   colorIdx: 4, notes: "Motivada. Mejora semana a semana." },
-  { name: "Francisco López Moreno",   initials: "FL", age: 55, affectedSide: "Derecho",   lastSession: "14 jun 2026", progress: 52, diagnosis: "Ictus lacunar",      sessions: 15, status: "inactivo", colorIdx: 5, notes: "En pausa por viaje familiar." },
-];
-
-// Las sesiones de seed se insertan con IDs temporales; seedIfEmpty los remapea
-const SEED_SESSIONS: Omit<SessionRecord, "id">[] = [
-  // Carmen (idx 1) — 24 sesiones
-  { patientId: "1", date: "22 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 8450,  accuracy: 84, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
-  { patientId: "1", date: "20 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 7800,  accuracy: 81, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  { patientId: "1", date: "18 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 5200,  accuracy: 79, side: "Izquierdo", difficulty: "Media",   sessionType: "Precisión", notes: "" },
-  { patientId: "1", date: "15 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 7100,  accuracy: 81, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
-  { patientId: "1", date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800,  accuracy: 76, side: "Ambos",     difficulty: "Difícil", sessionType: "Movilidad de tronco", notes: "Buena tolerancia hoy" },
-  { patientId: "1", date: "10 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 7200,  accuracy: 83, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  { patientId: "1", date: "8 jun 2026",  game: "Evitar obstáculos",   gameId: "avoid",   duration: 3,  score: 5900,  accuracy: 78, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio", notes: "" },
-  { patientId: "1", date: "5 jun 2026",  game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 6700,  accuracy: 77, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
-  { patientId: "1", date: "2 jun 2026",  game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4800,  accuracy: 74, side: "Izquierdo", difficulty: "Media",   sessionType: "Precisión", notes: "" },
-  { patientId: "1", date: "29 may 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 6100,  accuracy: 75, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  // José (idx 2) — 12 sesiones
-  { patientId: "2", date: "19 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4210,  accuracy: 71, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "" },
-  { patientId: "2", date: "17 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3800,  accuracy: 65, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
-  { patientId: "2", date: "15 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 3,  score: 3200,  accuracy: 62, side: "Derecho",   difficulty: "Fácil",   sessionType: "Coordinación", notes: "" },
-  { patientId: "2", date: "12 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 3600,  accuracy: 67, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "" },
-  { patientId: "2", date: "10 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3400,  accuracy: 64, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
-  // María (idx 3) — 38 sesiones (simplificamos con 10)
-  { patientId: "3", date: "18 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 10, score: 12300, accuracy: 91, side: "Ambos",     difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  { patientId: "3", date: "16 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 11200, accuracy: 89, side: "Ambos",     difficulty: "Difícil", sessionType: "Alcance", notes: "Excelente sesión" },
-  { patientId: "3", date: "14 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 11800, accuracy: 90, side: "Ambos",     difficulty: "Difícil", sessionType: "Movilidad de tronco", notes: "" },
-  { patientId: "3", date: "12 jun 2026", game: "Evitar obstáculos",   gameId: "avoid",   duration: 5,  score: 10500, accuracy: 88, side: "Ambos",     difficulty: "Difícil", sessionType: "Equilibrio", notes: "" },
-  { patientId: "3", date: "10 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 9800,  accuracy: 86, side: "Ambos",     difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  // Antonio (idx 4) — 8 sesiones
-  { patientId: "4", date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 3120,  accuracy: 58, side: "Derecho",   difficulty: "Difícil", sessionType: "Movilidad de tronco", notes: "" },
-  { patientId: "4", date: "14 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 2800,  accuracy: 55, side: "Derecho",   difficulty: "Media",   sessionType: "Alcance", notes: "" },
-  { patientId: "4", date: "11 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 2400,  accuracy: 52, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "Requiere descansos frecuentes" },
-  { patientId: "4", date: "8 jun 2026",  game: "Seguir luces",        gameId: "lights",  duration: 3,  score: 2000,  accuracy: 49, side: "Derecho",   difficulty: "Fácil",   sessionType: "Coordinación", notes: "" },
-  { patientId: "4", date: "5 jun 2026",  game: "Recolectar gemas",    gameId: "gems",    duration: 3,  score: 1800,  accuracy: 46, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
-  { patientId: "4", date: "2 jun 2026",  game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 1500,  accuracy: 43, side: "Derecho",   difficulty: "Fácil",   sessionType: "Precisión", notes: "" },
-  { patientId: "4", date: "30 may 2026", game: "Seguir luces",        gameId: "lights",  duration: 3,  score: 1200,  accuracy: 42, side: "Derecho",   difficulty: "Fácil",   sessionType: "Coordinación", notes: "" },
-  { patientId: "4", date: "27 may 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 3,  score: 900,   accuracy: 40, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "Primera sesión" },
-  // Isabel (idx 5) — 19 sesiones
-  { patientId: "5", date: "15 jun 2026", game: "Evitar obstáculos",   gameId: "avoid",   duration: 3,  score: 5680,  accuracy: 77, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio", notes: "" },
-  { patientId: "5", date: "13 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 5200,  accuracy: 75, side: "Izquierdo", difficulty: "Media",   sessionType: "Alcance", notes: "" },
-  { patientId: "5", date: "11 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 4900,  accuracy: 73, side: "Izquierdo", difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  { patientId: "5", date: "8 jun 2026",  game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 4600,  accuracy: 71, side: "Izquierdo", difficulty: "Media",   sessionType: "Movilidad de tronco", notes: "" },
-  { patientId: "5", date: "5 jun 2026",  game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4100,  accuracy: 68, side: "Izquierdo", difficulty: "Media",   sessionType: "Precisión", notes: "" },
-  // Francisco (idx 6) — 15 sesiones
-  { patientId: "6", date: "14 jun 2026", game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 5100,  accuracy: 72, side: "Derecho",   difficulty: "Media",   sessionType: "Alcance", notes: "" },
-  { patientId: "6", date: "12 jun 2026", game: "Atrapar objetos",     gameId: "catch",   duration: 3,  score: 4800,  accuracy: 70, side: "Derecho",   difficulty: "Media",   sessionType: "Precisión", notes: "" },
-  { patientId: "6", date: "10 jun 2026", game: "Seguir luces",        gameId: "lights",  duration: 5,  score: 4500,  accuracy: 68, side: "Derecho",   difficulty: "Media",   sessionType: "Coordinación", notes: "" },
-  { patientId: "6", date: "8 jun 2026",  game: "Objetivos laterales", gameId: "lateral", duration: 5,  score: 4200,  accuracy: 66, side: "Derecho",   difficulty: "Media",   sessionType: "Movilidad de tronco", notes: "" },
-  { patientId: "6", date: "5 jun 2026",  game: "Recolectar gemas",    gameId: "gems",    duration: 5,  score: 3900,  accuracy: 64, side: "Derecho",   difficulty: "Fácil",   sessionType: "Alcance", notes: "" },
-];
-
-// ─── INITIAL DATA ─────────────────────────────────────────────────────────────
-
-const INITIAL_PATIENTS: Patient[] = [
-  { id: 1, name: "Carmen Rodríguez López", initials: "CR", age: 67, affectedSide: "Izquierdo", lastSession: "20 jun 2026", progress: 72, diagnosis: "Ictus isquémico", sessions: 24, status: "activo", colorIdx: 0, notes: "Buena tolerancia al esfuerzo. Trabaja bien con el lado izquierdo." },
-  { id: 2, name: "José Manuel García Vega", initials: "JG", age: 58, affectedSide: "Derecho", lastSession: "19 jun 2026", progress: 45, diagnosis: "Ictus hemorrágico", sessions: 12, status: "activo", colorIdx: 1, notes: "Inicio reciente. Progreso estable." },
-  { id: 3, name: "María Antonia Pérez Ruiz", initials: "MP", age: 74, affectedSide: "Ambos", lastSession: "18 jun 2026", progress: 88, diagnosis: "Ictus isquémico", sessions: 38, status: "activo", colorIdx: 2, notes: "Excelente adherencia. Cerca del alta." },
-  { id: 4, name: "Antonio Fernández Sanz", initials: "AF", age: 62, affectedSide: "Derecho", lastSession: "17 jun 2026", progress: 31, diagnosis: "AIT recurrente", sessions: 8, status: "activo", colorIdx: 3, notes: "Requiere supervisión continua." },
-  { id: 5, name: "Isabel Martínez Torres", initials: "IM", age: 70, affectedSide: "Izquierdo", lastSession: "15 jun 2026", progress: 60, diagnosis: "Ictus isquémico", sessions: 19, status: "activo", colorIdx: 4, notes: "Motivada. Mejora semana a semana." },
-  { id: 6, name: "Francisco López Moreno", initials: "FL", age: 55, affectedSide: "Derecho", lastSession: "14 jun 2026", progress: 52, diagnosis: "Ictus lacunar", sessions: 15, status: "inactivo", colorIdx: 5, notes: "En pausa por viaje familiar." },
-];
-
-const INITIAL_SESSIONS: SessionRecord[] = [
-  { id: 1, patientId: 1, date: "20 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 8450, accuracy: 84, side: "Izquierdo", difficulty: "Media", sessionType: "Alcance" },
-  { id: 2, patientId: 2, date: "19 jun 2026", game: "Atrapar objetos", gameId: "catch", duration: 3, score: 4210, accuracy: 71, side: "Derecho", difficulty: "Fácil", sessionType: "Precisión" },
-  { id: "3", patientId: "3", date: "18 jun 2026", game: "Seguir luces", gameId: "lights", duration: 10, score: 12300, accuracy: 91, side: "Ambos", difficulty: "Media", sessionType: "Coordinación" },
-  { id: "4", patientId: "4", date: "17 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 5, score: 3120, accuracy: 58, side: "Derecho", difficulty: "Difícil", sessionType: "Movilidad de tronco" },
-  { id: "5", patientId: "5", date: "15 jun 2026", game: "Evitar obstáculos", gameId: "avoid", duration: 3, score: 5680, accuracy: 77, side: "Izquierdo", difficulty: "Difícil", sessionType: "Equilibrio" },
-  { id: "6", patientId: "1", date: "18 jun 2026", game: "Atrapar objetos", gameId: "catch", duration: 3, score: 5200, accuracy: 79, side: "Izquierdo", difficulty: "Media", sessionType: "Precisión" },
-  { id: "7", patientId: "1", date: "15 jun 2026", game: "Seguir luces", gameId: "lights", duration: 5, score: 7100, accuracy: 81, side: "Izquierdo", difficulty: "Media", sessionType: "Coordinación" },
-  { id: "8", patientId: "1", date: "12 jun 2026", game: "Objetivos laterales", gameId: "lateral", duration: 10, score: 9800, accuracy: 76, side: "Ambos", difficulty: "Difícil", sessionType: "Movilidad de tronco" },
-  { id: "9", patientId: "2", date: "15 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 3800, accuracy: 65, side: "Derecho", difficulty: "Fácil", sessionType: "Alcance" },
-  { id: "10", patientId: "3", date: "15 jun 2026", game: "Recolectar gemas", gameId: "gems", duration: 5, score: 11200, accuracy: 89, side: "Ambos", difficulty: "Difícil", sessionType: "Alcance" },
-];
-
-const HISTORY_CHART_BY_PATIENT: Record<number, { s: string; score: number; precision: number }[]> = {
-  1: [
-    { s: "S1", score: 2100, precision: 61 }, { s: "S2", score: 2850, precision: 65 },
-    { s: "S3", score: 3400, precision: 68 }, { s: "S4", score: 4100, precision: 71 },
-    { s: "S5", score: 4800, precision: 74 }, { s: "S6", score: 5200, precision: 76 },
-    { s: "S7", score: 5800, precision: 79 }, { s: "S8", score: 6100, precision: 81 },
-    { s: "S9", score: 6700, precision: 83 }, { s: "S10", score: 7200, precision: 85 },
-    { s: "S11", score: 7800, precision: 87 }, { s: "S12", score: 8450, precision: 88 },
-  ],
-  2: [
-    { s: "S1", score: 1200, precision: 48 }, { s: "S2", score: 1600, precision: 52 },
-    { s: "S3", score: 2100, precision: 57 }, { s: "S4", score: 2800, precision: 61 },
-    { s: "S5", score: 3100, precision: 63 }, { s: "S6", score: 3500, precision: 65 },
-    { s: "S7", score: 3800, precision: 67 }, { s: "S8", score: 4210, precision: 71 },
-  ],
-  3: [
-    { s: "S1", score: 5200, precision: 70 }, { s: "S2", score: 6100, precision: 73 },
-    { s: "S3", score: 7400, precision: 77 }, { s: "S4", score: 8200, precision: 80 },
-    { s: "S5", score: 9100, precision: 83 }, { s: "S6", score: 9800, precision: 86 },
-    { s: "S7", score: 10500, precision: 88 }, { s: "S8", score: 11200, precision: 89 },
-    { s: "S9", score: 11800, precision: 90 }, { s: "S10", score: 12300, precision: 91 },
-  ],
-  4: [
-    { s: "S1", score: 900, precision: 40 }, { s: "S2", score: 1200, precision: 44 },
-    { s: "S3", score: 1600, precision: 48 }, { s: "S4", score: 2000, precision: 52 },
-    { s: "S5", score: 2400, precision: 55 }, { s: "S6", score: 2800, precision: 57 },
-    { s: "S7", score: 3120, precision: 58 },
-  ],
-  5: [
-    { s: "S1", score: 2200, precision: 58 }, { s: "S2", score: 2700, precision: 61 },
-    { s: "S3", score: 3100, precision: 64 }, { s: "S4", score: 3600, precision: 67 },
-    { s: "S5", score: 4100, precision: 70 }, { s: "S6", score: 4700, precision: 73 },
-    { s: "S7", score: 5200, precision: 75 }, { s: "S8", score: 5680, precision: 77 },
-  ],
-  6: [
-    { s: "S1", score: 2600, precision: 60 }, { s: "S2", score: 3100, precision: 63 },
-    { s: "S3", score: 3700, precision: 66 }, { s: "S4", score: 4200, precision: 68 },
-    { s: "S5", score: 4800, precision: 71 }, { s: "S6", score: 5100, precision: 72 },
-  ],
-};
+// ═══════════════════════════════════════════════════════════════════════════
 
 const MINIGAMES = [
   { id: "gems", name: "Recolectar gemas", description: "Ejercicio de alcance funcional y coordinación ojo-mano", Icon: Sparkles, difficulty: "Media", diffColor: "amber", area: "Alcance · Coordinación ojo-mano", bg: "bg-blue-50", iconBg: "bg-blue-100", iconColor: "text-blue-600", border: "border-blue-200" },
-  { id: "lateral", name: "Objetivos laterales", description: "Trabajo de rotación de tronco y movilidad lateral", Icon: Move, difficulty: "Difícil", diffColor: "red", area: "Rotación de tronco · Movilidad lateral", bg: "bg-violet-50", iconBg: "bg-violet-100", iconColor: "text-violet-600", border: "border-violet-200" },
-  { id: "catch", name: "Atrapar objetos", description: "Ejercicio de reacción y precisión motora", Icon: Hand, difficulty: "Fácil", diffColor: "green", area: "Reacción · Precisión motora", bg: "bg-emerald-50", iconBg: "bg-emerald-100", iconColor: "text-emerald-600", border: "border-emerald-200" },
-  { id: "lights", name: "Seguir luces", description: "Trabajo de atención visual y control motor", Icon: Eye, difficulty: "Media", diffColor: "amber", area: "Atención visual · Control motor", bg: "bg-amber-50", iconBg: "bg-amber-100", iconColor: "text-amber-600", border: "border-amber-200" },
-  { id: "avoid", name: "Evitar obstáculos", description: "Control inhibitorio y precisión del movimiento", Icon: Shield, difficulty: "Difícil", diffColor: "red", area: "Control inhibitorio · Precisión", bg: "bg-rose-50", iconBg: "bg-rose-100", iconColor: "text-rose-600", border: "border-rose-200" },
+  { id: "vault_escape", name: "Laser Vault Escape", description: "Planificación motora y precisión evitando obstáculos láser", Icon: Lock, difficulty: "Media", diffColor: "amber", area: "Planificación · Control postural · Función ejecutiva", bg: "bg-slate-50", iconBg: "bg-slate-100", iconColor: "text-slate-600", border: "border-slate-200" },
+  { id: "urban_attention_quest", name: "Urban Attention Quest", description: "Navegación 360° y rehabilitación de negligencia espacial", Icon: Crosshair, difficulty: "Media", diffColor: "amber", area: "Negligencia espacial · Rotación cervical · Orientación", bg: "bg-cyan-50", iconBg: "bg-cyan-100", iconColor: "text-cyan-600", border: "border-cyan-200" },
+  { id: "luggage_handler", name: "Luggage Handler", description: "Entrenamiento de fuerza, resistencia y rotación de tronco", Icon: Layers, difficulty: "Media", diffColor: "amber", area: "Fuerza · Resistencia · Rotación de tronco", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600", border: "border-orange-200" },
 ];
 
 // Especificaciones clínicas de los juegos
-const GAME_SPECIFICATIONS: Record<string, any> = {
+export const GAME_SPECIFICATIONS: Record<string, any> = {
   gems: {
     id: "gems",
     name: "Recolectar gemas",
@@ -253,69 +149,335 @@ const GAME_SPECIFICATIONS: Record<string, any> = {
 </div>
     `.trim(),
   },
+  vault_escape: {
+    id: "vault_escape",
+    name: "Laser Vault Escape",
+    description: "Ejercicio de doble tarea (cognitivo-motora) para planificación motora, control postural y función ejecutiva",
+    targetMuscles: [
+      { name: "Deltoides (anterior, medio, posterior)", activation: 85, description: "Alcance multidireccional y elevación" },
+      { name: "Core (recto abdominal, oblicuos)", activation: 80, description: "Estabilización de tronco durante movimiento" },
+      { name: "Trapecio y romboides", activation: 70, description: "Control escapular" },
+      { name: "Cuádriceps y glúteos", activation: 75, description: "Agacharse y levantarse" },
+      { name: "Manguito rotador", activation: 70, description: "Estabilización glenohumeral" },
+    ],
+    primaryMovements: [
+      "Alcance selectivo multidireccional",
+      "Control postural dinámico",
+      "Flexión y extensión de tronco",
+      "Cruce de línea media",
+      "Coordinación bilateral",
+    ],
+    secondaryMovements: [
+      "Rotación de tronco",
+      "Flexión de rodillas (agacharse)",
+      "Planificación de trayectorias",
+      "Inhibición motora (evitar láser)",
+    ],
+    workZones: [
+      { zone: "Alto", percentage: 25, description: "Paneles por encima de la cabeza. Trabaja flexión máxima de hombro." },
+      { zone: "Medio", percentage: 45, description: "Altura del pecho. Rango funcional principal." },
+      { zone: "Bajo", percentage: 20, description: "Paneles bajos. Requiere agacharse, trabaja miembros inferiores." },
+      { zone: "Cruce línea media", percentage: 10, description: "Paneles en lado contralateral. Compensación hemisférica." },
+    ],
+    therapeuticBenefits: [
+      "Entrenamiento de doble tarea (motor + cognitivo)",
+      "Mejora de función ejecutiva y planificación",
+      "Desarrollo de control inhibitorio",
+      "Trabajo de memoria de trabajo espacial",
+      "Mejora de coordinación ojo-mano con obstáculos",
+      "Entrenamiento de resolución de problemas dinámicos",
+      "Mejora de atención sostenida",
+    ],
+    contraindications: [
+      "Episodios epilépticos no controlados (estímulos visuales intensos)",
+      "Dolor severo al movimiento (>7/10)",
+      "Inestabilidad postural severa sin soporte",
+      "Mareos o vértigo no resuelto",
+      "Ansiedad severa (el ambiente puede ser estresante)",
+    ],
+    progressionCriteria: {
+      beginner: "Láser estáticos, espacios amplios, sin tiempo límite. Enfoque en confianza.",
+      intermediate: "Láser móviles, 8 paneles, 3 minutos. Trabaja planificación y memoria.",
+      advanced: "Láser parpadeantes, 10+ paneles, 2 minutos, secuencia numérica. Máxima demanda cognitiva.",
+    },
+    clinicalNotes: `
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Evidencia científica:</div>
+    <ul class="notes-list">
+      <li><strong>Dual-task training:</strong> Combinación motor + cognitivo mejora outcomes en ictus (>20% vs. monotarea)</li>
+      <li><strong>Gamificación:</strong> Narrativa ("escapar") aumenta adherencia +35%</li>
+      <li><strong>Feedback inmediato:</strong> Acelera aprendizaje motor</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Dosificación:</div>
+    <ul class="notes-list">
+      <li>Frecuencia: 3-4 sesiones/semana</li>
+      <li>Duración: 3-5 minutos (alta demanda cognitiva)</li>
+      <li>Descanso: 2-3 minutos entre sesiones</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Indicadores de progreso:</div>
+    <ul class="notes-list">
+      <li>Disminución de toques de láser (mejor planificación)</li>
+      <li>Reducción de tiempo por panel (velocidad de procesamiento)</li>
+      <li>Mayor número de cruces de línea media</li>
+      <li>Aumento de rango vertical</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Ajustes terapéuticos:</div>
+    <ul class="notes-list">
+      <li><strong>Fase aguda:</strong> Pocos láser, sin tiempo, enfoque en alcance básico</li>
+      <li><strong>Fase subaguda:</strong> Introducir planificación, cruces de línea media</li>
+      <li><strong>Fase crónica:</strong> Máxima dificultad, secuencias, entrenamiento funcional</li>
+    </ul>
+  </div>
+</div>
+    `.trim(),
+  },
+  urban_attention_quest: {
+    id: "urban_attention_quest",
+    name: "Urban Attention Quest",
+    description: "Rehabilitación específica de negligencia espacial unilateral (hemineglect), orientación y navegación 360° con detección por mirada",
+    targetMuscles: [
+      { name: "Esternocleidomastoideo", activation: 90, description: "Rotación cervical izquierda/derecha" },
+      { name: "Trapecio superior", activation: 85, description: "Extensión cervical" },
+      { name: "Escalenos", activation: 75, description: "Flexión lateral cervical" },
+      { name: "Esplenio de la cabeza", activation: 80, description: "Extensión y rotación cervical" },
+      { name: "Core y erectores espinales", activation: 70, description: "Estabilización durante giros" },
+    ],
+    primaryMovements: [
+      "Rotación cervical (0-90° bilateral)",
+      "Rotación de tronco 360°",
+      "Flexión/extensión cervical",
+      "Escaneo visual activo",
+      "Búsqueda visual bilateral",
+    ],
+    secondaryMovements: [
+      "Estabilización postural durante giros",
+      "Cambios de peso corporal",
+      "Coordinación ojo-cabeza",
+      "Planificación de secuencias espaciales",
+    ],
+    workZones: [
+      { zone: "Lado izquierdo", percentage: 25, description: "Detección de negligencia izquierda (común post-ictus)." },
+      { zone: "Lado derecho", percentage: 25, description: "Comparación bilateral para asimetría." },
+      { zone: "Detrás (180°)", percentage: 20, description: "Requiere giro completo. Trabaja conciencia espacial posterior." },
+      { zone: "Arriba/abajo", percentage: 30, description: "Rango vertical completo. Flexión/extensión cervical." },
+    ],
+    therapeuticBenefits: [
+      "Detección temprana de negligencia espacial unilateral",
+      "Rehabilitación de hemineglect (déficit post-ictus frecuente)",
+      "Mejora de escaneo visual sistemático",
+      "Entrenamiento de rotación cervical funcional",
+      "Desarrollo de orientación espacial urbana (AVD)",
+      "Trabajo de atención sostenida y dividida",
+      "Mejora de confianza en navegación y giros",
+      "Transferencia a actividades cotidianas (cruzar calles, buscar objetos)",
+    ],
+    contraindications: [
+      "Espondilosis cervical severa no tratada",
+      "Mareos o vértigo posicional no resuelto",
+      "Síndrome vertiginoso agudo",
+      "Dolor cervical agudo (>7/10)",
+      "Inestabilidad atlantoaxial",
+      "Hernias cervicales con compresión neural activa",
+    ],
+    progressionCriteria: {
+      beginner: "Targets solo frente y lados, sin tiempo, asistencia con flechas. Familiarización.",
+      intermediate: "Targets bilaterales + algunos atrás, secuencia obligatoria, 3 minutos. Detecta negligencia.",
+      advanced: "Targets 360° completo, 15-20 objetivos, 2 minutos, sin asistencia. Autonomía máxima.",
+    },
+    clinicalNotes: `
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Evidencia para negligencia espacial:</div>
+    <ul class="notes-list">
+      <li><strong>Prevalencia:</strong> 30-50% de pacientes post-ictus hemisferio derecho presentan hemineglect</li>
+      <li><strong>Impacto funcional:</strong> Negligencia reduce independencia AVD en 60%</li>
+      <li><strong>VR efectividad:</strong> Entornos virtuales mejoran transferencia vs. terapia convencional (+40%)</li>
+      <li><strong>Detección por mirada:</strong> Mide atención visual pura, sin compensación manual</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Métricas claves:</div>
+    <ul class="notes-list">
+      <li><strong>Asimetría:</strong> >20% = negligencia moderada, >30% = severa</li>
+      <li><strong>Tiempos de reacción:</strong> Diferencia izq/der >1s indica hemineglect</li>
+      <li><strong>Rotaciones 180°:</strong> <2 en sesión = evita espacio posterior</li>
+      <li><strong>Score negligencia:</strong> <70 requiere intervención intensiva</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Protocolo recomendado:</div>
+    <ul class="notes-list">
+      <li>Semanas 1-4: Nivel FÁCIL, énfasis en exploración sin presión</li>
+      <li>Semanas 5-8: Nivel MEDIA, feedback activo de asimetría</li>
+      <li>Semanas 9-12: Nivel DIFÍCIL, autonomía completa</li>
+      <li>Frecuencia: 3-5 sesiones/semana, 10-15 min/sesión</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Complementar con:</div>
+    <ul class="notes-list">
+      <li><strong>Prismas ópticos:</strong> Tratamiento convencional paralelo</li>
+      <li><strong>Estimulación vestibular:</strong> Mejora orientación espacial</li>
+      <li><strong>Escaneo visual guiado:</strong> Transferir estrategias a vida real</li>
+      <li><strong>Práctica en entornos reales:</strong> Salidas supervisadas a exteriores</li>
+    </ul>
+  </div>
+</div>
+    `.trim(),
+  },
+  luggage_handler: {
+    id: "luggage_handler",
+    name: "Luggage Handler",
+    description: "Ejercicio de manipulación de objetos virtuales para mejorar rango de movimiento, resistencia motora y rotación de tronco funcional",
+    targetMuscles: [
+      { name: "Deltoides (anterior, medio, posterior)", activation: 85, description: "Levantamiento y elevación de maletas" },
+      { name: "Bíceps braquial y braquiorradial", activation: 80, description: "Flexión de codo y agarre" },
+      { name: "Tríceps braquial", activation: 70, description: "Extensión de codo al colocar" },
+      { name: "Trapecio superior y medio", activation: 75, description: "Elevación y retracción escapular" },
+      { name: "Core (recto abdominal, oblicuos)", activation: 80, description: "Estabilización durante giros" },
+      { name: "Erectores espinales", activation: 75, description: "Control de columna bajo carga" },
+      { name: "Cuádriceps y glúteos", activation: 60, description: "Agacharse y levantarse" },
+    ],
+    primaryMovements: [
+      "Alcance y manipulación de objetos virtuales",
+      "Rotación de tronco izquierda/derecha",
+      "Transferencia de peso bilateral",
+      "Alcance multidireccional sin resistencia física",
+      "Agarre y control motor fino",
+    ],
+    secondaryMovements: [
+      "Flexión y extensión de codo",
+      "Abducción y flexión de hombro",
+      "Cruce de línea media",
+      "Estabilización postural dinámica",
+      "Coordinación bimanual",
+    ],
+    workZones: [
+      { zone: "Zona Verde (Izquierda)", percentage: 35, description: "Rotación de tronco a izquierda. Trabajo de oblicuos y rotadores." },
+      { zone: "Zona Amarilla (Derecha)", percentage: 35, description: "Rotación de tronco a derecha. Simetría bilateral." },
+      { zone: "Zona Roja (Atrás)", percentage: 30, description: "Rotación 180°. Máxima demanda de movilidad troncal." },
+    ],
+    therapeuticBenefits: [
+      "Mejora de rango de movimiento activo sin resistencia",
+      "Desarrollo de resistencia motora por repeticiones de alto volumen",
+      "Mejora de rotación de tronco funcional",
+      "Entrenamiento de manipulación de objetos (AVD)",
+      "Trabajo de coordinación bilateral",
+      "Transferencia a tareas cotidianas (alcanzar, girar, colocar)",
+      "Mejora de tolerancia al movimiento repetitivo",
+    ],
+    contraindications: [
+      "Dolor lumbar agudo no controlado (>7/10)",
+      "Hernia discal con compromiso neural activo",
+      "Inestabilidad vertebral",
+      "Hipertensión arterial no controlada (ejercicio de fuerza)",
+      "Tendinopatía aguda de hombro",
+      "Cirugía reciente de columna (<3 meses)",
+    ],
+    progressionCriteria: {
+      beginner: "Pocas maletas, 2 zonas, 3 min, velocidad lenta. Enfoque en técnica y postura.",
+      intermediate: "Mayor cantidad de maletas, 3 zonas, rotación completa, 3-5 min. Mayor volumen.",
+      advanced: "Todas las maletas, velocidad alta, 5 min. Máximo volumen de repeticiones.",
+    },
+    clinicalNotes: `
+<div class="clinical-notes-content">
+  <div class="notes-section">
+    <div class="section-title">Evidencia para entrenamiento de movimiento post-ictus:</div>
+    <ul class="notes-list">
+      <li><strong>Efectividad:</strong> Mejora rango de movimiento activo +30-45% en 8-12 semanas</li>
+      <li><strong>Seguridad:</strong> No aumenta espasticidad ni deteriora función</li>
+      <li><strong>Dosis óptima:</strong> 2-3 sesiones/semana, repeticiones de alto volumen</li>
+      <li><strong>Transferencia funcional:</strong> Contexto realista mejora generalización a AVD</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Dosificación recomendada:</div>
+    <ul class="notes-list">
+      <li>Frecuencia: 2-3 sesiones/semana (mínimo 48h recuperación)</li>
+      <li>Duración: 3-5 minutos por sesión (alta demanda muscular)</li>
+      <li>Progresión: Aumentar peso cada 2-3 semanas si tolera bien</li>
+      <li>Descanso: 2-3 minutos entre sesiones si se repiten</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Indicadores de progreso:</div>
+    <ul class="notes-list">
+      <li>Aumento del volumen total de repeticiones por sesión (+10-20% cada 2 semanas)</li>
+      <li>Disminución del índice de fatiga motora (<0.3 = buen rendimiento)</li>
+      <li>Mayor simetría en rotaciones (asimetría <20%)</li>
+      <li>Mejora en precisión de colocación (>85%)</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Precauciones específicas:</div>
+    <ul class="notes-list">
+      <li><strong>Técnica correcta:</strong> Evitar flexión lumbar excesiva, mantener postura erecta</li>
+      <li><strong>Respiración:</strong> Mantener respiración natural durante movimientos</li>
+      <li><strong>Dolor:</strong> Detener si aparece dolor agudo (>4/10)</li>
+      <li><strong>Fatiga motora:</strong> Si índice >0.5, reducir cantidad o duración siguiente sesión</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Ajustes terapéuticos por fase:</div>
+    <ul class="notes-list">
+      <li><strong>Fase aguda (1-3 meses):</strong> Pocas repeticiones, 2 zonas, 2-3 min, sin rotación atrás</li>
+      <li><strong>Fase subaguda (3-6 meses):</strong> Aumentar volumen, 3 zonas, 3-5 min, incluir rotación</li>
+      <li><strong>Fase crónica (6+ meses):</strong> Alto volumen, velocidad alta, máxima funcionalidad</li>
+    </ul>
+  </div>
+
+  <div class="notes-section">
+    <div class="section-title">Integración con otras terapias:</div>
+    <ul class="notes-list">
+      <li><strong>Combina bien con:</strong> Estiramientos de tronco, movilizaciones articulares, ejercicios de equilibrio</li>
+      <li><strong>Realizar después de:</strong> Calentamiento cardiovascular (5-10 min)</li>
+      <li><strong>Realizar antes de:</strong> Actividades de coordinación fina</li>
+      <li><strong>Complementar con:</strong> Ejercicios de core específicos fuera de VR</li>
+    </ul>
+  </div>
+</div>
+    `.trim(),
+  },
 };
 
-const AVATAR_COLORS = [
-  "bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700",
-  "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700",
-  "bg-pink-100 text-pink-700", "bg-teal-100 text-teal-700",
-];
+// NOTA: AVATAR_COLORS, SIDES, DIFFICULTIES, etc. ahora están en ./constants.ts
+// NOTA: GAME_CONFIG_FIELDS ahora está en ./config/gameConfig.ts
+// NOTA: Funciones cx(), getInitials(), formatDate() ahora están en ./utils/helpers.ts
 
 const DIAGNOSES = ["Ictus isquémico", "Ictus hemorrágico", "AIT recurrente", "Ictus lacunar", "Hemorragia subaracnoidea"];
-const SIDES = ["Izquierdo", "Derecho", "Ambos"];
-const DIFFICULTIES = ["Fácil", "Media", "Difícil"];
-const HEIGHTS = ["Baja", "Media", "Alta", "Mixta"];
-const SESSION_TYPES = ["Alcance", "Coordinación", "Precisión", "Equilibrio", "Movilidad de tronco"];
-const DURATIONS = [1, 3, 5, 10];
 
 const DEFAULT_CONFIG: SessionConfig = {
   patientId: null, duration: 5, therapySide: "Izquierdo",
   difficulty: "Media", heightMode: "Media", sessionType: "Alcance", selectedGame: "",
 };
 
-function cx(...cls: (string | false | null | undefined)[]) {
-  return cls.filter(Boolean).join(" ");
-}
+// NOTA: Funciones cx(), getInitials(), formatDate() ahora están en ./utils/helpers.ts
 
-function getInitials(name: string) {
-  const parts = name.trim().split(" ").filter(Boolean);
-  if (parts.length === 0) return "??";
-  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
-}
+// ─── MINIGAMES — importado desde ./config/gameConfig.ts ──────────────────────
+// MINIGAMES array ahora en config/gameConfig.ts
 
-function formatDate(d: Date) {
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
-}
+// ─── UTILIDADES ────────────────────────────────────────────────────────────────
+// Ya importadas desde módulos
 
-// ─── UTILITIES ────────────────────────────────────────────────────────────────
-
-// ─── SHARED UI COMPONENTS ─────────────────────────────────────────────────────
-
-function AvatarIcon({ initials, colorIdx = 0, size = "md" }: { initials: string; colorIdx?: number; size?: "sm" | "md" | "lg" }) {
-  const sizes = { sm: "w-8 h-8 text-xs", md: "w-10 h-10 text-sm", lg: "w-12 h-12 text-base" };
-  return (
-    <div className={cx("rounded-full flex items-center justify-center font-bold flex-shrink-0", sizes[size], AVATAR_COLORS[colorIdx % AVATAR_COLORS.length])}>
-      {initials}
-    </div>
-  );
-}
-
-function Badge({ children, color = "blue" }: { children: React.ReactNode; color?: string }) {
-  const map: Record<string, string> = {
-    blue: "bg-blue-100 text-blue-700", green: "bg-emerald-100 text-emerald-700",
-    purple: "bg-violet-100 text-violet-700", amber: "bg-amber-100 text-amber-700",
-    red: "bg-rose-100 text-rose-700", gray: "bg-slate-100 text-slate-600",
-  };
-  return <span className={cx("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold", map[color] ?? map.blue)}>{children}</span>;
-}
-
-function ProgressBar({ value, colorClass = "bg-emerald-500" }: { value: number; colorClass?: string }) {
-  return (
-    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-      <div className={cx("h-full rounded-full transition-all duration-700", colorClass)} style={{ width: `${Math.min(value, 100)}%` }} />
-    </div>
-  );
-}
+// ─── COMPONENTES UI COMPARTIDOS ───────────────────────────────────────────────
+// Ya importados desde ./components/shared
 
 function OptionPill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
@@ -992,23 +1154,121 @@ function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onL
       {step === 3 && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
-            {[
-              { key: "duration" as const, label: "Duración", Icon: Timer, iconBg: "bg-blue-100", iconColor: "text-blue-600", options: DURATIONS.map(d => ({ val: d, label: `${d} min` })) },
-              { key: "therapySide" as const, label: "Lado a trabajar", Icon: Hand, iconBg: "bg-violet-100", iconColor: "text-violet-600", options: SIDES.map(s => ({ val: s, label: s })) },
-              { key: "difficulty" as const, label: "Dificultad", Icon: Zap, iconBg: "bg-amber-100", iconColor: "text-amber-600", options: DIFFICULTIES.map(d => ({ val: d, label: d })) },
-              { key: "heightMode" as const, label: "Altura de objetivos", Icon: Layers, iconBg: "bg-emerald-100", iconColor: "text-emerald-600", options: HEIGHTS.map(h => ({ val: h, label: h })) },
-              { key: "sessionType" as const, label: "Tipo de sesión", Icon: Target, iconBg: "bg-rose-100", iconColor: "text-rose-600", options: SESSION_TYPES.map(t => ({ val: t, label: t })) },
-            ].map(({ key, label, Icon, iconBg, iconColor, options }) => (
-              <Card key={key} className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={cx("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}><Icon size={14} className={iconColor} /></div>
-                  <SectionLabel>{label}</SectionLabel>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {options.map(o => <OptionPill key={String(o.val)} label={o.label} selected={config[key] === o.val} onClick={() => set(key, o.val)} />)}
-                </div>
-              </Card>
-            ))}
+            {(() => {
+              // Obtener configuración del juego seleccionado
+              const gameConfig = GAME_CONFIG_FIELDS[config.selectedGame] || GAME_CONFIG_FIELDS.default;
+              
+              // Construir array de fields según configuración del juego
+              const fields = [];
+              
+              // Duración (siempre presente)
+              if (gameConfig.duration) {
+                fields.push({
+                  key: "duration" as const,
+                  label: "Duración",
+                  Icon: Timer,
+                  iconBg: "bg-blue-100",
+                  iconColor: "text-blue-600",
+                  options: DURATIONS.map(d => ({ val: d, label: `${d} min` })),
+                });
+              }
+              
+              // Lado a trabajar (solo si el juego lo requiere)
+              if (gameConfig.therapySide) {
+                fields.push({
+                  key: "therapySide" as const,
+                  label: "Lado a trabajar",
+                  Icon: Hand,
+                  iconBg: "bg-violet-100",
+                  iconColor: "text-violet-600",
+                  options: SIDES.map(s => ({ val: s, label: s })),
+                });
+              }
+              
+              // Dificultad (casi siempre presente)
+              if (gameConfig.difficulty) {
+                fields.push({
+                  key: "difficulty" as const,
+                  label: "Dificultad",
+                  Icon: Zap,
+                  iconBg: "bg-amber-100",
+                  iconColor: "text-amber-600",
+                  options: DIFFICULTIES.map(d => ({ val: d, label: d })),
+                });
+              }
+              
+              // Altura de objetivos (solo para juegos de alcance)
+              if (gameConfig.heightMode) {
+                fields.push({
+                  key: "heightMode" as const,
+                  label: "Altura de objetivos",
+                  Icon: Layers,
+                  iconBg: "bg-emerald-100",
+                  iconColor: "text-emerald-600",
+                  options: HEIGHTS.map(h => ({ val: h, label: h })),
+                });
+              }
+              
+              // Tipo de sesión (solo para juegos genéricos)
+              if (gameConfig.sessionType) {
+                fields.push({
+                  key: "sessionType" as const,
+                  label: "Tipo de sesión",
+                  Icon: Target,
+                  iconBg: "bg-rose-100",
+                  iconColor: "text-rose-600",
+                  options: SESSION_TYPES.map(t => ({ val: t, label: t })),
+                });
+              }
+              
+              return fields.map(({ key, label, Icon, iconBg, iconColor, options }) => (
+                <Card key={key} className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cx("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}>
+                      <Icon size={14} className={iconColor} />
+                    </div>
+                    <SectionLabel>{label}</SectionLabel>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map(o => (
+                      <OptionPill 
+                        key={String(o.val)} 
+                        label={o.label} 
+                        selected={config[key] === o.val} 
+                        onClick={() => set(key, o.val)} 
+                      />
+                    ))}
+                  </div>
+                </Card>
+              ));
+            })()}
+            
+            {/* Campos personalizados específicos del juego */}
+            {(() => {
+              const gameConfig = GAME_CONFIG_FIELDS[config.selectedGame];
+              if (!gameConfig || !gameConfig.customFields) return null;
+              
+              return gameConfig.customFields.map(({ key, label, Icon, iconBg, iconColor, options }) => (
+                <Card key={key} className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cx("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}>
+                      <Icon size={14} className={iconColor} />
+                    </div>
+                    <SectionLabel>{label}</SectionLabel>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map(o => (
+                      <OptionPill 
+                        key={o.val} 
+                        label={o.label} 
+                        selected={config[key] === o.val} 
+                        onClick={() => set(key as any, o.val)} 
+                      />
+                    ))}
+                  </div>
+                </Card>
+              ));
+            })()}
           </div>
           <div className="lg:col-span-1">
             <div className="sticky top-6">
@@ -1029,11 +1289,23 @@ function NewSessionScreen({ patients, sessions, initialPatient, initialGame, onL
                   </div>
                 )}
                 <div className="space-y-1.5 text-xs">
-                  {[["Duración", `${config.duration} min`], ["Lado", config.therapySide], ["Dificultad", config.difficulty], ["Altura", config.heightMode], ["Tipo", config.sessionType]].map(([l, v]) => (
-                    <div key={l} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
-                      <span className="text-slate-400">{l}</span><span className="font-bold text-slate-700">{v}</span>
-                    </div>
-                  ))}
+                  {(() => {
+                    const gameConfig = GAME_CONFIG_FIELDS[config.selectedGame] || GAME_CONFIG_FIELDS.default;
+                    const summaryItems = [];
+                    
+                    // Agregar solo los campos relevantes al resumen
+                    summaryItems.push(["Duración", `${config.duration} min`]);
+                    if (gameConfig.therapySide) summaryItems.push(["Lado", config.therapySide]);
+                    summaryItems.push(["Dificultad", config.difficulty]);
+                    if (gameConfig.heightMode) summaryItems.push(["Altura", config.heightMode]);
+                    if (gameConfig.sessionType) summaryItems.push(["Tipo", config.sessionType]);
+                    
+                    return summaryItems.map(([l, v]) => (
+                      <div key={l} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
+                        <span className="text-slate-400">{l}</span><span className="font-bold text-slate-700">{v}</span>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </Card>
               <div className="flex gap-2">
@@ -1335,6 +1607,192 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
 
         {/* Columna derecha: Análisis clínico detallado */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Métricas específicas de Urban Attention Quest (CityWorld) */}
+          {session.gameId === "urban_attention_quest" && session.neglect_score !== undefined && (
+            <>
+              {/* Negligencia Espacial */}
+              <Card className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50 border-cyan-100">
+                <h3 className="text-sm font-bold text-cyan-800 mb-4 flex items-center gap-2">
+                  <Eye size={16} className="text-cyan-600" /> Análisis de Negligencia Espacial
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-white rounded-xl p-4 text-center border-2 border-cyan-100">
+                    <div className="text-3xl font-black text-cyan-600 mb-1">{session.left_side_targets || 0}</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Targets Izquierda</div>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 text-center border-2 border-blue-100">
+                    <div className="text-3xl font-black text-blue-600 mb-1">{session.right_side_targets || 0}</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Targets Derecha</div>
+                  </div>
+                  <div className={cx("rounded-xl p-4 text-center border-2",
+                    (session.neglect_score || 0) >= 80 ? "bg-emerald-50 border-emerald-200" :
+                    (session.neglect_score || 0) >= 60 ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"
+                  )}>
+                    <div className={cx("text-3xl font-black mb-1",
+                      (session.neglect_score || 0) >= 80 ? "text-emerald-600" :
+                      (session.neglect_score || 0) >= 60 ? "text-amber-600" : "text-rose-600"
+                    )}>{Math.round(session.neglect_score || 0)}</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Score Negligencia</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-cyan-100">
+                  <p className="text-xs text-cyan-700 leading-relaxed">
+                    <strong>Interpretación:</strong> {
+                      (session.asymmetry_percentage || 0) < 15 
+                        ? `Exploración espacial equilibrada (asimetría: ${Math.round(session.asymmetry_percentage || 0)}%). Excelente conciencia bilateral.`
+                        : (session.asymmetry_percentage || 0) < 30
+                        ? `Asimetría leve detectada (${Math.round(session.asymmetry_percentage || 0)}%). Trabajar más el lado ${(session.left_side_targets || 0) < (session.right_side_targets || 0) ? 'izquierdo' : 'derecho'}.`
+                        : `Asimetría significativa (${Math.round(session.asymmetry_percentage || 0)}%). Indicativo de negligencia ${(session.left_side_targets || 0) < (session.right_side_targets || 0) ? 'izquierda' : 'derecha'}. Requiere entrenamiento intensivo.`
+                    }
+                  </p>
+                </div>
+              </Card>
+
+              {/* ROM Cervical */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <Activity size={14} className="text-violet-500" /> Rango de Movimiento Cervical (ROM)
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-3">
+                    <div className="bg-violet-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Rotación Izquierda</span>
+                        <span className="text-lg font-black text-violet-600">{Math.round(session.cervical_rom_left || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-violet-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_left || 0) / 90) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Rotación Derecha</span>
+                        <span className="text-lg font-black text-blue-600">{Math.round(session.cervical_rom_right || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_right || 0) / 90) * 100)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-emerald-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Extensión (Arriba)</span>
+                        <span className="text-lg font-black text-emerald-600">{Math.round(session.cervical_rom_extension || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_extension || 0) / 50) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="bg-amber-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Flexión (Abajo)</span>
+                        <span className="text-lg font-black text-amber-600">{Math.round(session.cervical_rom_flexion || 0)}°</span>
+                      </div>
+                      <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, ((session.cervical_rom_flexion || 0) / 40) * 100)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={cx("rounded-xl p-4 text-center border-2",
+                  (session.cervical_rom_total || 0) >= 200 ? "bg-emerald-50 border-emerald-200" :
+                  (session.cervical_rom_total || 0) >= 135 ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"
+                )}>
+                  <div className={cx("text-4xl font-black mb-1",
+                    (session.cervical_rom_total || 0) >= 200 ? "text-emerald-600" :
+                    (session.cervical_rom_total || 0) >= 135 ? "text-amber-600" : "text-rose-600"
+                  )}>{Math.round(session.cervical_rom_total || 0)}°</div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase mb-2">ROM Total</div>
+                  <div className="text-[10px] text-slate-500">
+                    {(session.cervical_rom_total || 0) >= 200 ? "Movilidad cervical excelente" :
+                     (session.cervical_rom_total || 0) >= 135 ? "Movilidad funcional aceptable" : "ROM limitado, requiere trabajo"}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Scores Clínicos Funcionales */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <Award size={14} className="text-blue-500" /> Scores Clínicos Funcionales
+                </h3>
+                <div className="grid md:grid-cols-3 gap-3">
+                  {[
+                    { label: "Conciencia Espacial", value: session.spatial_awareness || 0, color: "blue" },
+                    { label: "Orientación", value: session.orientation || 0, color: "violet" },
+                    { label: "Velocidad Procesamiento", value: session.processing_speed || 0, color: "emerald" },
+                    { label: "Movilidad Cervical", value: session.cervical_mobility || 0, color: "amber" },
+                    { label: "Eficiencia Búsqueda Visual", value: session.visual_search_efficiency || 0, color: "rose" },
+                  ].map(({ label, value, color }) => {
+                    const bgColors: Record<string, string> = {
+                      blue: "bg-blue-50 border-blue-200",
+                      violet: "bg-violet-50 border-violet-200",
+                      emerald: "bg-emerald-50 border-emerald-200",
+                      amber: "bg-amber-50 border-amber-200",
+                      rose: "bg-rose-50 border-rose-200",
+                    };
+                    const textColors: Record<string, string> = {
+                      blue: "text-blue-600",
+                      violet: "text-violet-600",
+                      emerald: "text-emerald-600",
+                      amber: "text-amber-600",
+                      rose: "text-rose-600",
+                    };
+                    
+                    return (
+                      <div key={label} className={cx("rounded-xl p-4 border-2", bgColors[color])}>
+                        <div className={cx("text-3xl font-black mb-1", textColors[color])}>{value}</div>
+                        <div className="text-[10px] font-semibold text-slate-500 uppercase mb-2">{label}</div>
+                        <div className="h-1.5 w-full bg-white rounded-full overflow-hidden">
+                          <div className={cx("h-full rounded-full",
+                            value >= 80 ? "bg-emerald-500" :
+                            value >= 60 ? "bg-amber-500" : "bg-rose-500"
+                          )} style={{ width: `${value}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Métricas Adicionales de CityWorld */}
+              <Card className="p-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <BarChart3 size={14} className="text-cyan-500" /> Métricas del Ejercicio
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Targets Completados</span>
+                      <span className="text-xl font-black text-slate-700">{session.targets_collected}/{session.total_targets}</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Errores de Secuencia</span>
+                      <span className={cx("text-xl font-black", 
+                        (session.sequence_errors || 0) === 0 ? "text-emerald-600" :
+                        (session.sequence_errors || 0) <= 2 ? "text-amber-600" : "text-rose-600"
+                      )}>{session.sequence_errors || 0}</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Tiempo Medio Reacción</span>
+                      <span className="text-xl font-black text-blue-600">{(session.avg_reaction_time || 0).toFixed(1)}s</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Completitud</span>
+                      <span className="text-xl font-black text-violet-600">{Math.round(session.completion_percentage || 0)}%</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
+
           {hasVRData ? (
             <>
               {/* Interpretación clínica */}
@@ -1907,155 +2365,6 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
   );
 }
 
-// ─── SCREEN: CONNECT DEVICE ──────────────────────────────────────────────────
-// MODO ACTUAL: Envío directo a sesion_activa (sin código de vinculación)
-// TODO: Cuando la APK tenga pantalla de código, descomentar el sistema de
-//       vinculación por código de 4 caracteres (ver createDeviceLink, subscribeDeviceLink)
-
-function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
-  config: SessionConfig; patients: Patient[];
-  onSessionSent: (sessionId: string) => void; onBack: () => void;
-}) {
-  const [status, setStatus] = useState<"idle" | "sending" | "ready" | "error">("idle");
-  const patient = patients.find(p => p.id === config.patientId);
-  const game = MINIGAMES.find(g => g.id === config.selectedGame);
-
-  async function handleSend() {
-    if (!patient) return;
-    setStatus("sending");
-    const sessionId = `session_${Date.now()}`;
-    try {
-      await publishActiveSession(config, patient, sessionId);
-      setStatus("ready");
-      // NO navegamos automáticamente — el fisio pulsa cuando el paciente está jugando
-    } catch {
-      setStatus("error");
-    }
-  }
-
-  return (
-    <div className="p-6 md:p-8 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
-        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
-          <ArrowLeft size={16} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Iniciar sesión en Meta Quest 3</h1>
-          <p className="text-slate-500 text-sm">Envía la sesión a las gafas para comenzar</p>
-        </div>
-      </div>
-
-      {/* Resumen */}
-      {patient && game && (
-        <Card className="p-5 mb-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <AvatarIcon initials={patient.initials} colorIdx={patient.colorIdx} />
-            <div className="flex-1">
-              <div className="font-bold text-slate-800 text-sm">{patient.name}</div>
-              <div className="text-xs text-slate-400">{patient.diagnosis}</div>
-            </div>
-            <div className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold", game.bg, game.border)}>
-              <game.Icon size={13} className={game.iconColor} /> {game.name}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <Badge color="blue">{config.duration} min</Badge>
-              <Badge color="amber">{config.difficulty}</Badge>
-              <Badge color={config.therapySide === "Izquierdo" ? "blue" : config.therapySide === "Derecho" ? "purple" : "amber"}>{config.therapySide}</Badge>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Estado */}
-      <Card className="p-8 text-center mb-6">
-        {status === "idle" && (
-          <div className="py-2">
-            <div className="w-20 h-20 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-4">
-              <Headset size={36} className="text-violet-600" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Listo para enviar</h3>
-            <p className="text-sm text-slate-500 mb-1">Asegúrate de que las gafas están encendidas</p>
-            <p className="text-xs text-slate-400">y la app NeuroVR Rehab está abierta</p>
-          </div>
-        )}
-        {status === "sending" && (
-          <div className="py-4">
-            <Loader2 size={36} className="animate-spin text-blue-500 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-600">Enviando sesión a las gafas...</p>
-          </div>
-        )}
-        {status === "ready" && (
-          <div className="py-2">
-            <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={36} className="text-emerald-600" />
-            </div>
-            <h3 className="text-lg font-bold text-emerald-700 mb-2">¡Sesión enviada!</h3>
-            <p className="text-sm text-slate-500">El juego arrancará automáticamente en las gafas</p>
-            <p className="text-xs text-slate-400 mt-1">El paciente ya puede ponerse el headset</p>
-          </div>
-        )}
-        {status === "error" && (
-          <div className="py-4">
-            <X size={36} className="text-rose-500 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-rose-600">Error al enviar la sesión</p>
-            <p className="text-xs text-slate-400 mt-1">Comprueba tu conexión e inténtalo de nuevo</p>
-          </div>
-        )}
-      </Card>
-
-      {/* Instrucciones */}
-      <Card className="p-5 mb-6">
-        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-          <Headset size={15} className="text-violet-500" /> Pasos para iniciar
-        </h3>
-        <div className="space-y-2">
-          {[
-            "1. Enciende las gafas Meta Quest 3",
-            "2. Abre la app NeuroVR Rehab en las gafas",
-            "3. Pulsa el botón de abajo para enviar la sesión",
-            "4. El juego arrancará automáticamente en las gafas",
-            "5. Ayuda al paciente a ponerse el headset",
-          ].map(step => (
-            <div key={step} className="flex items-center gap-2 text-xs text-slate-600">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-              {step}
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {status === "idle" && (
-        <button onClick={handleSend}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-300/40 transition-all">
-          <Headset size={18} /> Enviar sesión a las gafas <ArrowRight size={16} />
-        </button>
-      )}
-      {status === "sending" && (
-        <div className="w-full py-4 rounded-xl bg-blue-100 text-blue-600 text-sm font-semibold flex items-center justify-center gap-2">
-          <Loader2 size={16} className="animate-spin" /> Enviando...
-        </div>
-      )}
-      {status === "error" && (
-        <button onClick={() => setStatus("idle")}
-          className="w-full py-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-all">
-          <RotateCcw size={16} /> Reintentar
-        </button>
-      )}
-      {status === "ready" && (
-        <div className="space-y-3">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
-            <CheckCircle size={16} /> Sesión enviada — el paciente ya puede jugar en las gafas
-          </div>
-          <button onClick={() => onSessionSent(`session_${Date.now()}`)}
-            className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-200 transition-all">
-            <CheckCircle size={18} /> El paciente terminó — Ver resultados
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── SCREEN: MINIGAMES ────────────────────────────────────────────────────────
 
 function MinigamesScreen({ onStartSession, onViewSpec }: { 
@@ -2127,110 +2436,6 @@ function MinigamesScreen({ onStartSession, onViewSpec }: {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── SCREEN: RESULTS ──────────────────────────────────────────────────────────
-
-function ResultsScreen({ config, patients, onNewSession, onSave }: {
-  config: SessionConfig; patients: Patient[];
-  onNewSession: () => void; onSave: () => void;
-}) {
-  const patient = patients.find(p => p.id === config.patientId) ?? patients[0];
-  const game = MINIGAMES.find(g => g.id === config.selectedGame) ?? MINIGAMES[0];
-  const historyData = HISTORY_CHART_BY_PATIENT[patient?.id ?? 1] ?? [];
-
-  // Simulated results based on difficulty
-  const baseScore = config.difficulty === "Fácil" ? 3500 : config.difficulty === "Media" ? 6000 : 8500;
-  const simulatedScore = baseScore + Math.floor(config.duration * 120);
-  const simulatedAccuracy = config.difficulty === "Fácil" ? 75 : config.difficulty === "Media" ? 82 : 70;
-
-  const chartData = [...historyData.slice(-4), { s: "Hoy", score: simulatedScore }];
-
-  const gems = { normal: 28, dorada: 12, roja_evitada: 8, roja_tocada: 2, verde: 5, morada: 2 };
-  const totalCollected = gems.normal + gems.dorada + gems.verde + gems.morada;
-  const gemTypes = [
-    { label: "Gemas normales", value: gems.normal, color: "bg-blue-400", textColor: "text-blue-600" },
-    { label: "Gemas doradas", value: gems.dorada, color: "bg-amber-400", textColor: "text-amber-600" },
-    { label: "Gemas verdes", value: gems.verde, color: "bg-emerald-400", textColor: "text-emerald-600" },
-    { label: "Gemas moradas", value: gems.morada, color: "bg-violet-400", textColor: "text-violet-600" },
-    { label: "Rojas evitadas ✓", value: gems.roja_evitada, color: "bg-emerald-300", textColor: "text-emerald-600" },
-    { label: "Rojas tocadas ✗", value: gems.roja_tocada, color: "bg-rose-400", textColor: "text-rose-600" },
-  ];
-
-  return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto">
-      <div className="mb-7 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1"><CheckCircle size={18} className="text-emerald-500" /><span className="text-sm font-semibold text-emerald-600 uppercase tracking-wide">Sesión completada</span></div>
-          <h1 className="text-2xl font-bold text-slate-800">Resultados de sesión</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{patient?.name ?? "—"} · {game?.name ?? "—"} · {config.duration} min</p>
-        </div>
-        <div className="text-right">
-          <div className="text-4xl font-black text-slate-800 font-mono">{simulatedScore.toLocaleString()}</div>
-          <div className="text-xs text-slate-400 font-medium uppercase tracking-wide">Puntuación final</div>
-        </div>
-      </div>
-      <div className="grid lg:grid-cols-3 gap-5 mb-6">
-        <Card className="lg:col-span-2 p-5">
-          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Gem size={15} className="text-blue-500" /> Desglose de gemas</h2>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {gemTypes.map(g => (
-              <div key={g.label} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                <div className={cx("w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm", g.color)}>{g.value}</div>
-                <span className={cx("text-xs font-semibold", g.textColor)}>{g.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
-            <span className="text-sm text-slate-500 font-medium">Total recolectadas</span>
-            <span className="text-lg font-black text-slate-800 font-mono">{totalCollected}</span>
-          </div>
-        </Card>
-        <Card className="p-5">
-          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><BarChart3 size={15} className="text-violet-500" /> Métricas de sesión</h2>
-          <div className="space-y-3">
-            {[
-              { label: "Tiempo total", value: `${config.duration}:00`, Icon: Timer },
-              { label: "Tiempo/objetivo", value: "6.4 s", Icon: Crosshair },
-              { label: "Lado trabajado", value: config.therapySide, Icon: Hand },
-              { label: "Dificultad", value: config.difficulty, Icon: Zap },
-              { label: "Tipo", value: config.sessionType, Icon: Target },
-              { label: "Precisión", value: `${simulatedAccuracy}%`, Icon: Award },
-            ].map(({ label, value, Icon }) => (
-              <div key={label} className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-slate-400"><Icon size={12} /> {label}</div>
-                <span className="text-xs font-bold text-slate-700">{value}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-      <Card className="p-5 mb-6">
-        <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><TrendingUp size={15} className="text-emerald-500" /> Evolución reciente del paciente</h2>
-        <div className="h-44">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5FB" />
-              <XAxis dataKey="s" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={50} />
-              <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", fontSize: "12px" }} labelStyle={{ fontWeight: "bold", color: "#1E293B" }} />
-              <Area type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5} fill="url(#sg)" dot={{ fill: "#3B82F6", r: 4 }} activeDot={{ r: 6 }} name="Puntuación" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-      <div className="flex items-center gap-3 justify-end">
-        <button onClick={onNewSession} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"><RotateCcw size={14} /> Nueva sesión</button>
-        <button onClick={onSave} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-emerald-200 transition-all cursor-pointer"><Download size={15} /> Guardar sesión</button>
-      </div>
     </div>
   );
 }
@@ -2483,6 +2688,8 @@ function SettingsScreen({ user }: { user: FirebaseUser }) {
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 
 export default function App({ user }: { user: FirebaseUser }) {
+  const navigateRouter = useNavigate();
+  const location = useLocation();
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
@@ -2496,11 +2703,22 @@ export default function App({ user }: { user: FirebaseUser }) {
   const [selectedGameSpec, setSelectedGameSpec] = useState<string | null>(null);
   const [editFromProfile, setEditFromProfile] = useState(false);
 
+  // ── Sincronización de screen con URL ──────────────────────────────────────
+  useEffect(() => {
+    const pathToScreen: Record<string, Screen> = {
+      "/": "dashboard",
+      "/pacientes": "patients",
+      "/nueva-sesion": "new-session",
+      "/minijuegos": "minigames",
+      "/historial": "history",
+      "/configuracion": "settings",
+    };
+    const newScreen = pathToScreen[location.pathname] || "dashboard";
+    setScreen(newScreen);
+  }, [location.pathname]);
+
   // ── Suscripción en tiempo real a Firestore ────────────────────────────────
   useEffect(() => {
-    // Seed datos iniciales si Firestore está vacío
-    seedIfEmpty(SEED_PATIENTS, SEED_SESSIONS).catch(console.error);
-
     const unsubP = subscribePatients(data => { setPatients(data); setLoading(false); });
     const unsubS = subscribeSessions(data => setSessions(data));
     return () => { unsubP(); unsubS(); };
@@ -2514,7 +2732,23 @@ export default function App({ user }: { user: FirebaseUser }) {
   const navigate = useCallback((s: Screen) => {
     if (s !== "new-session") { setPendingPatient(null); setPendingGame(""); }
     setScreen(s);
-  }, []);
+    
+    // Actualizar URL
+    const screenToPath: Record<Screen, string> = {
+      "dashboard": "/",
+      "patients": "/pacientes",
+      "new-session": "/nueva-sesion",
+      "minigames": "/minijuegos",
+      "history": "/historial",
+      "settings": "/configuracion",
+      "patient-profile": "/pacientes",
+      "session-detail": "/historial",
+      "game-spec": "/minijuegos",
+      "connect-device": "/conectar",
+      "results": "/resultados",
+    };
+    navigateRouter(screenToPath[s] || "/");
+  }, [navigateRouter]);
 
   // ── PATIENT CRUD ──────────────────────────────────────────────────────────
 
@@ -2665,7 +2899,7 @@ export default function App({ user }: { user: FirebaseUser }) {
         )}
         {screen === "minigames" && <MinigamesScreen onStartSession={handleStartFromMinigames} onViewSpec={handleViewGameSpec} />}
         {screen === "connect-device" && (
-          <ConnectDeviceScreen
+          <ConnectDevicePage
             config={lastConfig}
             patients={patients}
             onBack={() => setScreen("new-session")}
@@ -2677,12 +2911,16 @@ export default function App({ user }: { user: FirebaseUser }) {
           />
         )}
         {screen === "results" && (
-          <ResultsScreen config={lastConfig} patients={patients}
-            onNewSession={() => navigate("new-session")} onSave={handleSaveSession} />
+          <ResultsPage 
+            config={lastConfig} 
+            patients={patients}
+            onNewSession={() => navigate("new-session")} 
+            onSave={handleSaveSession} 
+          />
         )}
         {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} />}
         {screen === "patient-profile" && profilePatient && (
-          <PatientProfileScreen
+          <PatientProfilePage
             patient={patients.find(p => p.id === profilePatient.id) ?? profilePatient}
             sessions={sessions}
             onBack={() => navigate("patients")}
@@ -2697,7 +2935,7 @@ export default function App({ user }: { user: FirebaseUser }) {
           />
         )}
         {screen === "session-detail" && selectedSession && (
-          <SessionDetailScreen
+          <SessionDetailPage
             session={selectedSession}
             onBack={() => {
               setSelectedSession(null);
@@ -2707,7 +2945,7 @@ export default function App({ user }: { user: FirebaseUser }) {
           />
         )}
         {screen === "game-spec" && selectedGameSpec && (
-          <GameSpecificationScreen
+          <GameSpecPage
             gameId={selectedGameSpec}
             onBack={() => {
               setSelectedGameSpec(null);

@@ -1,0 +1,100 @@
+[gd_scene format=3 uid="uid://dcj03foskqmlc"]
+
+[ext_resource type="Script" uid="uid://dh7ge4kp25dkj" path="res://hub_manager.gd" id="1_hub"]
+[ext_resource type="PackedScene" uid="uid://cnvlaecxewd1v" path="res://models/ice_scream_3_shopping_center_map.glb" id="2_hub"]
+[ext_resource type="Script" uid="uid://oq6fvrlvhv43" path="res://scripts/firebase_manager.gd" id="3_hub"]
+
+[sub_resource type="Environment" id="Environment_hub"]
+background_mode = 1
+background_energy_multiplier = 1.2
+ambient_light_source = 3
+ambient_light_color = Color(0.95, 0.92, 0.88, 1)
+ambient_light_sky_contribution = 0.6
+ambient_light_energy = 1.3
+tonemap_mode = 2
+tonemap_white = 6.0
+glow_enabled = true
+glow_strength = 0.8
+glow_bloom = 0.15
+
+[sub_resource type="BoxShape3D" id="BoxShape_floor"]
+size = Vector3(30, 0.5, 30)
+
+[node name="HubWorld" type="Node3D" unique_id=981302993]
+script = ExtResource("1_hub")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1848830891]
+environment = SubResource("Environment_hub")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=299202664]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+light_color = Color(1, 0.98, 0.92, 1)
+light_energy = 2.5
+shadow_enabled = true
+directional_shadow_mode = 1
+directional_shadow_max_distance = 50.0
+
+[node name="OmniLight3D_Center" type="OmniLight3D" parent="." unique_id=2049205222]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+light_color = Color(1, 1, 0.95, 1)
+light_energy = 4.0
+omni_range = 40.0
+
+[node name="OmniLight3D_Front" type="OmniLight3D" parent="." unique_id=1226830424]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -3)
+light_energy = 2.5
+omni_range = 20.0
+
+[node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=830905060]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=25757114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8055341, 0.056982517)
+
+[node name="LeftController" type="XRController3D" parent="XROrigin3D" unique_id=1054041889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.2, -0.3)
+tracker = &"left_hand"
+pose = &"grip"
+
+[node name="RightController" type="XRController3D" parent="XROrigin3D" unique_id=1985274245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.2, -0.3)
+tracker = &"right_hand"
+pose = &"grip"
+
+[node name="IceScreamInterior" type="Node3D" parent="." unique_id=797356396]
+
+[node name="IceScreamModel" parent="IceScreamInterior" unique_id=515988464 instance=ExtResource("2_hub")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08364308, 0)
+
+[node name="WelcomeSign" type="Node3D" parent="." unique_id=1978789916]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -3)
+
+[node name="StatusLabel" type="Label3D" parent="WelcomeSign" unique_id=114624334]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+pixel_size = 0.002
+modulate = Color(0.3, 0.8, 1, 1)
+text = "SALA DE ESPERA VR"
+font_size = 72
+outline_size = 14
+
+[node name="InfoLabel" type="Label3D" parent="WelcomeSign" unique_id=812943192]
+pixel_size = 0.002
+modulate = Color(0.85, 0.85, 0.85, 1)
+text = "Esperando a que el fisioterapeuta inicie la sesión..."
+outline_size = 8
+
+[node name="GameLabel" type="Label3D" parent="WelcomeSign" unique_id=1626584492]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+visible = false
+pixel_size = 0.002
+modulate = Color(0.3, 1, 0.5, 1)
+font_size = 52
+
+[node name="CollisionFloor" type="StaticBody3D" parent="." unique_id=1373394983]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionFloor" unique_id=1019975450]
+shape = SubResource("BoxShape_floor")
+
+[node name="FirebaseManager" type="Node" parent="." unique_id=482413058]
+script = ExtResource("3_hub")

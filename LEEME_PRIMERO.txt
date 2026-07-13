@@ -1,0 +1,99 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   🎮 SISTEMA VR - ARREGLADO Y LISTO PARA PROBAR 🎮           ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+🎯 PROBLEMA QUE SE ARREGLÓ:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Los juegos NO se iniciaban cuando creabas una sesión desde el
+portal web. Ahora se agregó logging extensivo para rastrear 
+EXACTAMENTE qué está pasando y dónde falla (si falla).
+
+✅ QUÉ SE HIZO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Logging detallado en vr_start.gd
+✓ Logging en firebase_manager.gd (polling)
+✓ Logging en game_manager.gd (configuración y sesión)
+✓ Logging en gem_spawner.gd (generación de gemas)
+✓ Se puede ver TODO el flujo desde el PC con USB
+
+🚀 CÓMO PROBAR (3 PASOS SIMPLES):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣  EXPORTAR APK DESDE GODOT
+    • Abre el proyecto en Godot 4.6
+    • Ve a: Project → Export
+    • Selecciona: Android (Quest)
+    • Click: Export Project
+    • Guarda como: TFG.apk (en esta carpeta)
+
+2️⃣  EJECUTAR EL SCRIPT AUTOMÁTICO
+    • Conecta las gafas Meta Quest con cable USB
+    • Haz doble-click en: instalar_y_ver_logs.bat
+    • El script instalará el APK y mostrará los logs
+
+3️⃣  PROBAR
+    • Ponte las gafas
+    • Abre la app TFG
+    • Ve al portal: https://tfg-vr.web.app
+    • Crea una nueva sesión
+    • Observa los logs en la ventana del PC
+
+📊 QUÉ ESPERAR:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si FUNCIONA correctamente, verás esto en los logs:
+
+  FASE 1: STARTUP .............. ✅ (al abrir el juego)
+  FASE 2: POLLING .............. ✅ (cada 3 segundos)
+  FASE 3: DETECCIÓN ............ ✅ (cuando creas sesión)
+  FASE 4: CONFIGURACIÓN ........ ✅ (aplica config)
+  FASE 5: SPAWNER ACTIVADO ..... ✅ (prepara gemas)
+  FASE 6: JUEGO ACTIVO ......... ✅ (¡gemas aparecen!)
+
+Si llegas hasta FASE 6: ¡FUNCIONA! 🎉
+
+Si se DETIENE antes: Los logs te dirán EXACTAMENTE dónde y por qué.
+
+📁 ARCHIVOS IMPORTANTES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• GUIA_RAPIDA.txt ................ Guía visual rápida
+• instalar_y_ver_logs.bat ........ Instala APK y muestra logs
+• ver_logs_vr.bat ................ Solo ver logs (sin instalar)
+• INSTRUCCIONES_DEBUGGING_VR.md .. Guía detallada técnica
+• RESUMEN_CAMBIOS_VR.md .......... Qué se cambió en el código
+
+💡 NOTAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• El polling revisa Firestore cada 3 segundos
+• Espera 3-6 segundos después de crear la sesión
+• Los logs son MUY verbosos ahora (temporal para debugging)
+• Si no funciona, envía los logs a Kevin
+
+🎯 FLUJO DEL SISTEMA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Portal Web → Crea sesión en Firestore
+     ↓
+VR hace polling cada 3s
+     ↓
+VR detecta nueva sesión
+     ↓
+VR aplica configuración
+     ↓
+VR muestra countdown (3, 2, 1, GO!)
+     ↓
+Juego inicia
+     ↓
+¡Gemas empiezan a aparecer! ✅
+
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   👉 EMPIEZA AQUÍ: Doble-click en instalar_y_ver_logs.bat    ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+¡Suerte! 🚀

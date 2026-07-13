@@ -10,6 +10,9 @@ import {
 import { db } from "./firebase";
 import type { Patient, SessionRecord, SessionConfig } from "./types";
 
+// Re-exportar db para uso externo
+export { db };
+
 // ── Colecciones ───────────────────────────────────────────────────────────────
 
 const COL_PATIENTS       = "pacientes";
@@ -175,6 +178,7 @@ export async function publishActiveSession(
     therapySide:  config.therapySide,
     sessionType:  config.sessionType,
     gameId:       config.selectedGame,
+    status:       "pending",                // CRÍTICO: Hub solo detecta sesiones "pending"
     publishedAt:  serverTimestamp(),
   });
 }

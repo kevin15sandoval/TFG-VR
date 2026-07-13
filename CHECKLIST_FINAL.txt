@@ -1,0 +1,99 @@
+═══════════════════════════════════════════════════════════════════════════
+  ✅ CHECKLIST FINAL - PONER EN PRODUCCIÓN
+═══════════════════════════════════════════════════════════════════════════
+
+📦 PARTE 1: EXPORTAR (10 minutos)
+═══════════════════════════════════════════════════════════════════════════
+
+[ ] 1. Abrir Godot 4.6
+[ ] 2. Cargar proyecto TFG
+[ ] 3. Verificar Main Scene = HubWorld.tscn
+[ ] 4. Project → Export
+[ ] 5. Añadir preset "Web" si no existe
+[ ] 6. Export Path: builds/hub/index.html
+[ ] 7. Clic "Export Project"
+[ ] 8. Esperar 2-3 minutos
+[ ] 9. Verificar carpeta builds/hub/ creada
+
+═══════════════════════════════════════════════════════════════════════════
+🚀 PARTE 2: DEPLOY (10 minutos)
+═══════════════════════════════════════════════════════════════════════════
+
+[ ] 1. Abrir CMD/PowerShell
+[ ] 2. cd c:\Users\USUARIO\Documents\tfg
+[ ] 3. Ejecutar: deploy_all_games.bat
+[ ] 4. Esperar 5 minutos
+[ ] 5. Ver mensaje "DEPLOY COMPLETADO EXITOSAMENTE"
+
+═══════════════════════════════════════════════════════════════════════════
+✅ PARTE 3: VERIFICAR (5 minutos)
+═══════════════════════════════════════════════════════════════════════════
+
+[ ] 1. Abrir navegador
+[ ] 2. Ir a: https://tfg-vr.web.app/
+[ ] 3. Ver loft cargando
+[ ] 4. Ver texto "SALA DE ESPERA VR"
+[ ] 5. Ir a: https://tfg-vr.web.app/app/
+[ ] 6. Ver plataforma clínica
+[ ] 7. Login funciona
+[ ] 8. Ver 4 juegos disponibles
+
+═══════════════════════════════════════════════════════════════════════════
+🎮 PARTE 4: PRUEBA COMPLETA (10 minutos)
+═══════════════════════════════════════════════════════════════════════════
+
+EN LA WEB:
+[ ] 1. Seleccionar paciente
+[ ] 2. Clic "Nueva Sesión"
+[ ] 3. Elegir juego (ej: Vault Escape)
+[ ] 4. Configurar parámetros
+[ ] 5. Clic "Iniciar Sesión VR"
+
+EN META QUEST:
+[ ] 6. Abrir navegador
+[ ] 7. Ir a: https://tfg-vr.web.app/
+[ ] 8. Esperar 3-5 segundos
+[ ] 9. Ver "¡SESIÓN DETECTADA!"
+[ ] 10. Juego carga automáticamente
+[ ] 11. Jugar y completar
+[ ] 12. Ver resultados guardados en web
+
+═══════════════════════════════════════════════════════════════════════════
+📊 PARTE 5: VERIFICAR MÉTRICAS
+═══════════════════════════════════════════════════════════════════════════
+
+[ ] 1. Ir a sección Historial en web
+[ ] 2. Ver sesión completada
+[ ] 3. Ver puntuación
+[ ] 4. Ver métricas clínicas
+[ ] 5. Ver gráficas de progreso
+
+═══════════════════════════════════════════════════════════════════════════
+🎓 PARTE 6: PREPARAR PRESENTACIÓN
+═══════════════════════════════════════════════════════════════════════════
+
+[ ] 1. Crear video demo (opcional)
+[ ] 2. Imprimir/PDF documentación
+[ ] 3. Preparar cuenta de prueba
+[ ] 4. Cargar Meta Quest
+[ ] 5. Probar demo completa 1 vez
+[ ] 6. Crear QR code de Hub (opcional)
+
+═══════════════════════════════════════════════════════════════════════════
+✨ RESULTADO FINAL
+═══════════════════════════════════════════════════════════════════════════
+
+TENDRÁS:
+
+✅ Hub VR funcionando: https://tfg-vr.web.app/
+✅ 4 juegos completos jugables
+✅ Plataforma clínica: https://tfg-vr.web.app/app/
+✅ Sistema de detección automática
+✅ Métricas clínicas guardadas
+✅ Todo listo para presentar
+
+═══════════════════════════════════════════════════════════════════════════
+⏱️ TIEMPO TOTAL: 35 MINUTOS
+═══════════════════════════════════════════════════════════════════════════
+
+¡MUCHO ÉXITO! 🚀🎓

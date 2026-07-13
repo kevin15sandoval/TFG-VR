@@ -14,6 +14,8 @@ var exercise_name: String = ""
 var instruction:   String = ""
 var exercise_data: Dictionary = {}
 var collected:     bool   = false
+# SISTEMA DE ENERGÍA GLOBAL - Ya no hay preparación por gema
+var _last_energy_check: float = 0.0
 
 # Colores por tipo de gema (emisión brillante para VR)
 const GEM_COLORS := {
@@ -33,24 +35,35 @@ const GEM_EMISSION := {
 }
 
 const GEM_SCALE := {
-	"normal": Vector3(0.5, 0.5, 0.5),
-	"golden": Vector3(0.65, 0.65, 0.65),
-	"green":  Vector3(0.5, 0.5, 0.5),
-	"purple": Vector3(0.55, 0.55, 0.55),
-	"red":    Vector3(0.6, 0.6, 0.6),
+	"normal": Vector3(0.25, 0.25, 0.25),
+	"golden": Vector3(0.35, 0.35, 0.35),
+	"green":  Vector3(0.25, 0.25, 0.25),
+	"purple": Vector3(0.3, 0.3, 0.3),
+	"red":    Vector3(0.3, 0.3, 0.3),
 }
 
 var _mesh_instance: MeshInstance3D
 var _anim_time: float = 0.0
 var _base_y: float = 0.0
 var _particles: GPUParticles3D
+var _progress_ring: MeshInstance3D  # ⭐ Anillo de progreso visual
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
+	
+	# CREAR COLLISION SHAPE (esfera para detección)
+	var collision = CollisionShape3D.new()
+	add_child(collision)
+	var sphere_shape = SphereShape3D.new()
+	sphere_shape.radius = 0.3  # Radio de detección (30cm)
+	collision.shape = sphere_shape
+	print("[Gem] ✅ CollisionShape3D creado con radio 0.3m")
+	
 	_mesh_instance = $MeshInstance3D
 	_base_y = global_position.y
 	_create_particles()
+	_create_progress_ring()  # ⭐ NUEVA barra circular visible
 	_apply_visuals()
 
 func _create_particles() -> void:
@@ -77,6 +90,35 @@ func _create_particles() -> void:
 	
 	add_child(_particles)
 
+func _create_progress_ring() -> void:
+	# Crear anillo circular de progreso ULTRA VISIBLE alrededor de la gema
+	_progress_ring = MeshInstance3D.new()
+	add_child(_progress_ring)
+	_progress_ring.position = Vector3(0, 0, 0)
+	
+	# Usar TorusMesh para anillo circular
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.35  # Radio interior
+	torus.outer_radius = 0.4   # Radio exterior (anillo de 5cm grosor)
+	torus.rings = 64           # Más suave
+	torus.ring_segments = 8    # Secciones circulares
+	_progress_ring.mesh = torus
+	
+	# Material inicial (vacío/transparente)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.3)  # Blanco semi-transparente
+	mat.emission_enabled = true
+	mat.emission = Color(0.5, 0.5, 0.5)
+	mat.emission_energy_multiplier = 1.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_progress_ring.material_override = mat
+	
+	# Inicialmente invisible (se muestra cuando empieza preparación)
+	_progress_ring.visible = false
+	
+	print("[Gem] 🔄 Anillo de progreso creado (inicialmente invisible)")
+
 func setup(exercise: Dictionary) -> void:
 	exercise_data  = exercise
 	gem_type       = exercise.get("type",        "normal")
@@ -98,53 +140,280 @@ func _apply_visuals() -> void:
 	mat.emission_energy_multiplier = GEM_EMISSION.get(gem_type, 2.0)
 	mat.roughness              = 0.1
 	mat.metallic               = 0.3
-	_mesh_instance.surface_material_override[0] = mat
+	
+	# Aplicar material correctamente
+	_mesh_instance.material_override = mat
 
-	var scale = GEM_SCALE.get(gem_type, Vector3(0.5, 0.5, 0.5))
+	var scale = GEM_SCALE.get(gem_type, Vector3(0.25, 0.25, 0.25))
 	_mesh_instance.scale = scale
+	
+	print("[Gem] 💎 Gema creada: ", gem_type, " | Color: ", color, " | Escala: ", scale)
 
 func _process(delta: float) -> void:
 	if collected:
 		return
+	
 	# Animación de flotación suave
 	_anim_time += delta * 2.0
 	_mesh_instance.position.y = sin(_anim_time) * 0.04
 	# Rotación constante
 	_mesh_instance.rotate_y(delta * 1.5)
+	
+	# ═══ SISTEMA DE RECARGA DE ENERGÍA GLOBAL ═══
+	# Detectar si el jugador está haciendo movimiento de flexión/relajación para recargar
+	_check_energy_recharge(delta)
 
 # ─── DETECCIÓN DE COLISIÓN CON MANOS VR ──────────────────────────────────────
 
-func _on_body_entered(body: Node) -> void:
-	if collected:
+var _hand_distances: Dictionary = {}  # Almacenar distancias de manos para detectar movimiento
+var _last_hand_check: float = 0.0
+
+func _find_hand_controller(side: String) -> Node3D:
+	# Buscar controlador de mano (izquierda o derecha) en el árbol de escena
+	# Intenta múltiples nombres posibles
+	var possible_names = []
+	
+	if side == "left":
+		possible_names = ["LeftHand", "Left_Hand", "left_hand", "LeftController", "HandLeft"]
+	else:  # right
+		possible_names = ["RightHand", "Right_Hand", "right_hand", "RightController", "HandRight"]
+	
+	# Intentar cada nombre posible
+	for name in possible_names:
+		var hand = get_tree().root.find_child(name, true, false)
+		if hand:
+			print("[Gem] ✅ Encontrada mano ", side, " con nombre: ", name)
+			return hand
+	
+	# Si no encontró, buscar por tipo XRController3D con tracker específico
+	var root = get_tree().root
+	for child in _get_all_children(root):
+		if child is XRController3D:
+			var tracker_name = child.tracker.to_lower()
+			if side in tracker_name:
+				print("[Gem] ✅ Encontrada mano ", side, " por tracker: ", child.tracker)
+				return child
+	
+	print("[Gem] ⚠️ NO encontrada mano ", side)
+	return null
+
+func _get_all_children(node: Node) -> Array:
+	# Recursivamente obtener todos los hijos
+	var children = []
+	for child in node.get_children():
+		children.append(child)
+		children.append_array(_get_all_children(child))
+	return children
+
+func _check_energy_recharge(delta: float) -> void:
+	# Sistema de recarga: El jugador recarga SU energía manteniendo el brazo cerca (flexión)
+	# SIMPLE: Solo estar cerca = recargar (no necesita acercar/alejar)
+	
+	_last_energy_check += delta
+	if _last_energy_check < 0.05:  # Chequear cada 0.05s (más frecuente)
 		return
+	_last_energy_check = 0.0
+	
+	# Buscar controladores XR (manos)
+	var left_hand = _find_hand_controller("left")
+	var right_hand = _find_hand_controller("right")
+	
+	var closest_distance = 999.0
+	
+	# Calcular distancia a mano izquierda
+	if left_hand:
+		var dist = global_position.distance_to(left_hand.global_position)
+		if dist < closest_distance:
+			closest_distance = dist
+	
+	# Calcular distancia a mano derecha
+	if right_hand:
+		var dist = global_position.distance_to(right_hand.global_position)
+		if dist < closest_distance:
+			closest_distance = dist
+	
+	# Si hay una mano CERCA (< 1.5m) → RECARGAR AUTOMÁTICAMENTE (mantener flexión)
+	if closest_distance < 1.5:
+		# RECARGA RÁPIDA - solo por estar cerca
+		GameManager.recharge_energy(delta * 3.0)  # 3x más rápido = 45 energía/segundo
+		# No hace falta print, demasiado spam
+
+func _show_ready_feedback() -> void:
+	# Mostrar texto flotante "¡LISTO!" cuando la gema está preparada
+	var ready_label = Label3D.new()
+	add_child(ready_label)
+	ready_label.position = Vector3(0, 0.5, 0)
+	ready_label.pixel_size = 0.003
+	ready_label.text = "¡LISTO!"
+	ready_label.font_size = 72
+	ready_label.modulate = Color(0.2, 1.0, 0.3)  # Verde brillante
+	ready_label.outline_size = 12
+	ready_label.outline_modulate = Color.BLACK
+	ready_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	
+	# Animación: aparece y desaparece
+	var tween = create_tween()
+	tween.tween_property(ready_label, "position", Vector3(0, 0.8, 0), 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(ready_label, "modulate:a", 0.0, 0.8).set_delay(0.3)
+	tween.tween_callback(ready_label.queue_free)
+	
+	# Hacer la gema brillar MUCHO
+	if _mesh_instance and _mesh_instance.material_override:
+		var mat = _mesh_instance.material_override as StandardMaterial3D
+		var base_color = GEM_COLORS.get(gem_type, Color.WHITE)
+		
+		# Flash brillante
+		var flash_tween = create_tween()
+		flash_tween.tween_property(mat, "emission_energy_multiplier", 8.0, 0.2)
+		flash_tween.tween_property(mat, "emission_energy_multiplier", GEM_EMISSION.get(gem_type, 2.0) * 2.0, 0.3)
+
+func _play_progress_beep(level: int) -> void:
+	# Beep corto para indicar progreso (25%, 50%, 75%)
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 15.0
+	audio.volume_db = 2.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.05
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Beep corto, más agudo según el nivel
+		var hz = 400.0 + (level * 150.0)  # 550Hz, 700Hz, 850Hz
+		var frames = int(generator.mix_rate * 0.08)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var envelope = 0.3 * (1.0 - t / 0.08)
+			var sample = sin(t * hz * TAU) * envelope
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.1).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
+
+func _play_activation_sound() -> void:
+	# Sonido de "¡RECARGADO!" - épico y satisfactorio
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 20.0
+	audio.volume_db = 8.0  # MÁS VOLUMEN
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	print("[Gem] 🔊 Reproduciendo sonido de RECARGA")
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Sonido ascendente épico con armónicos (como "power up")
+		var frames = int(generator.mix_rate * 0.4)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var progress = t / 0.4
+			var hz = 300.0 + (progress * 600.0)  # De 300Hz a 900Hz (ascendente)
+			var envelope = 0.6 * (1.0 - progress * 0.3)  # Mantiene volumen
+			
+			# Tono principal + armónicos para sonido más rico
+			var sample = sin(t * hz * TAU) * envelope * 0.6
+			sample += sin(t * hz * 2.0 * TAU) * envelope * 0.2  # Octava
+			sample += sin(t * hz * 1.5 * TAU) * envelope * 0.15  # Quinta
+			
+			# "Ding" final
+			if progress > 0.7:
+				sample += sin(t * 1200.0 * TAU) * envelope * 0.4
+			
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.5).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
+
+func _on_body_entered(body: Node) -> void:
+	print("[Gem] 💥 BODY DETECTADO: ", body.name, " | Tipo: ", body.get_class())
+	if collected:
+		print("[Gem] ⚠️ Ya está collected, ignorando")
+		return
+	
 	# Detectar XRController3D (los controladores padre de las manos)
 	if body is XRController3D:
+		print("[Gem] ✅ CONTROLADOR XR detectado: ", body.name)
 		_catch()
+		return
+	
+	# Detectar por nombre de nodo (LeftHand, RightHand, etc.)
+	var body_name = body.name.to_lower()
+	if "hand" in body_name or "left" in body_name or "right" in body_name:
+		print("[Gem] ✅ MANO detectada por nombre: ", body.name)
+		_catch()
+		return
+	
 	# También detectar nodos que sean hijos de controladores
 	var parent = body.get_parent()
 	if parent and parent is XRController3D:
+		print("[Gem] ✅ HIJO de controlador XR detectado: ", body.name, " (padre: ", parent.name, ")")
 		_catch()
+		return
 
 func _on_area_entered(area: Node) -> void:
+	print("[Gem] 🎯 ÁREA DETECTADA: ", area.name, " | Padre: ", area.get_parent().name if area.get_parent() else "none")
 	if collected:
+		print("[Gem] ⚠️ Ya está collected, ignorando")
 		return
-	# Detectar áreas de las manos (LeftHandArea, RightHandArea)
-	if area.name in ["LeftHandArea", "RightHandArea"]:
+	
+	# Detectar áreas de las manos por nombre (cualquier variación)
+	var area_name = area.name.to_lower()
+	if "hand" in area_name or "left" in area_name or "right" in area_name:
+		print("[Gem] ✅ MANO DETECTADA por nombre: ", area.name)
 		_catch()
+		return
+	
 	# También detectar por grupo si está configurado
 	if area.is_in_group("hand") or area.is_in_group("xr_hand"):
+		print("[Gem] ✅ MANO DETECTADA por grupo")
 		_catch()
+		return
+	
+	# Detectar si el padre es un controlador XR
+	var parent = area.get_parent()
+	if parent:
+		var parent_name = parent.name.to_lower()
+		if parent is XRController3D or "hand" in parent_name or "controller" in parent_name:
+			print("[Gem] ✅ MANO DETECTADA por padre XR: ", parent.name)
+			_catch()
+			return
+	
+	print("[Gem] ⚠️ Área NO reconocida como mano: ", area.name)
 
 func _catch() -> void:
 	if collected:
 		return
+	
+	# ═══ VERIFICAR SI EL JUGADOR TIENE ENERGÍA ═══
+	if not GameManager.has_energy_for_gem():
+		print("[Gem] ⚠️ SIN ENERGÍA - No puedes recolectar (", int(GameManager.player_energy), "/", int(GameManager.max_energy), ")")
+		_play_no_energy_sound()
+		return
+	
+	# ═══ CONSUMIR ENERGÍA ═══
+	if not GameManager.consume_energy():
+		return
+	
 	collected = true
 	
 	# Determinar si es positivo o negativo
 	var is_positive = gem_type != "red"
 	
 	print("[Gem] ", "✅" if is_positive else "❌", " Recogida: ", gem_type, " ", 
-		"+", points if is_positive else points, " pts")
+		"+", points if is_positive else points, " pts | Energía restante: ", int(GameManager.player_energy))
 	
 	_play_collect_effect(is_positive)
 	_trigger_haptic_feedback(is_positive)
@@ -152,6 +421,36 @@ func _catch() -> void:
 	
 	await get_tree().create_timer(0.3).timeout
 	queue_free()
+
+func _play_no_energy_sound() -> void:
+	# Sonido de "sin energía" cuando intentas agarrar sin energía suficiente
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 20.0
+	audio.volume_db = 5.0
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Sonido de "batería baja" - bips cortos repetidos
+		var frames = int(generator.mix_rate * 0.5)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var bip_freq = int(t * 5.0)  # 5 bips
+			var hz = 150.0 if (bip_freq % 2 == 0) else 0.0  # Bip intermitente
+			var envelope = 0.3
+			var sample = sin(t * hz * TAU) * envelope if hz > 0 else 0.0
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.6).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
 
 func _trigger_haptic_feedback(positive: bool) -> void:
 	# Vibración en controladores XR
@@ -174,9 +473,49 @@ func miss() -> void:
 	if collected:
 		return
 	collected = true
+	
+	# Gema perdida (no tocada o pasó de largo)
 	print("[Gem] ⏭ Perdida: ", gem_type)
+	
+	# SONIDO DE ERROR cuando se pierde una gema
+	_play_miss_sound()
+	
 	emit_signal("gem_missed")
+	
+	# Esperar a que termine el sonido antes de eliminar
+	await get_tree().create_timer(0.5).timeout
 	queue_free()
+
+func _play_miss_sound() -> void:
+	# Sonido de error/desaprobación (buzzer) - IGUAL QUE CITYWORLD
+	var audio = AudioStreamPlayer3D.new()
+	add_child(audio)
+	audio.max_distance = 20.0
+	audio.unit_size = 3.0
+	audio.volume_db = 8.0  # MÁS VOLUMEN
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100
+	generator.buffer_length = 0.1
+	audio.stream = generator
+	audio.play()
+	
+	print("[Gem] 🔊 Reproduciendo sonido de ERROR")
+	
+	await get_tree().process_frame
+	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback:
+		# Buzzer desagradable (200Hz bajo) - IGUAL QUE CITYWORLD
+		var frames = int(generator.mix_rate * 0.4)
+		for i in range(frames):
+			var t = float(i) / generator.mix_rate
+			var envelope = 0.6 * (1.0 - t / 0.4)
+			var sample = sin(t * 200.0 * TAU) * envelope  # Tono bajo y desagradable
+			playback.push_frame(Vector2(sample, sample))
+	
+	await get_tree().create_timer(0.5).timeout
+	if is_instance_valid(audio):
+		audio.queue_free()
 
 func _play_collect_effect(positive: bool = true) -> void:
 	# Partículas de explosión con el color de la gema
@@ -199,8 +538,9 @@ func _play_collect_effect(positive: bool = true) -> void:
 func _play_collect_sound(positive: bool) -> void:
 	var audio = AudioStreamPlayer3D.new()
 	add_child(audio)
-	audio.max_distance = 10.0
-	audio.unit_size = 1.0
+	audio.max_distance = 20.0
+	audio.unit_size = 3.0
+	audio.volume_db = 8.0  # MÁS VOLUMEN
 	
 	# Generar tono procedural (sin archivos de audio)
 	var generator = AudioStreamGenerator.new()
@@ -210,20 +550,48 @@ func _play_collect_sound(positive: bool) -> void:
 	audio.stream = generator
 	audio.play()
 	
-	# Generar onda de sonido simple
+	print("[Gem] 🔊 Reproduciendo sonido: ", "positivo" if positive else "negativo")
+	
+	# Generar onda de sonido MEJORADA - SIMILAR A CITYWORLD
 	await get_tree().process_frame
 	var playback = audio.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback:
-		var hz = 800.0 if positive else 200.0  # Tono alto = positivo, bajo = negativo
-		var frames = int(generator.mix_rate * 0.1)
-		
-		for i in range(frames):
-			var t = float(i) / generator.mix_rate
-			var amplitude = 0.3 * (1.0 - t / 0.1)  # Fade out
-			var sample = sin(t * hz * TAU) * amplitude
-			playback.push_frame(Vector2(sample, sample))
+		if positive:
+			# SONIDO POSITIVO - Épico según tipo de gema
+			var base_hz = 600.0
+			if gem_type == "golden":  # Dorado - sonido épico
+				base_hz = 900.0
+			elif gem_type == "purple":  # Morado - sonido medio
+				base_hz = 750.0
+			else:  # Normal/Verde - sonido suave
+				base_hz = 600.0
+			
+			# Generar sonido con armónicos (más rico) - IGUAL QUE CITYWORLD
+			var frames = int(generator.mix_rate * 0.35)
+			for i in range(frames):
+				var t = float(i) / generator.mix_rate
+				var envelope = 0.6 * (1.0 - t / 0.35)
+				
+				# Tono principal + armónicos
+				var sample = sin(t * base_hz * TAU) * envelope * 0.6
+				sample += sin(t * base_hz * 2.0 * TAU) * envelope * 0.2  # Octava
+				sample += sin(t * base_hz * 1.5 * TAU) * envelope * 0.15  # Quinta
+				
+				# "Ding" al final para gemas doradas
+				if gem_type == "golden":
+					sample += sin(t * 1200.0 * TAU) * envelope * 0.3
+				
+				playback.push_frame(Vector2(sample, sample))
+		else:
+			# SONIDO NEGATIVO (roja) - Buzzer igual que error
+			var frames = int(generator.mix_rate * 0.3)
+			for i in range(frames):
+				var t = float(i) / generator.mix_rate
+				var amplitude = 0.5 * (1.0 - t / 0.3)
+				var sample = sin(t * 250.0 * TAU) * amplitude  # Tono bajo
+				playback.push_frame(Vector2(sample, sample))
 	
 	# Limpiar después de reproducir
-	await get_tree().create_timer(0.15).timeout
+	await get_tree().create_timer(0.4).timeout
 	if is_instance_valid(audio):
 		audio.queue_free()

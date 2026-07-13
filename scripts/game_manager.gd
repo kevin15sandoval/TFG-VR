@@ -33,6 +33,13 @@ var start_time:      float = 0.0
 var game_finished:   bool  = false
 var session_active:  bool  = false
 
+# ── SISTEMA DE ENERGÍA DEL JUGADOR ───────────────────────────────────────────
+var player_energy: float = 100.0  # Energía actual (0-100)
+var max_energy: float = 100.0     # Energía máxima
+var energy_cost_per_gem: float = 15.0  # ⭐ Cuesta 15 energía (antes 20) - MÁS PERMISIVO
+var energy_recharge_rate: float = 20.0  # ⭐ Recarga 20 energía/segundo (antes 15) - MÁS RÁPIDO
+signal energy_changed(current: float, max_val: float)  # Señal para actualizar UI
+
 # ── Métricas clínicas por movimiento ─────────────────────────────────────────
 # Cada entrada: { name, exercise_type, completed, time_seconds, side }
 var movement_log: Array = []
@@ -54,7 +61,7 @@ var movements_by_type: Dictionary = {
 
 # ── Velocidades y frecuencias según dificultad ───────────────────────────────
 var GEM_SPEED     := {"Fácil": 0.7, "Media": 1.2, "Difícil": 1.9}
-var SPAWN_INTERVAL:= {"Fácil": 3.0, "Media": 2.0, "Difícil": 1.2}
+var SPAWN_INTERVAL:= {"Fácil": 4.5, "Media": 3.5, "Difícil": 2.5}  # ⭐ AUMENTADO para dar tiempo a recargar
 
 func _ready() -> void:
 	print("[GameManager] Listo")
@@ -69,6 +76,8 @@ func _process(_delta: float) -> void:
 
 # ─── CONFIGURAR SESIÓN ────────────────────────────────────────────────────────
 
+var game_type: String = ""  # gems, vault_escape, urban_attention_quest, luggage_handler
+
 func apply_config(config: Dictionary) -> void:
 	patient_id      = config.get("patient_id",   "")
 	patient_name    = config.get("patient_name", "Paciente")
@@ -77,7 +86,17 @@ func apply_config(config: Dictionary) -> void:
 	difficulty      = config.get("difficulty",   "Media")
 	session_type    = config.get("session_type", "Alcance")
 	session_duration = float(config.get("duration", 180))
-	print("[GameManager] Config: ", config)
+	game_type       = config.get("game_id", "gems")
+	print("[GameManager] ═══════════════════════════════════════════")
+	print("[GameManager] 📋 CONFIGURACIÓN APLICADA")
+	print("[GameManager] ═══════════════════════════════════════════")
+	print("[GameManager] Patient ID:  ", patient_id)
+	print("[GameManager] Session ID:  ", session_id)
+	print("[GameManager] Game Type:   ", game_type)
+	print("[GameManager] Difficulty:  ", difficulty)
+	print("[GameManager] Therapy Side:", therapy_side)
+	print("[GameManager] Duration:    ", session_duration, "s")
+	print("[GameManager] ═══════════════════════════════════════════")
 	emit_signal("config_ready", config)
 
 func get_gem_speed() -> float:
@@ -89,6 +108,10 @@ func get_spawn_interval() -> float:
 # ─── INICIO ───────────────────────────────────────────────────────────────────
 
 func start_session() -> void:
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ 🚀 GAMEMANAGER.START_SESSION() EJECUTÁNDOSE ═══")
+	print("═══════════════════════════════════════════════════════════════")
+	
 	score             = 0
 	gems_collected    = 0
 	normal_gems       = 0
@@ -102,14 +125,33 @@ func start_session() -> void:
 	session_active    = true
 	start_time        = Time.get_ticks_msec() / 1000.0
 	_gem_start_time   = start_time
+	
+	# ⚡ RESETEAR ENERGÍA
+	player_energy     = max_energy
+	emit_signal("energy_changed", player_energy, max_energy)
+	print("[GameManager] ⚡ Energía inicial: ", player_energy, "/", max_energy)
 
 	# Reset contadores de movimiento
 	for key in movements_by_type:
 		movements_by_type[key]["completed"] = 0
 		movements_by_type[key]["total_time"] = 0.0
 
-	print("[GameManager] ▶ Sesión iniciada | ", difficulty, " | ", therapy_side)
+	print("[GameManager] ✅ Variables reseteadas")
+	print("[GameManager] 📊 Estado actual:")
+	print("  - session_active:  ", session_active)
+	print("  - game_finished:   ", game_finished)
+	print("  - score:           ", score)
+	print("  - difficulty:      ", difficulty)
+	print("  - therapy_side:    ", therapy_side)
+	print("  - session_duration:", session_duration, "s")
+	print("[GameManager] 📢 Emitiendo señal 'session_started'...")
+	
 	emit_signal("session_started")
+	
+	print("[GameManager] ✅ Señal 'session_started' emitida")
+	print("═══════════════════════════════════════════════════════════════")
+	print("═══ ✅ SESIÓN ACTIVA - JUEGO EN MARCHA ═══")
+	print("═══════════════════════════════════════════════════════════════")
 
 # ─── NOTIFICAR NUEVA GEMA (llamar cuando spawna) ─────────────────────────────
 
@@ -163,6 +205,9 @@ func finish_session() -> void:
 		return
 	game_finished  = true
 	session_active = false
+	
+	print("[GameManager] 🏁 Finalizando sesión...")
+	print("[GameManager] Limpiando IDs de sesión...")
 
 	var elapsed   = get_elapsed_time()
 	var accuracy  = _calculate_accuracy()
@@ -193,7 +238,7 @@ func finish_session() -> void:
 		else:
 			zones["Medio"] += 1
 
-	var results := {
+	var results = {
 		# Datos básicos
 		"patient_id":       patient_id,
 		"patient_name":     patient_name,
@@ -205,6 +250,8 @@ func finish_session() -> void:
 		"score":            score,
 		"accuracy":         accuracy,
 		"date":             Time.get_date_string_from_system(),
+		"game_type":        "gems",
+		"game_name":        "Recolectar gemas",
 		# Gemas
 		"gems_collected":   gems_collected,
 		"normal_gems":      normal_gems,
@@ -225,6 +272,13 @@ func finish_session() -> void:
 	print("Puntuación: ", score, " | Precisión: ", accuracy, "% | Tiempo: ", elapsed, "s")
 	print("Movimientos: ", movements_summary)
 	emit_signal("session_finished", results)
+	
+	# ⭐ RESETEAR IDs para evitar auto-inicio en próxima escena
+	print("[GameManager] 🧹 Reseteando IDs de sesión...")
+	patient_id = ""
+	session_id = ""
+	patient_name = ""
+	print("[GameManager] ✅ IDs limpiados")
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -243,3 +297,30 @@ func get_remaining_time() -> float:
 func get_average_time_per_gem() -> float:
 	if gems_collected <= 0: return 0.0
 	return get_elapsed_time() / float(gems_collected)
+
+# ─── SISTEMA DE ENERGÍA ──────────────────────────────────────────────────────
+
+## Verificar si el jugador tiene suficiente energía para recolectar
+func has_energy_for_gem() -> bool:
+	return player_energy >= energy_cost_per_gem
+
+## Consumir energía al recolectar una gema
+func consume_energy() -> bool:
+	if player_energy >= energy_cost_per_gem:
+		player_energy -= energy_cost_per_gem
+		player_energy = max(0.0, player_energy)
+		print("[GameManager] ⚡ Energía consumida: -", energy_cost_per_gem, " → Restante: ", player_energy)
+		emit_signal("energy_changed", player_energy, max_energy)
+		return true
+	return false
+
+## Recargar energía (llamar cuando el jugador hace movimiento de flexión/relajación)
+func recharge_energy(delta: float) -> void:
+	if player_energy < max_energy:
+		player_energy += energy_recharge_rate * delta
+		player_energy = min(max_energy, player_energy)
+		emit_signal("energy_changed", player_energy, max_energy)
+
+## Obtener porcentaje de energía actual
+func get_energy_percentage() -> float:
+	return (player_energy / max_energy) * 100.0

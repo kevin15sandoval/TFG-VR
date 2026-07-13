@@ -1,0 +1,239 @@
+════════════════════════════════════════════════════════════════
+    COMANDOS ÚTILES - DESARROLLO Y DEBUGGING VR
+════════════════════════════════════════════════════════════════
+
+📱 COMANDOS ADB (Android Debug Bridge)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Verificar dispositivos conectados:
+  adb devices
+
+Instalar APK:
+  adb install -r TFG.apk
+
+Desinstalar app:
+  adb uninstall com.YourCompany.TFG
+
+Ver logs de Godot:
+  adb logcat -s godot:V
+
+Ver logs filtrados (solo headers):
+  adb logcat -s godot:V | findstr "═══"
+
+Limpiar logs anteriores:
+  adb logcat -c
+
+Guardar logs en archivo:
+  adb logcat -s godot:V > logs_vr.txt
+
+Ver solo errores:
+  adb logcat -s godot:E
+
+Ver logs de todo el sistema:
+  adb logcat
+
+Reiniciar ADB:
+  adb kill-server
+  adb start-server
+
+════════════════════════════════════════════════════════════════
+
+🔥 FIREBASE - COMANDOS ÚTILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Iniciar sesión en Firebase:
+  firebase login
+
+Desplegar hosting:
+  cd Plataforma_Clinica
+  npm run build
+  firebase deploy --only hosting
+
+Ver logs de Firebase:
+  firebase login
+  firebase projects:list
+
+Probar localmente:
+  cd Plataforma_Clinica
+  npm run dev
+
+════════════════════════════════════════════════════════════════
+
+🎮 GODOT - ATAJOS ÚTILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Exportar desde línea de comandos:
+  godot --export-release "Android" TFG.apk
+
+Ejecutar escena desde CMD:
+  godot --path . World.tscn
+
+Modo headless (sin ventana):
+  godot --headless --export-release "Android" TFG.apk
+
+Ver versión:
+  godot --version
+
+════════════════════════════════════════════════════════════════
+
+🔍 DEBUGGING FIRESTORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+URL del documento sesión activa:
+  https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current
+
+Verificar documento con curl:
+  curl https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current
+
+Firebase Console:
+  https://console.firebase.google.com/project/tfg-vr
+
+Firestore Database:
+  https://console.firebase.google.com/project/tfg-vr/firestore
+
+════════════════════════════════════════════════════════════════
+
+🛠️ TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ Problema: "adb no reconocido como comando"
+Solución:
+  1. Descarga Android Platform Tools:
+     https://developer.android.com/tools/releases/platform-tools
+  2. Extrae el ZIP
+  3. Agrega la carpeta al PATH de Windows
+  4. Reinicia CMD/PowerShell
+
+⚠️ Problema: "device offline" o "unauthorized"
+Solución:
+  1. En las gafas: Settings → Developer → USB Debugging → Allow
+  2. Acepta el diálogo que aparece en las gafas
+  3. Ejecuta: adb kill-server && adb start-server
+
+⚠️ Problema: No se ven logs
+Solución:
+  1. Verifica que las gafas están conectadas: adb devices
+  2. Asegúrate de que la app está abierta en las gafas
+  3. Prueba: adb logcat (sin filtros)
+  4. Si ves logs, filtra: adb logcat -s godot:V
+
+⚠️ Problema: APK no se instala
+Solución:
+  1. Desinstala versión anterior: adb uninstall com.YourCompany.TFG
+  2. Vuelve a instalar: adb install -r TFG.apk
+  3. Verifica que el APK no esté corrupto (re-exporta desde Godot)
+
+⚠️ Problema: La app no aparece en las gafas
+Solución:
+  1. Ve a: Settings → Apps
+  2. Busca "TFG" o el nombre de tu app
+  3. Si no está, reinstala el APK
+  4. Si está, ábrela desde "Unknown Sources"
+
+════════════════════════════════════════════════════════════════
+
+📊 VERIFICAR ESTADO DEL SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Verificar portal web está online:
+   https://tfg-vr.web.app
+
+2. Verificar Firestore tiene datos:
+   Firebase Console → Firestore → sesion_activa
+
+3. Verificar gafas conectadas:
+   adb devices
+   (debe mostrar un dispositivo)
+
+4. Verificar app instalada:
+   adb shell pm list packages | findstr tfg
+   (debe aparecer tu package name)
+
+5. Verificar logs en tiempo real:
+   adb logcat -s godot:V
+   (debe mostrar logs al abrir la app)
+
+════════════════════════════════════════════════════════════════
+
+🎯 WORKFLOW TÍPICO DE DESARROLLO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Hacer cambios en Godot
+
+2. Exportar APK:
+   Project → Export → Export Project
+
+3. Instalar en gafas:
+   adb install -r TFG.apk
+
+4. Iniciar logs:
+   adb logcat -s godot:V
+
+5. Abrir app en gafas y probar
+
+6. Observar logs en PC
+
+7. Si hay bugs, volver al paso 1
+
+════════════════════════════════════════════════════════════════
+
+💡 TIPS PRO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Usa doble-click en los archivos .bat para automatizar
+
+• Mantén una ventana con logs siempre abierta durante desarrollo
+
+• Guarda logs importantes en archivos de texto:
+  adb logcat -s godot:V > logs_bug_fecha.txt
+
+• Usa grep/findstr para buscar en logs:
+  adb logcat -s godot:V | findstr "ERROR"
+
+• Para ver solo tu output de print():
+  adb logcat -s godot:V | findstr "[VR]"
+  adb logcat -s godot:V | findstr "[Firebase]"
+  adb logcat -s godot:V | findstr "[Spawner]"
+
+• Limpia logs antes de probar algo nuevo:
+  adb logcat -c
+
+• Si los logs van muy rápido, redirige a archivo y lee después
+
+════════════════════════════════════════════════════════════════
+
+📁 ESTRUCTURA DE ARCHIVOS .BAT CREADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+instalar_y_ver_logs.bat
+  → Instala APK y muestra logs automáticamente
+  → Úsalo cuando exportes un nuevo APK
+
+ver_logs_vr.bat
+  → Solo muestra logs (no instala)
+  → Úsalo cuando el APK ya está instalado
+
+════════════════════════════════════════════════════════════════
+
+🔗 LINKS ÚTILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Portal web:
+  https://tfg-vr.web.app
+
+Firebase Console:
+  https://console.firebase.google.com/project/tfg-vr
+
+GitHub Repo:
+  https://github.com/kevin15sandoval/TFG-VR.git
+
+Godot Docs (OpenXR):
+  https://docs.godotengine.org/en/stable/tutorials/xr/
+
+Meta Quest Developer:
+  https://developer.oculus.com
+
+Android Platform Tools:
+  https://developer.android.com/tools/releases/platform-tools
+
+════════════════════════════════════════════════════════════════

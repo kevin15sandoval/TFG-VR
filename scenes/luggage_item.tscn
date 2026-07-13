@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://da8f5f1d906879a6"]
+
+[ext_resource type="Script" path="res://scenes/luggage_item.gd" id="1"]
+
+[node name="LuggageItem" type="RigidBody3D"]
+script = ExtResource("1")
+luggage_id = 0
+luggage_type = "green"
+weight = 5.0
+points = 10
+target_zone = "green"

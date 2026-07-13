@@ -1,0 +1,660 @@
+﻿function ConnectDeviceScreen({ config, patients, onSessionSent, onBack }: {
+  config: SessionConfig; patients: Patient[];
+  onSessionSent: (sessionId: string) => void; onBack: () => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "sending" | "ready" | "playing" | "error">("idle");
+  const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  const patient = patients.find(p => p.id === config.patientId);
+  const game = MINIGAMES.find(g => g.id === config.selectedGame);
+
+  // Escuchar cuando VR guarde los resultados en Firestore
+  useEffect(() => {
+    // Solo activar listener cuando se haya enviado la sesiÃ³n
+    if (!currentSessionId) return;
+    
+    console.log("[Web] ðŸ‘€ Escuchando resultados de sesiÃ³n:", currentSessionId);
+    
+    const q = query(
+      collection(db, "sesiones"),
+      where("sessionId", "==", currentSessionId),
+      limit(1)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const sessionData = snapshot.docs[0].data();
+        console.log("[Web] âœ… Resultados detectados desde VR:", sessionData);
+        console.log("[Web] ðŸ“Š Datos recibidos:", {
+          score: sessionData.score,
+          accuracy: sessionData.accuracy,
+          duration: sessionData.duration,
+          patientName: sessionData.patientName
+        });
+        setStatus("playing");
+        // Navegar automÃ¡ticamente a resultados despuÃ©s de 1 segundo
+        setTimeout(() => {
+          onSessionSent(currentSessionId);
+        }, 1000);
+      }
+    });
+    
+    return () => {
+      console.log("[Web] ðŸ”Œ Desconectando listener de resultados");
+      unsubscribe();
+    };
+  }, [currentSessionId, onSessionSent]);
+
+  async function handleSend() {
+    if (!patient) return;
+    setStatus("sending");
+    const sessionId = `session_${Date.now()}`;
+    setCurrentSessionId(sessionId);
+    try {
+      await publishActiveSession(config, patient, sessionId);
+      setStatus("ready");
+      console.log("[Web] ðŸ“¤ SesiÃ³n enviada con ID:", sessionId);
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="p-6 md:p-8 max-w-2xl mx-auto">
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={onBack} className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors text-slate-500">
+          <ArrowLeft size={16} />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Iniciar sesiÃ³n en Meta Quest 3</h1>
+          <p className="text-slate-500 text-sm">EnvÃ­a la sesiÃ³n a las gafas para comenzar</p>
+        </div>
+      </div>
+
+      {/* Resumen */}
+      {patient && game && (
+        <Card className="p-5 mb-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <AvatarIcon initials={patient.initials} colorIdx={patient.colorIdx} />
+            <div className="flex-1">
+              <div className="font-bold text-slate-800 text-sm">{patient.name}</div>
+              <div className="text-xs text-slate-400">{patient.diagnosis}</div>
+            </div>
+            <div className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold", game.bg, game.border)}>
+              <game.Icon size={13} className={game.iconColor} /> {game.name}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Badge color="blue">{config.duration} min</Badge>
+              <Badge color="amber">{config.difficulty}</Badge>
+              <Badge color={config.therapySide === "Izquierdo" ? "blue" : config.therapySide === "Derecho" ? "purple" : "amber"}>{config.therapySide}</Badge>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Estado */}
+      <Card className="p-8 text-center mb-6">
+        {status === "idle" && (
+          <div className="py-2">
+            <div className="w-20 h-20 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-4">
+              <Headset size={36} className="text-violet-600" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Listo para enviar</h3>
+            <p className="text-sm text-slate-500 mb-1">AsegÃºrate de que las gafas estÃ¡n encendidas</p>
+            <p className="text-xs text-slate-400">y la app NeuroVR Rehab estÃ¡ abierta</p>
+          </div>
+        )}
+        {status === "sending" && (
+          <div className="py-4">
+            <Loader2 size={36} className="animate-spin text-blue-500 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-600">Enviando sesiÃ³n a las gafas...</p>
+          </div>
+        )}
+        {status === "ready" && (
+          <div className="py-2">
+            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <Activity size={36} className="text-blue-600 animate-pulse" />
+            </div>
+            <h3 className="text-lg font-bold text-blue-700 mb-2">El paciente estÃ¡ jugando</h3>
+            <p className="text-sm text-slate-500">Esperando resultados de la sesiÃ³n...</p>
+            <p className="text-xs text-slate-400 mt-1">Los resultados aparecerÃ¡n automÃ¡ticamente al terminar</p>
+          </div>
+        )}
+        {status === "playing" && (
+          <div className="py-2">
+            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <Loader2 size={36} className="text-blue-600 animate-spin" />
+            </div>
+            <h3 className="text-lg font-bold text-blue-700 mb-2">Â¡SesiÃ³n completada!</h3>
+            <p className="text-sm text-slate-500">Cargando resultados...</p>
+          </div>
+        )}
+        {status === "error" && (
+          <div className="py-4">
+            <X size={36} className="text-rose-500 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-rose-600">Error al enviar la sesiÃ³n</p>
+            <p className="text-xs text-slate-400 mt-1">Comprueba tu conexiÃ³n e intÃ©ntalo de nuevo</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Instrucciones */}
+      <Card className="p-5 mb-6">
+        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+          <Headset size={15} className="text-violet-500" /> Pasos para iniciar
+        </h3>
+        <div className="space-y-2">
+          {[
+            "1. Enciende las gafas Meta Quest 3",
+            "2. Abre la app NeuroVR Rehab en las gafas",
+            "3. Pulsa el botÃ³n de abajo para enviar la sesiÃ³n",
+            "4. El juego arrancarÃ¡ automÃ¡ticamente en las gafas",
+            "5. Los resultados aparecerÃ¡n aquÃ­ cuando el paciente termine",
+          ].map(step => (
+            <div key={step} className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              {step}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {status === "idle" && (
+        <button onClick={handleSend}
+          className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-300/40 transition-all">
+          <Headset size={18} /> Enviar sesiÃ³n a las gafas <ArrowRight size={16} />
+        </button>
+      )}
+      {status === "sending" && (
+        <div className="w-full py-4 rounded-xl bg-blue-100 text-blue-600 text-sm font-semibold flex items-center justify-center gap-2">
+          <Loader2 size={16} className="animate-spin" /> Enviando...
+        </div>
+      )}
+      {status === "error" && (
+        <button onClick={() => setStatus("idle")}
+          className="w-full py-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-all">
+          <RotateCcw size={16} /> Reintentar
+        </button>
+      )}
+      {status === "ready" && (
+        <div className="space-y-3">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold flex items-center gap-2">
+            <Activity size={16} className="animate-pulse" /> El paciente estÃ¡ jugando â€” Los resultados aparecerÃ¡n automÃ¡ticamente
+          </div>
+        </div>
+      )}
+      {status === "playing" && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 font-semibold flex items-center gap-2">
+          <Loader2 size={16} className="animate-spin" /> Cargando resultados...
+        </div>
+      )}
+    </div>
+  );
+}
+
+// â”€â”€â”€ SCREEN: MINIGAMES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function MinigamesScreen({ onStartSession, onViewSpec }: { 
+  onStartSession: (gameId: string) => void;
+  onViewSpec: (gameId: string) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-7">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">CatÃ¡logo de minijuegos</h1>
+          <p className="text-slate-500 text-sm mt-1">Ejercicios terapÃ©uticos diseÃ±ados para rehabilitaciÃ³n de ictus en VR</p>
+        </div>
+        <button onClick={() => onStartSession("")} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-blue-200 transition-all cursor-pointer">
+          <Plus size={15} /> Nueva sesiÃ³n
+        </button>
+      </div>
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+        {MINIGAMES.map(g => {
+          const hasSpec = GAME_SPECIFICATIONS[g.id];
+          return (
+            <Card key={g.id} className={cx("overflow-hidden hover:shadow-md transition-shadow duration-200", selected === g.id ? "ring-2 ring-blue-500" : "")}>
+              <div className={cx("h-2 w-full", g.iconBg)} />
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className={cx("w-12 h-12 rounded-xl flex items-center justify-center", g.iconBg)}><g.Icon size={24} className={g.iconColor} /></div>
+                  <Badge color={g.diffColor as "amber" | "red" | "green"}>Dificultad {g.difficulty}</Badge>
+                </div>
+                <h3 className="font-bold text-slate-800 mb-1.5">{g.name}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed mb-4">{g.description}</p>
+                <div className="bg-slate-50 rounded-lg px-3 py-2 mb-4">
+                  <p className="text-xs text-slate-400 font-medium mb-0.5">Ãrea terapÃ©utica</p>
+                  <p className="text-xs font-semibold text-slate-700">{g.area}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setSelected(g.id === selected ? null : g.id)}
+                    className={cx("flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer", 
+                      selected === g.id ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600")}>
+                    {selected === g.id ? "âœ“ Seleccionado" : "Seleccionar"}
+                  </button>
+                  {hasSpec && (
+                    <button 
+                      onClick={() => onViewSpec(g.id)}
+                      className="px-3 py-2.5 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer transition-all"
+                      title="Ver especificaciones clÃ­nicas"
+                    >
+                      <Eye size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      {selected && (
+        <div className="mt-6 p-5 bg-blue-50 border-2 border-blue-200 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={20} className="text-blue-600" />
+            <div>
+              <p className="text-sm font-bold text-slate-800">{MINIGAMES.find(g => g.id === selected)?.name} seleccionado</p>
+              <p className="text-xs text-slate-500">Configura la sesiÃ³n para iniciar el ejercicio</p>
+            </div>
+          </div>
+          <button onClick={() => onStartSession(selected)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-blue-200 transition-all cursor-pointer">
+            <Headset size={16} /> Configurar sesiÃ³n
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// â”€â”€â”€ SCREEN: RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function ResultsScreen({ config, patients, onNewSession, onSave }: {
+  config: SessionConfig; patients: Patient[];
+  onNewSession: () => void; onSave: () => void;
+}) {
+  const patient = patients.find(p => p.id === config.patientId) ?? patients[0];
+  const game = MINIGAMES.find(g => g.id === config.selectedGame) ?? MINIGAMES[0];
+  const historyData = HISTORY_CHART_BY_PATIENT[patient?.id ?? 1] ?? [];
+
+  // Simulated results based on difficulty
+  const baseScore = config.difficulty === "FÃ¡cil" ? 3500 : config.difficulty === "Media" ? 6000 : 8500;
+  const simulatedScore = baseScore + Math.floor(config.duration * 120);
+  const simulatedAccuracy = config.difficulty === "FÃ¡cil" ? 75 : config.difficulty === "Media" ? 82 : 70;
+
+  const chartData = [...historyData.slice(-4), { s: "Hoy", score: simulatedScore }];
+
+  const gems = { normal: 28, dorada: 12, roja_evitada: 8, roja_tocada: 2, verde: 5, morada: 2 };
+  const totalCollected = gems.normal + gems.dorada + gems.verde + gems.morada;
+  const gemTypes = [
+    { label: "Gemas normales", value: gems.normal, color: "bg-blue-400", textColor: "text-blue-600" },
+    { label: "Gemas doradas", value: gems.dorada, color: "bg-amber-400", textColor: "text-amber-600" },
+    { label: "Gemas verdes", value: gems.verde, color: "bg-emerald-400", textColor: "text-emerald-600" },
+    { label: "Gemas moradas", value: gems.morada, color: "bg-violet-400", textColor: "text-violet-600" },
+    { label: "Rojas evitadas âœ“", value: gems.roja_evitada, color: "bg-emerald-300", textColor: "text-emerald-600" },
+    { label: "Rojas tocadas âœ—", value: gems.roja_tocada, color: "bg-rose-400", textColor: "text-rose-600" },
+  ];
+
+  return (
+    <div className="p-6 md:p-8 max-w-5xl mx-auto">
+      <div className="mb-7 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1"><CheckCircle size={18} className="text-emerald-500" /><span className="text-sm font-semibold text-emerald-600 uppercase tracking-wide">SesiÃ³n completada</span></div>
+          <h1 className="text-2xl font-bold text-slate-800">Resultados de sesiÃ³n</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{patient?.name ?? "â€”"} Â· {game?.name ?? "â€”"} Â· {config.duration} min</p>
+        </div>
+        <div className="text-right">
+          <div className="text-4xl font-black text-slate-800 font-mono">{simulatedScore.toLocaleString()}</div>
+          <div className="text-xs text-slate-400 font-medium uppercase tracking-wide">PuntuaciÃ³n final</div>
+        </div>
+      </div>
+      <div className="grid lg:grid-cols-3 gap-5 mb-6">
+        <Card className="lg:col-span-2 p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Gem size={15} className="text-blue-500" /> Desglose de gemas</h2>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {gemTypes.map(g => (
+              <div key={g.label} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                <div className={cx("w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm", g.color)}>{g.value}</div>
+                <span className={cx("text-xs font-semibold", g.textColor)}>{g.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+            <span className="text-sm text-slate-500 font-medium">Total recolectadas</span>
+            <span className="text-lg font-black text-slate-800 font-mono">{totalCollected}</span>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><BarChart3 size={15} className="text-violet-500" /> MÃ©tricas de sesiÃ³n</h2>
+          <div className="space-y-3">
+            {[
+              { label: "Tiempo total", value: `${config.duration}:00`, Icon: Timer },
+              { label: "Tiempo/objetivo", value: "6.4 s", Icon: Crosshair },
+              { label: "Lado trabajado", value: config.therapySide, Icon: Hand },
+              { label: "Dificultad", value: config.difficulty, Icon: Zap },
+              { label: "Tipo", value: config.sessionType, Icon: Target },
+              { label: "PrecisiÃ³n", value: `${simulatedAccuracy}%`, Icon: Award },
+            ].map(({ label, value, Icon }) => (
+              <div key={label} className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-400"><Icon size={12} /> {label}</div>
+                <span className="text-xs font-bold text-slate-700">{value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      <Card className="p-5 mb-6">
+        <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><TrendingUp size={15} className="text-emerald-500" /> EvoluciÃ³n reciente del paciente</h2>
+        <div className="h-44">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5FB" />
+              <XAxis dataKey="s" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={50} />
+              <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", fontSize: "12px" }} labelStyle={{ fontWeight: "bold", color: "#1E293B" }} />
+              <Area type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5} fill="url(#sg)" dot={{ fill: "#3B82F6", r: 4 }} activeDot={{ r: 6 }} name="PuntuaciÃ³n" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <div className="flex items-center gap-3 justify-end">
+        <button onClick={onNewSession} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"><RotateCcw size={14} /> Nueva sesiÃ³n</button>
+        <button onClick={onSave} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-emerald-200 transition-all cursor-pointer"><Download size={15} /> Guardar sesiÃ³n</button>
+      </div>
+    </div>
+  );
+}
+
+// â”€â”€â”€ SCREEN: HISTORY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: SessionRecord[] }) {
+  const [activePatientId, setActivePatientId] = useState(patients[0]?.id ?? 1);
+  const [filterDate, setFilterDate] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+
+  const patient = patients.find(p => p.id === activePatientId) ?? patients[0];
+  const patientSessions = useMemo(() => sessions.filter(s => s.patientId === activePatientId), [sessions, activePatientId]);
+
+  const filteredSessions = useMemo(() => {
+    if (filterDate === "all") return patientSessions;
+    const now = new Date("2026-06-22");
+    const cutoff = new Date(now);
+    if (filterDate === "week") cutoff.setDate(now.getDate() - 7);
+    else cutoff.setMonth(now.getMonth() - 1);
+    return patientSessions;
+  }, [patientSessions, filterDate]);
+
+  const pagSessions = usePagination(filteredSessions, 10);
+  const pagPatients = usePagination(patients, 25);
+
+  const chartData = HISTORY_CHART_BY_PATIENT[activePatientId] ?? [];
+  const bestScore = patientSessions.length ? Math.max(...patientSessions.map(s => s.score)) : 0;
+  const avgAccuracy = patientSessions.length ? Math.round(patientSessions.reduce((a, s) => a + s.accuracy, 0) / patientSessions.length) : 0;
+
+  if (!patient) return <div className="p-8 text-center text-slate-400">No hay pacientes registrados</div>;
+
+  const metrics = [
+    { label: "Mejor puntuaciÃ³n", value: bestScore ? bestScore.toLocaleString() : "â€”", Icon: Trophy, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "PrecisiÃ³n media", value: patientSessions.length ? `${avgAccuracy}%` : "â€”", Icon: Award, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Total sesiones", value: String(patientSessions.length), Icon: Activity, color: "text-violet-600", bg: "bg-violet-50" },
+    { label: "Progreso global", value: `${patient.progress}%`, Icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
+  ];
+
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-7">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Historial de paciente</h1>
+          <p className="text-slate-500 text-sm mt-1">EvoluciÃ³n clÃ­nica y registro de sesiones</p>
+        </div>
+        <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+          <Download size={14} /> Exportar PDF
+        </button>
+      </div>
+      <Card className="p-4 mb-6">
+        <div className="flex items-center gap-2 flex-wrap">
+          {pagPatients.paged.map(p => (
+            <button key={p.id} onClick={() => setActivePatientId(p.id)}
+              className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer", activePatientId === p.id ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-600 hover:border-blue-200")}>
+              <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} size="sm" />
+              {p.name.split(" ")[0]} {p.name.split(" ")[1]}
+            </button>
+          ))}
+        </div>
+        {patients.length > pagPatients.pageSize && <Paginacion {...pagPatients} />}
+      </Card>
+      <Card className="p-5 mb-6">
+        <div className="flex items-center gap-4">
+          <AvatarIcon initials={patient.initials} colorIdx={patient.colorIdx} size="lg" />
+          <div className="flex-1">
+            <div className="font-bold text-slate-800 text-base">{patient.name}</div>
+            <div className="text-sm text-slate-400 mb-2">{patient.diagnosis} Â· {patient.age} aÃ±os Â· Lado: <strong>{patient.affectedSide}</strong></div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 max-w-xs"><ProgressBar value={patient.progress} colorClass="bg-emerald-500" /></div>
+              <span className="text-sm font-bold text-emerald-600">{patient.progress}% progreso global</span>
+            </div>
+          </div>
+          {patient.notes && <div className="hidden lg:block max-w-xs bg-slate-50 rounded-lg px-3 py-2"><p className="text-xs text-slate-400 font-medium mb-0.5">Notas</p><p className="text-xs text-slate-600">{patient.notes}</p></div>}
+        </div>
+      </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {metrics.map(m => (
+          <Card key={m.label} className="p-4 flex items-center gap-3">
+            <div className={cx("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", m.bg)}><m.Icon size={17} className={m.color} /></div>
+            <div><div className="text-lg font-black text-slate-800">{m.value}</div><div className="text-xs text-slate-400 font-medium leading-tight">{m.label}</div></div>
+          </Card>
+        ))}
+      </div>
+      {chartData.length > 0 && (
+        <Card className="p-5 mb-6">
+          <h2 className="text-sm font-bold text-slate-700 mb-5 flex items-center gap-2"><TrendingUp size={15} className="text-blue-500" /> EvoluciÃ³n de puntuaciÃ³n y precisiÃ³n</h2>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5FB" />
+                <XAxis dataKey="s" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="score" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={50} />
+                <YAxis yAxisId="prec" orientation="right" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} domain={[40, 100]} width={35} unit="%" />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", fontSize: "12px" }} labelStyle={{ fontWeight: "bold", color: "#1E293B" }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
+                <Line yAxisId="score" type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5} dot={{ fill: "#3B82F6", r: 3 }} activeDot={{ r: 5 }} name="PuntuaciÃ³n" />
+                <Line yAxisId="prec" type="monotone" dataKey="precision" stroke="#10B981" strokeWidth={2} strokeDasharray="5 3" dot={false} activeDot={{ r: 5 }} name="PrecisiÃ³n %" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
+      <Card>
+        <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Calendar size={14} className="text-slate-400" /> Registro de sesiones ({filteredSessions.length})</h2>
+          <div className="flex items-center gap-2">
+            <Filter size={13} className="text-slate-400" />
+            <select value={filterDate} onChange={e => setFilterDate(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer">
+              <option value="all">Todas las fechas</option>
+              <option value="week">Ãšltima semana</option>
+              <option value="month">Ãšltimo mes</option>
+            </select>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-50">
+                {["Fecha", "Ejercicio", "DuraciÃ³n", "Lado", "Dificultad", "PuntuaciÃ³n", "PrecisiÃ³n"].map(h => (
+                  <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredSessions.length === 0 && (
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400">No hay sesiones registradas para este paciente</td></tr>
+              )}
+              {pagSessions.paged.map(row => (
+                <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{row.duration} min</td>
+                  <td className="px-4 py-3"><Badge color={row.side === "Izquierdo" ? "blue" : row.side === "Derecho" ? "purple" : "amber"}>{row.side}</Badge></td>
+                  <td className="px-4 py-3"><Badge color={row.difficulty === "FÃ¡cil" ? "green" : row.difficulty === "Media" ? "amber" : "red"}>{row.difficulty}</Badge></td>
+                  <td className="px-4 py-3 text-xs font-bold text-slate-700 font-mono">{row.score.toLocaleString()}</td>
+                  <td className="px-4 py-3"><Badge color={row.accuracy >= 80 ? "green" : row.accuracy >= 65 ? "amber" : "red"}>{row.accuracy}%</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredSessions.length > 0 && <Paginacion {...pagSessions} />}
+      </Card>
+    </div>
+  );
+}
+
+// â”€â”€â”€ SCREEN: SETTINGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function SettingsScreen({ user }: { user: FirebaseUser }) {
+  const [notif, setNotif] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [autoSave, setAutoSave] = useState(true);
+  const [vrDevice, setVrDevice] = useState("Meta Quest 3");
+  const [therapistName, setTherapistName] = useState(user.displayName ?? "");
+  const [clinic, setClinic] = useState("Hospital Universitario La Paz");
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
+    <button onClick={() => onChange(!value)} className={cx("relative w-10 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0", value ? "bg-blue-600" : "bg-slate-200")}>
+      <span className={cx("absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all", value ? "left-5" : "left-1")} />
+    </button>
+  );
+
+  return (
+    <div className="p-6 md:p-8 max-w-2xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">ConfiguraciÃ³n</h1>
+        <p className="text-slate-500 text-sm mt-1">Preferencias del sistema y del perfil clÃ­nico</p>
+      </div>
+
+      <div className="space-y-5">
+        {/* Profile */}
+        <Card className="p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><User size={14} className="text-blue-500" /> Perfil del terapeuta</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block">Nombre completo</label>
+              <input value={therapistName} onChange={e => setTherapistName(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1 block">Centro clÃ­nico</label>
+              <input value={clinic} onChange={e => setClinic(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all" />
+            </div>
+          </div>
+        </Card>
+
+        {/* VR Device */}
+        <Card className="p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Monitor size={14} className="text-violet-500" /> Dispositivo VR</h2>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 mb-1 block">Modelo del headset</label>
+            <div className="relative">
+              <select value={vrDevice} onChange={e => setVrDevice(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white cursor-pointer appearance-none transition-all pr-8">
+                <option>Meta Quest 3</option>
+                <option>Meta Quest 3S</option>
+                <option>Meta Quest Pro</option>
+                <option>Meta Quest 2</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg">
+            <CheckCircle size={12} /> Dispositivo configurado y listo para conectar
+          </div>
+        </Card>
+
+        {/* Preferences */}
+        <Card className="p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Bell size={14} className="text-amber-500" /> Preferencias</h2>
+          <div className="space-y-4">
+            {[
+              { label: "Notificaciones de sesiÃ³n", desc: "Alertas antes de cada sesiÃ³n programada", value: notif, onChange: setNotif },
+              { label: "Guardado automÃ¡tico", desc: "Guardar resultados al finalizar cada sesiÃ³n", value: autoSave, onChange: setAutoSave },
+              { label: "Modo oscuro", desc: "Interfaz con fondo oscuro (prÃ³ximamente)", value: darkMode, onChange: setDarkMode },
+            ].map(item => (
+              <div key={item.label} className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold text-slate-700">{item.label}</div>
+                  <div className="text-xs text-slate-400">{item.desc}</div>
+                </div>
+                <Toggle value={item.value} onChange={item.onChange} />
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Security */}
+        <Card className="p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Lock size={14} className="text-slate-500" /> Seguridad</h2>
+          <button className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all">Cambiar contraseÃ±a</button>
+        </Card>
+
+        <div className="flex justify-end pt-2">
+          <button onClick={handleSave} className={cx("flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-md", saved ? "bg-emerald-500 text-white shadow-emerald-200" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200")}>
+            {saved ? <><CheckCircle size={15} /> Guardado</> : <><Save size={15} /> Guardar cambios</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// â”€â”€â”€ ROOT APP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+export default function App({ user }: { user: FirebaseUser }) {
+  const [screen, setScreen] = useState<Screen>("dashboard");
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingPatient, setPendingPatient] = useState<Patient | null>(null);
+  const [pendingGame, setPendingGame] = useState<string>("");
+  const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [profilePatient, setProfilePatient] = useState<Patient | null>(null);
+  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
+  const [selectedGameSpec, setSelectedGameSpec] = useState<string | null>(null);
+  const [editFromProfile, setEditFromProfile] = useState(false);
+
+  // â”€â”€ SuscripciÃ³n en tiempo real a Firestore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    // Seed datos iniciales si Firestore estÃ¡ vacÃ­o
+    seedIfEmpty(SEED_PATIENTS, SEED_SESSIONS).catch(console.error);
+
+    const unsubP = subscribePatients(data => { setPatients(data); setLoading(false); });
+    const unsubS = subscribeSessions(data => setSessions(data));
+    return () => { unsubP(); unsubS(); };
+  }, []);
+
+  function showToast(msg: string, type: "success" | "error" = "success") {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2500);
+  }
+
+  const navigate = useCallback((s: Screen) => {
+    if (s !== "new-session") { setPendingPatient(null); setPendingGame(""); }
+    setScreen(s);
+  }, []);
+
+  // â”€â”€ PATIENT CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  async function handleAddPatient(data: Omit<Patient, "id" | "sessions" | "lastSession" | "progress">) {
+    try {
+      await addPatient({ ...data, sessions: 0, lastSession: "Sin sesiones", progress: 0 });
+      showToast("Paciente aÃ±adido correctamente");
+    } catch { showToast("Error al aÃ±adir el paciente", "error"); }
