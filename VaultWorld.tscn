@@ -47,6 +47,12 @@ size = Vector3(10, 0.5, 10)
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(10, 0.5, 10)
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_lefthand"]
+radius = 0.1
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_righthand"]
+radius = 0.1
+
 [node name="VaultWorld" type="Node3D" unique_id=576968661]
 script = ExtResource("1")
 
@@ -87,9 +93,23 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
 tracker = &"left_hand"
 pose = &"grip"
 
+[node name="LeftHandBody" type="StaticBody3D" parent="XROrigin3D/LeftHand"]
+collision_layer = 2
+collision_mask = 4
+
+[node name="LeftHandShape" type="CollisionShape3D" parent="XROrigin3D/LeftHand/LeftHandBody"]
+shape = SubResource("SphereShape3D_lefthand")
+
 [node name="RightHand" type="XRController3D" parent="XROrigin3D" unique_id=1593874990]
 tracker = &"right_hand"
 pose = &"grip"
+
+[node name="RightHandBody" type="StaticBody3D" parent="XROrigin3D/RightHand"]
+collision_layer = 2
+collision_mask = 4
+
+[node name="RightHandShape" type="CollisionShape3D" parent="XROrigin3D/RightHand/RightHandBody"]
+shape = SubResource("SphereShape3D_righthand")
 
 [node name="Floor" type="StaticBody3D" parent="." unique_id=295950925]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
