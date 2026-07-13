@@ -2697,6 +2697,7 @@ export default function App({ user }: { user: FirebaseUser }) {
   const [pendingPatient, setPendingPatient] = useState<Patient | null>(null);
   const [pendingGame, setPendingGame] = useState<string>("");
   const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
+  const [lastSessionId, setLastSessionId] = useState<string>("");  // ← NUEVO: Para pasar a ResultsPage
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [profilePatient, setProfilePatient] = useState<Patient | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
@@ -2904,6 +2905,7 @@ export default function App({ user }: { user: FirebaseUser }) {
             patients={patients}
             onBack={() => setScreen("new-session")}
             onSessionSent={(sessionId) => {
+              setLastSessionId(sessionId);  // ← Guardar sessionId
               setLastConfig(c => ({ ...c }));
               showToast("Sesión enviada a las gafas ✓");
               setTimeout(() => setScreen("results"), 1500);
@@ -2914,6 +2916,7 @@ export default function App({ user }: { user: FirebaseUser }) {
           <ResultsPage 
             config={lastConfig} 
             patients={patients}
+            sessionId={lastSessionId}  // ← NUEVO: Pasar sessionId
             onNewSession={() => navigate("new-session")} 
             onSave={handleSaveSession} 
           />
