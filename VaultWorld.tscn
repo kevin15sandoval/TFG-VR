@@ -53,6 +53,9 @@ radius = 0.1
 [sub_resource type="SphereShape3D" id="SphereShape3D_righthand"]
 radius = 0.1
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_head"]
+radius = 0.15
+
 [node name="VaultWorld" type="Node3D" unique_id=576968661]
 script = ExtResource("1")
 
@@ -88,6 +91,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5)
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1021716999]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="HeadBody" type="StaticBody3D" parent="XROrigin3D/XRCamera3D"]
+collision_layer = 2
+collision_mask = 4
+
+[node name="HeadShape" type="CollisionShape3D" parent="XROrigin3D/XRCamera3D/HeadBody"]
+shape = SubResource("SphereShape3D_head")
 
 [node name="LeftHand" type="XRController3D" parent="XROrigin3D" unique_id=868091188]
 tracker = &"left_hand"
