@@ -600,7 +600,7 @@ func _on_game_finished(results: Dictionary) -> void:
 		firebase_manager.stop_polling()
 		print("[CityVR] ✅ Polling detenido")
 	
-	await get_tree().create_timer(3.0).timeout
+	await get_tree().create_timer(8.0).timeout
 	print("[CityVR] 🔄 Regresando al HubWorld...")
 	
 	# Regresar al HubWorld

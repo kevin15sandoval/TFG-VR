@@ -782,9 +782,9 @@ func _on_session_finished(results: Dictionary) -> void:
 	else:
 		print("[VR] ⚠️ Firebase Manager no existe, saltando limpieza")
 	
-	# Esperar 3 segundos antes de regresar
-	print("[VR] ⏱️ Esperando 3 segundos antes de regresar...")
-	await get_tree().create_timer(3.0).timeout
+	# Esperar 8 segundos antes de regresar (MÁS TIEMPO para propagación)
+	print("[VR] ⏱️ Esperando 8 segundos antes de regresar...")
+	await get_tree().create_timer(8.0).timeout
 	
 	# Regresar al HubWorld (igual que CityWorld)
 	print("[VR] 🔄 Regresando al HubWorld...")

@@ -104,12 +104,12 @@ func _setup_firebase_manager() -> void:
 	firebase_manager.config_error.connect(_on_config_error)
 	firebase_manager.new_session_detected.connect(_on_new_session_detected)
 	
-	# 🔥 CRÍTICO: Esperar 3 segundos antes de iniciar polling
-	# Esto da tiempo a que se complete el DELETE de sesión anterior
+	# 🔥 CRÍTICO: Esperar 10 segundos antes de iniciar polling
+	# Esto da tiempo SUFICIENTE a que se complete el DELETE de sesión anterior
 	# y evita que se vuelva a detectar la misma sesión
-	print("[Hub] ⏳ Esperando 3 segundos antes de iniciar polling...")
-	print("[Hub] (Permite que se complete el DELETE de sesión anterior)")
-	await get_tree().create_timer(3.0).timeout
+	print("[Hub] ⏳ Esperando 10 segundos antes de iniciar polling...")
+	print("[Hub] (Permite que se complete el DELETE + PROPAGACIÓN de sesión anterior)")
+	await get_tree().create_timer(10.0).timeout
 	
 	# Iniciar polling
 	firebase_manager.start_polling()
@@ -129,8 +129,8 @@ func _show_welcome_message() -> void:
 	
 	print("[Hub] 💬 Mensaje de bienvenida mostrado")
 	
-	# Después de 3 segundos (cuando inicie el polling), cambiar el mensaje
-	await get_tree().create_timer(3.0).timeout
+	# Después de 10 segundos (cuando inicie el polling), cambiar el mensaje
+	await get_tree().create_timer(10.0).timeout
 	
 	if info_label and waiting_mode:
 		info_label.text = "Esperando a que el fisioterapeuta inicie la sesión..."

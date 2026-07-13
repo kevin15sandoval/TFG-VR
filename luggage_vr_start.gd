@@ -427,7 +427,7 @@ func _on_game_finished(results: Dictionary) -> void:
 		firebase_manager.stop_polling()
 		print("[LuggageVR] ✅ Polling detenido")
 	
-	await get_tree().create_timer(3.0).timeout
+	await get_tree().create_timer(8.0).timeout
 	print("[LuggageVR] 🔄 Regresando al HubWorld...")
 	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
