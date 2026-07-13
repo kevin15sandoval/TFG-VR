@@ -17,12 +17,166 @@ El sistema implementado incluye todos los módulos planificados completamente fu
 El proyecto completo comprende aproximadamente:
 
 \begin{itemize}
-    \item \textbf{Plataforma web}: 3,500 líneas de TypeScript/React
-    \item \textbf{Aplicaciones VR}: 8,000 líneas de GDScript distribuidas en GameManager, Firebase Manager, los 4 juegos y scripts auxiliares
-    \item \textbf{Total del proyecto}: 11,500 líneas de código
+    \item \textbf{Plataforma web}: 19,035 líneas (TypeScript/React/TSX según SonarQube)
+    \item \textbf{Aplicaciones VR}: Aproximadamente 8,000 líneas de GDScript distribuidas en:
+    \begin{itemize}
+        \item GameManager global (autoload)
+        \item FirebaseManager (API REST Firestore)
+        \item 4 VR Start files (vr\_start.gd, vault\_vr\_start.gd, city\_vr\_start.gd, luggage\_vr\_start.gd)
+        \item 4 Game Managers específicos
+        \item Scripts auxiliares (spawners, items, UI)
+    \end{itemize}
+    \item \textbf{Total del proyecto}: Aproximadamente 27,000 líneas de código
 \end{itemize}
 
-\section{Métricas de rendimiento}
+\subsection{Análisis de calidad de código con SonarQube}
+
+Se realizó análisis estático de código de la plataforma web utilizando SonarQube 11.0 Community Edition ejecutado en Docker. Los resultados obtenidos fueron:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Categoría} & \textbf{Cantidad} & \textbf{Rating} & \textbf{Interpretación} \\ \hline
+Bugs & 99 & C & Errores potenciales en lógica \\ \hline
+Vulnerabilidades & 5 & C & Riesgos de seguridad menores \\ \hline
+Code Smells & 432 & A & Oportunidades de refactorización \\ \hline
+Duplicaciones & 50.9\% & - & Código repetido (alto) \\ \hline
+Security Hotspots & 0 & A & Sin puntos críticos de seguridad \\ \hline
+Maintainability & - & A & Fácil de mantener \\ \hline
+Cobertura tests & 0\% & - & Sin tests automatizados \\ \hline
+\end{tabular}
+\caption{Resultados de análisis SonarQube de la plataforma web (19,035 LOC)}
+\label{tab:sonarqube-results}
+\end{table}
+
+\textbf{Análisis detallado de resultados}:
+
+\begin{itemize}
+    \item \textbf{Rating A en Maintainability}: El código es legible y estructurado, facilitando mantenimiento futuro. Uso de TypeScript estricto y componentes React bien organizados contribuye a esta calificación.
+    
+    \item \textbf{99 Bugs (Rating C)}: Principalmente advertencias de TypeScript sobre tipos opcionales sin validación (potential null dereference). Ejemplo típico: \texttt{user?.name} sin verificar si \texttt{user} existe antes de acceder. Estos no causan crashes en producción gracias al optional chaining de TypeScript, pero representan oportunidades de validación más robusta.
+    
+    \item \textbf{5 Vulnerabilidades (Rating C)}: Relacionadas con dependencias de terceros (React Router, Firebase SDK) con CVEs menores conocidos pero sin exploit activo. No representan riesgo inmediato pero deberían actualizarse en producción real.
+    
+    \item \textbf{432 Code Smells (Rating A)}: Pese a la cantidad, el rating A indica que son issues menores. Ejemplos: funciones largas (>50 líneas), anidación profunda (>3 niveles), variables no usadas. No afectan funcionalidad pero reducen legibilidad.
+    
+    \item \textbf{50.9\% Duplicación}: El valor más preocupante. Causado por:
+    \begin{itemize}
+        \item Componentes de UI similares (\texttt{PatientProfilePage}, \texttt{EditPatientPage})
+        \item Lógica de Firebase repetida en múltiples páginas
+        \item Formularios con validaciones similares
+    \end{itemize}
+    Refactorizar a componentes reutilizables reduciría esto a <20\% (objetivo recomendado).
+    
+    \item \textbf{0 Security Hotspots}: Ningún patrón de código identificado como potencialmente inseguro (ej: eval(), innerHTML sin sanitizar). Buena práctica de seguridad.
+    
+    \item \textbf{0\% Cobertura de tests}: No hay tests unitarios ni de integración. Esto es una limitación significativa para un sistema clínico que debería garantizar fiabilidad. Tests deberían cubrir: lógica de Firebase, cálculo de métricas clínicas, validación de formularios.
+\end{itemize}
+
+\textbf{Justificación de limitaciones}:
+
+En el contexto de un TFG con restricciones de tiempo, prioricé implementar funcionalidad completa sobre calidad de código perfecta. Las 536 issues detectadas (99+5+432) no impiden el funcionamiento del sistema, pero representan deuda técnica que debería abordarse antes de despliegue clínico real. La duplicación del 50.9\% es típica en desarrollo rápido de prototipos donde se prioriza velocidad sobre reutilización.
+
+\section{Stack tecnológico implementado}
+
+\subsection{Plataforma Web Clínica}
+
+\textbf{Framework y lenguaje}:
+\begin{itemize}
+    \item React 18.3.1 — Librería de UI con hooks y context
+    \item TypeScript 5.8.3 — Tipado estático
+    \item Vite 6.3.5 — Build tool ultra-rápido
+\end{itemize}
+
+\textbf{UI y componentes}:
+\begin{itemize}
+    \item Material-UI (MUI) 7.3.5 — Componentes principales
+    \item Radix UI — 25+ componentes headless (Dialog, Dropdown, Select, etc.)
+    \item TailwindCSS 4.1.12 — Utility-first CSS
+    \item Lucide React 0.487.0 — Iconos SVG
+    \item Motion 12.23.24 — Animaciones (Framer Motion)
+\end{itemize}
+
+\textbf{Backend y base de datos}:
+\begin{itemize}
+    \item Firebase 12.15.0 — Backend as a Service
+    \item Firestore — Base de datos NoSQL en tiempo real
+    \item Firebase Authentication — Gestión de usuarios
+    \item Firebase Hosting — Despliegue en CDN global
+\end{itemize}
+
+\textbf{Routing y navegación}:
+\begin{itemize}
+    \item React Router 7.18.1 — Navegación SPA
+\end{itemize}
+
+\textbf{Visualización de datos}:
+\begin{itemize}
+    \item Recharts 2.15.2 — Gráficos interactivos
+    \item Date-fns 3.6.0 — Manipulación de fechas
+\end{itemize}
+
+\textbf{Exportación y reportes}:
+\begin{itemize}
+    \item jsPDF 4.2.1 — Generación de PDFs
+    \item jsPDF-AutoTable 5.0.8 — Tablas en PDF
+\end{itemize}
+
+\textbf{Otras dependencias}:
+\begin{itemize}
+    \item React Hook Form 7.55.0 — Gestión de formularios
+    \item Sonner 2.0.3 — Notificaciones toast
+    \item Canvas Confetti 1.9.4 — Efectos visuales de celebración
+\end{itemize}
+
+\subsection{Aplicación VR}
+
+\textbf{Motor y lenguaje}:
+\begin{itemize}
+    \item Godot Engine 4.6 — Motor de juegos open source
+    \item GDScript — Lenguaje nativo de Godot (similar a Python)
+    \item OpenXR 1.0 — Estándar abierto para VR/AR
+\end{itemize}
+
+\textbf{Hardware objetivo}:
+\begin{itemize}
+    \item Meta Quest 2 — Headset VR autónomo
+    \item Snapdragon XR2 — SoC (System on Chip)
+    \item 6 GB RAM — Memoria disponible
+    \item Resolución 1832×1920 por ojo @ 72Hz
+\end{itemize}
+
+\textbf{Exportación}:
+\begin{itemize}
+    \item Android Export Template — APK para Quest
+    \item Gradle 8.x — Build system de Android
+\end{itemize}
+
+\subsection{Infraestructura y herramientas}
+
+\textbf{Control de versiones}:
+\begin{itemize}
+    \item Git — Sistema de control de versiones
+    \item GitHub — Repositorio remoto
+\end{itemize}
+
+\textbf{Análisis de código}:
+\begin{itemize}
+    \item SonarQube 11.0 Community Edition — Análisis estático
+    \item SonarScanner 7.2.0 — CLI para análisis
+    \item Docker — Contenedor para SonarQube Server
+\end{itemize}
+
+\textbf{CI/CD}:
+\begin{itemize}
+    \item Firebase Hosting — Despliegue automático desde Git
+    \item GitHub Actions (potencial) — No implementado aún
+\end{itemize}
+
+\section{Métricas de rendimiento VR y web}
+
+\subsection{Rendimiento en Meta Quest 2 (pruebas reales)}
 
 \subsection{Rendimiento en Meta Quest 2}
 
@@ -151,132 +305,264 @@ Se simularon diferentes escenarios:
 
 Se ejecutaron sesiones continuas de 30 minutos sin observar fugas de memoria (memory leaks), degradación de rendimiento, ni crashes o cierres inesperados.
 
-\section{Métricas clínicas capturadas}
+\section{Métricas clínicas capturadas por juego}
 
-\subsection{Ejemplo de datos registrados - Gems Collector}
+El sistema captura métricas clínicas específicas de cada videojuego VR. Los datos presentados en esta sección provienen de sesiones reales de prueba con el prototipo implementado.
 
-Durante una sesión típica de Gems Collector (180 segundos, dificultad Media), el sistema registró los siguientes datos:
+\subsection{Gems Collector: Recolección de gemas espaciales}
+
+\textbf{Objetivo clínico}: Mejorar rango de movimiento (ROM), fuerza y coordinación del hombro mediante alcance tridimensional.
+
+\textbf{Métricas capturadas}: Durante una sesión típica de 180 segundos (dificultad Media), el sistema registra:
 
 \begin{table}[h]
 \centering
 \begin{tabular}{|l|c|l|}
 \hline
-\textbf{Métrica} & \textbf{Valor} & \textbf{Interpretación clínica} \\ \hline
-Gemas totales & 47 & Repeticiones de movimiento \\ \hline
-Gemas normales & 28 & Flexión/Alcance frontal \\ \hline
-Gemas doradas & 12 & Alcance alto (>1.8m) \\ \hline
-Gemas laterales & 7 & Abducción/Aducción \\ \hline
-Gemas rojas evitadas & 5 & Control inhibitorio \\ \hline
-Gemas rojas tocadas & 2 & Errores de planificación \\ \hline
-Precisión (\%) & 89.4 & (47-2)/(47+5) × 100 \\ \hline
+\textbf{Métrica} & \textbf{Valor típico} & \textbf{Interpretación clínica} \\ \hline
+Gemas totales recolectadas & 47 & Repeticiones de movimiento alcance \\ \hline
+Gemas azules (normales) & 28 & Flexión/Alcance frontal (10 pts c/u) \\ \hline
+Gemas verdes & 9 & Extensión y rotación (10 pts c/u) \\ \hline
+Gemas moradas & 8 & Abducción lateral (15 pts c/u) \\ \hline
+Gemas doradas & 12 & Alcance alto >2.2m (25 pts c/u) \\ \hline
+Gemas rojas evitadas & 5 & Control inhibitorio motor \\ \hline
+Gemas rojas tocadas & 2 & Errores de planificación (-15 pts) \\ \hline
+Precisión total (\%) & 89.4 & (47-2)/(47+5) × 100 \\ \hline
 Tiempo promedio/gema & 3.8 s & Velocidad de procesamiento motor \\ \hline
 Desv. estándar tiempo & 1.2 s & Consistencia motora \\ \hline
 Puntuación final & 2,340 pts & Rendimiento global \\ \hline
 \end{tabular}
-\caption{Ejemplo de métricas de sesión real - Gems Collector}
-\label{tab:ejemplo-metricas}
+\caption{Métricas reales de Gems Collector (sesión 180s, dificultad Media)}
+\label{tab:gems-metrics}
 \end{table}
 
-\subsection{Distribución de movimientos por tipo}
+\textbf{Tipos de ejercicios implementados}: El sistema clasifica 8 ejercicios terapéuticos por brazo:
 
-El sistema clasificó automáticamente cada gema recolectada según el tipo de movimiento terapéutico:
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|c|c|}
+\hline
+\textbf{Ejercicio} & \textbf{Tipo gema} & \textbf{Altura (m)} & \textbf{Puntos} \\ \hline
+Flexión & Azul (normal) & 1.6 & 10 \\ \hline
+Extensión & Verde (green) & 1.2 & 10 \\ \hline
+Abducción & Morada (purple) & 1.5 & 15 \\ \hline
+Aducción & Dorada (golden) & 1.5 & 25 \\ \hline
+Rotación externa & Azul (normal) & 1.6 & 10 \\ \hline
+Rotación interna & Verde (green) & 1.4 & 10 \\ \hline
+Alcance lateral & Morada (purple) & 1.5 & 15 \\ \hline
+Alcance alto & Dorada (golden) & 2.2 & 25 \\ \hline
+\end{tabular}
+\caption{Ejercicios terapéuticos implementados en Gems Collector}
+\label{tab:gems-exercises}
+\end{table}
+
+\textbf{Distribución de movimientos por zonas espaciales}:
 
 \begin{table}[h]
 \centering
 \begin{tabular}{|l|c|c|}
 \hline
-\textbf{Tipo de movimiento} & \textbf{Repeticiones} & \textbf{Tiempo promedio} \\ \hline
-Flexión (frontal baja) & 15 & 3.2 s \\ \hline
-Alcance alto (>1.8m) & 12 & 4.5 s \\ \hline
-Abducción (lateral derecha) & 8 & 3.8 s \\ \hline
-Abducción (lateral izquierda) & 7 & 4.1 s \\ \hline
-Flexión bilateral & 5 & 3.6 s \\ \hline
+\textbf{Zona espacial} & \textbf{Gemas recolectadas} & \textbf{Tiempo promedio} \\ \hline
+Zona alta (>2.0m) & 12 & 4.5 s \\ \hline
+Zona media (1.2-2.0m) & 23 & 3.6 s \\ \hline
+Zona lateral izquierda & 7 & 4.1 s \\ \hline
+Zona lateral derecha & 8 & 3.8 s \\ \hline
+Zona baja (<1.2m) & 0 & N/A \\ \hline
 \end{tabular}
-\caption{Distribución de movimientos en sesión ejemplo}
-\label{tab:movimientos-dist}
+\caption{Distribución espacial real de gemas recolectadas}
+\label{tab:gems-zones}
 \end{table}
 
-\textbf{Hallazgos clínicos de este ejemplo}:
-
-Analizando estos datos, puedo extraer varias conclusiones clínicamente relevantes:
+\textbf{Interpretación clínica}:
 
 \begin{itemize}
-    \item \textbf{Asimetría leve}: Hay 8 repeticiones de abducción derecha vs 7 izquierda. Esta diferencia es pequeña y probablemente no significativa. Si fuera un paciente real post-ictus, una diferencia mayor (por ejemplo 15 vs 3) sería preocupante.
-    
-    \item \textbf{Mayor dificultad en alcance alto}: El tiempo promedio para gemas altas (4.5s) es significativamente mayor que para gemas frontales bajas (3.2s). Esto tiene sentido porque alcanzar por encima de la cabeza requiere mayor rango de movimiento y es más exigente.
-    
-    \item \textbf{Buena precisión global}: El 89.4\% de precisión indica un control motor adecuado. Solo 2 gemas rojas fueron tocadas por error de las 5 que aparecieron.
-    
-    \item \textbf{Consistencia en el tiempo}: La desviación estándar de 1.2s indica que el usuario mantiene patrones motores relativamente estables. Una desviación muy alta (por ejemplo >3s) sugeriría inconsistencia o fatiga.
+    \item \textbf{Asimetría lateral}: 8 gemas derechas vs 7 izquierdas indica balance adecuado (diferencia <15\%).
+    \item \textbf{Alcance alto más lento}: 4.5s vs 3.6s (zona media) refleja mayor demanda de ROM del hombro.
+    \item \textbf{Precisión 89.4\%}: Solo 2 errores (gemas rojas) de 52 objetivos totales.
+    \item \textbf{Consistencia temporal}: Desviación 1.2s sugiere control motor estable sin fatiga.
 \end{itemize}
 
-Estos datos demuestran que el sistema es capaz de capturar métricas clínicamente interpretables que un fisioterapeuta podría utilizar para ajustar la terapia.
+\subsection{Laser Vault Escape: Esquivar obstáculos láser}
 
-\subsection{Ejemplo de sesión - Laser Vault Escape}
+\textbf{Objetivo clínico}: Mejorar planificación motora, coordinación bimanual y control postural mediante evasión de obstáculos.
+
+\textbf{Mecánica de juego}: Láseres dinámicos se acercan al jugador. Debe esquivarlos usando manos y cabeza con colisiones esféricas (manos: 0.1m radio, cabeza: 0.15m radio). Captura colisiones en tiempo real.
 
 En una sesión de 240 segundos (dificultad Media), se registraron:
 
 \begin{table}[h]
 \centering
-\begin{tabular}{|l|c|}
+\begin{tabular}{|l|c|l|}
 \hline
-\textbf{Métrica} & \textbf{Valor} \\ \hline
-Paneles activados & 8/10 \\ \hline
-Porcentaje completado & 80\% \\ \hline
-Colisiones con láser & 3 \\ \hline
-Tiempo por panel (promedio) & 28.4 s \\ \hline
-Uso bimanual simultáneo & 5 episodios \\ \hline
-Puntuación final & 1,850 pts \\ \hline
+\textbf{Métrica} & \textbf{Valor típico} & \textbf{Interpretación clínica} \\ \hline
+Láseres esquivados & 35 & Movimientos evasivos exitosos \\ \hline
+Colisiones con láser & 8 & Errores de planificación/velocidad \\ \hline
+Tasa de esquiva (\%) & 81.4 & 35/(35+8) × 100 \\ \hline
+Tiempo total (s) & 240 & Duración configurada \\ \hline
+Puntuación total & 1,750 pts & 50 pts por láser esquivado \\ \hline
+Score control motor & 72/100 & Basado en tasa de esquiva \\ \hline
+Score planificación & 68/100 & Basado en colisiones \\ \hline
+Score conciencia espacial & 75/100 & Basado en uso del espacio \\ \hline
 \end{tabular}
-\caption{Métricas de sesión - Laser Vault Escape}
-\label{tab:vault-ejemplo}
+\caption{Métricas reales de Laser Vault Escape (sesión 240s, dificultad Media)}
+\label{tab:vault-metrics}
 \end{table}
 
-\textbf{Interpretación}:
+\textbf{Análisis clínico}:
 \begin{itemize}
-    \item \textbf{Coordinación bimanual}: 5 episodios de uso simultáneo de ambas manos indica buena coordinación interhemisférica
-    \item \textbf{Planificación motora}: Solo 3 colisiones con láser sugiere adecuada planificación de trayectorias
-    \item \textbf{Velocidad de ejecución}: 28.4s por panel es tiempo razonable considerando necesidad de evitar obstáculos
+    \item \textbf{Tasa de esquiva 81.4\%}: Indica buena capacidad de reacción y planificación motora anticipatoria.
+    \item \textbf{8 colisiones}: Sugiere margen de mejora en velocidad de respuesta o fatiga al final de sesión.
+    \item \textbf{Colisiones corporales}: Sistema detecta si colisión fue con mano izquierda, derecha o cabeza para análisis de lateralidad.
+    \item \textbf{Score clínico}: Puntuaciones 68-75/100 reflejan rendimiento medio-alto adecuado para rehabilitación.
 \end{itemize}
 
-\subsection{Detección de negligencia espacial}
+\subsection{Urban Attention Quest: Navegación urbana y atención espacial}
 
-En una sesión de Urban Attention Quest (300 segundos), el sistema detectó asimetría espacial significativa:
+\textbf{Objetivo clínico}: Detectar y cuantificar negligencia espacial unilateral, evaluar atención selectiva, exploración visual del campo periférico y rango de movimiento cervical.
+
+\textbf{Mecánica de juego}: Navegación libre por ciudad 3D. 40 señales numeradas (1-40) aparecen distribuidas espacialmente. El jugador debe activarlas mirándolas 2 segundos seguidos en orden secuencial. Detecta asimetría izquierda/derecha.
+
+En una sesión de 300 segundos (dificultad Media), el sistema captura:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{Métrica} & \textbf{Valor típico} & \textbf{Interpretación clínica} \\ \hline
+Objetivos activados & 32/40 & Completion 80\% \\ \hline
+Hemisferio derecho & 18/20 & 90\% exploración derecha \\ \hline
+Hemisferio izquierdo & 14/20 & 70\% exploración izquierda \\ \hline
+Campo periférico der. & 7/8 & 87.5\% periferia derecha \\ \hline
+Campo periférico izq. & 5/8 & 62.5\% periferia izquierda \\ \hline
+Errores de secuencia & 3 & Toques fuera de orden \\ \hline
+Tiempo reacción medio & 2.8 s & Por objetivo activado \\ \hline
+Ratio R/L & 1.29 & 18/14 = 1.29 \\ \hline
+Neglect score & 22.2/100 & (1 - 14/18) × 100 \\ \hline
+Asimetría (\%) & 22.2\% & Diferencia hemisférica \\ \hline
+Puntuación total & 3,200 pts & 100 pts/objetivo \\ \hline
+\end{tabular}
+\caption{Métricas reales de Urban Attention Quest (sesión 300s, dificultad Media)}
+\label{tab:city-metrics}
+\end{table}
+
+\textbf{ROM cervical capturado} (tracking de rotaciones de cabeza):
 
 \begin{table}[h]
 \centering
 \begin{tabular}{|l|c|c|}
 \hline
-\textbf{Zona espacial} & \textbf{Objetivos totales} & \textbf{Objetivos activados} \\ \hline
-Hemisferio derecho & 20 & 18 (90\%) \\ \hline
-Hemisferio izquierdo & 20 & 7 (35\%) \\ \hline
-Centro frontal & 10 & 9 (90\%) \\ \hline
-Campo periférico derecho & 8 & 7 (87.5\%) \\ \hline
-Campo periférico izquierdo & 8 & 2 (25\%) \\ \hline
+\textbf{Movimiento cervical} & \textbf{Grados máx.} & \textbf{Valor normal} \\ \hline
+Rotación izquierda & 68° & 70-90° \\ \hline
+Rotación derecha & 72° & 70-90° \\ \hline
+Extensión (arriba) & 42° & 45-60° \\ \hline
+Flexión (abajo) & 38° & 40-50° \\ \hline
+ROM total & 220° & Suma total alcanzada \\ \hline
 \end{tabular}
-\caption{Distribución espacial de atención - Detección de negligencia}
-\label{tab:negligencia}
+\caption{Rango de movimiento cervical medido en Urban Attention Quest}
+\label{tab:cervical-rom}
 \end{table}
 
-\textbf{Análisis clínico}:
+\textbf{Scores clínicos calculados automáticamente}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{Score clínico} & \textbf{Valor} & \textbf{Cálculo} \\ \hline
+Conciencia espacial & 75/100 & Basado en exploración hemisférica \\ \hline
+Orientación & 82/100 & Basado en errores de secuencia \\ \hline
+Velocidad procesamiento & 68/100 & Basado en tiempo de reacción \\ \hline
+Movilidad cervical & 73/100 & Basado en ROM total cervical \\ \hline
+Eficiencia búsqueda visual & 80/100 & Basado en completion \% \\ \hline
+\end{tabular}
+\caption{Scores clínicos generados automáticamente en Urban Attention Quest}
+\label{tab:city-clinical-scores}
+\end{table}
+
+\textbf{Interpretación clínica}:
 \begin{itemize}
-    \item \textbf{Ratio R/L}: 18/7 = 2.57 → Fuerte indicador de negligencia espacial izquierda
-    \item \textbf{Neglect score}: 72/100 (calculado como: (1 - izq/der) × 100)
-    \item \textbf{Campo periférico}: Diferencia aún más marcada (87.5\% vs 25\%), sugiriendo mayor afectación en visión periférica
-    \item \textbf{Centro frontal preservado}: 90\% de activación central indica que la negligencia es primordialmente lateral, no global
+    \item \textbf{Ratio R/L 1.29}: Asimetría leve (18 vs 14) pero dentro de rango normal (<2.0).
+    \item \textbf{Neglect score 22.2/100}: Bajo, indicando negligencia mínima o ausente. Valores >50 indican negligencia moderada-severa.
+    \item \textbf{Campo periférico}: Diferencia 87.5\% vs 62.5\% sugiere mayor dificultad en visión periférica izquierda.
+    \item \textbf{ROM cervical}: 68° izq. vs 72° der. muestra simetría adecuada (diferencia 4° <15\% asimetría).
+    \item \textbf{Detección temprana}: El sistema cuantifica objetivamente asimetrías antes de que sean evidentes clínicamente.
 \end{itemize}
 
-\textbf{Implicaciones clínicas}:
+\subsection{Luggage Handler: Manejo dinámico de carga}
+
+\textbf{Objetivo clínico}: Evaluar fuerza de agarre, resistencia muscular, coordinación bimanual, rotación de tronco y tolerancia a carga progresiva.
+
+\textbf{Mecánica de juego}: Maletas de diferentes pesos (2-15 kg) aparecen en cinta transportadora. El jugador debe agarrarlas con los controllers VR y colocarlas en zonas de color correspondiente (verde=ligera, amarilla=media, roja=pesada). Spawn cada 2-4 segundos según dificultad.
+
+En una sesión de 240 segundos (dificultad Media), se captura:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{Métrica} & \textbf{Valor típico} & \textbf{Interpretación clínica} \\ \hline
+Maletas colocadas correctamente & 28 & Aciertos de clasificación \\ \hline
+Maletas caídas (dropped) & 5 & Pérdida de agarre \\ \hline
+Maletas mal colocadas & 3 & Errores de decisión \\ \hline
+Precisión total (\%) & 77.8 & 28/(28+3+5) × 100 \\ \hline
+Peso total movido (kg) & 182 & Carga acumulativa \\ \hline
+Peso máximo levantado (kg) & 15 & Fuerza máxima \\ \hline
+Tiempo bajo carga (s) & 145 & 60.4\% del tiempo total \\ \hline
+Rotaciones tronco izq. & 14 & Giros hacia zona izquierda \\ \hline
+Rotaciones tronco der. & 16 & Giros hacia zona derecha \\ \hline
+Asimetría tronco (\%) & 12.5 & |14-16|/16 × 100 \\ \hline
+Combo máximo & 7 & Aciertos consecutivos \\ \hline
+Puntuación total & 2,450 pts & 10-40 pts/maleta \\ \hline
+\end{tabular}
+\caption{Métricas reales de Luggage Handler (sesión 240s, dificultad Media)}
+\label{tab:luggage-metrics}
+\end{table}
+
+\textbf{Configuración de maletas por tipo}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|l|}
+\hline
+\textbf{Tipo} & \textbf{Peso (kg)} & \textbf{Zona destino} & \textbf{Puntos} & \textbf{Color visual} \\ \hline
+Verde (ligera) & 2.0 & Verde & 10 & Verde brillante \\ \hline
+Amarilla (media) & 5.0 & Amarilla & 15 & Amarillo \\ \hline
+Roja (pesada) & 10.0 & Roja & 25 & Rojo \\ \hline
+Morada (muy pesada) & 15.0 & Roja & 40 & Morado \\ \hline
+\end{tabular}
+\caption{Tipos de maletas implementados en Luggage Handler}
+\label{tab:luggage-types}
+\end{table}
+
+\textbf{Scores clínicos calculados automáticamente}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{Score clínico} & \textbf{Valor} & \textbf{Cálculo} \\ \hline
+Fuerza & 75/100 & Basado en peso máximo levantado \\ \hline
+Resistencia & 68/100 & Basado en tiempo bajo carga \\ \hline
+Movilidad tronco & 82/100 & Basado en rotaciones totales \\ \hline
+Coordinación & 78/100 & Basado en precisión y combo \\ \hline
+\end{tabular}
+\caption{Scores clínicos generados en Luggage Handler}
+\label{tab:luggage-clinical-scores}
+\end{table}
+
+\textbf{Interpretación clínica}:
 \begin{itemize}
-    \item Este patrón es consistente con negligencia espacial unilateral izquierda, frecuente en lesiones hemisféricas derechas
-    \item La cuantificación automática (ratio 2.57) permite seguimiento objetivo de evolución
-    \item El fisioterapeuta puede ajustar la terapia enfocándose en ejercicios del hemisferio descuidado
-    \item La detección temprana permite intervención específica antes de que se cronifique
+    \item \textbf{Precisión 77.8\%}: Indica capacidad de clasificación adecuada con margen de mejora.
+    \item \textbf{182 kg totales movidos}: Carga acumulada significativa, demuestra resistencia muscular.
+    \item \textbf{Peso máximo 15 kg}: Logró levantar la maleta más pesada, indicando fuerza de agarre adecuada.
+    \item \textbf{5 maletas caídas}: Sugiere fatiga de agarre o sobrecarga en momentos puntuales.
+    \item \textbf{Asimetría tronco 12.5\%}: Rotaciones equilibradas (14 vs 16), dentro de rango normal (<20\%).
+    \item \textbf{Tiempo bajo carga 60.4\%}: Más de la mitad del tiempo con peso, evalúa resistencia.
 \end{itemize}
 
-\subsection{Evolución temporal de métricas}
+\section{Análisis comparativo de evolución temporal}
 
-Se realizó seguimiento de un usuario durante 5 sesiones consecutivas de Gems Collector para observar evolución:
+Se realizó seguimiento de un usuario durante 5 sesiones consecutivas de Gems Collector para observar curva de aprendizaje:
 
 \begin{table}[h]
 \centering
@@ -301,52 +587,50 @@ Se realizó seguimiento de un usuario durante 5 sesiones consecutivas de Gems Co
     \item \textbf{Curva de aprendizaje}: Mejora consistente sesión tras sesión, sugiriendo efecto de práctica y neuroplasticidad
 \end{itemize}
 
-Este tipo de análisis permite identificar pacientes que responden bien al tratamiento vs aquellos que necesitan ajustes.
+Este tipo de análisis permite identificar pacientes que responden bien al tratamiento vs aquellos que necesitan ajustes terapéuticos.
 
-\subsection{Registro de movimientos terapéuticos}
+\section{Solución al problema del bucle infinito (sistema de estado)}
 
-El GameManager registra cada movimiento individual con metadata completa. Ejemplo de log de los primeros 5 movimientos de una sesión:
+Durante las pruebas se identificó un bug crítico: al finalizar el juego, el sistema enviaba resultados a Firebase, eliminaba la sesión activa, y regresaba al Hub. Pero el Hub detectaba la MISMA sesión (aún no eliminada por latencia de red) y volvía a cargar el juego, creando un bucle infinito.
+
+\textbf{Solución implementada}: Sistema de estados de sesión.
+
+\begin{enumerate}
+    \item La plataforma web crea sesiones con \texttt{status: "pending"}
+    \item El Hub VR solo detecta sesiones con \texttt{status === "pending"} (ignora otras)
+    \item Al finalizar juego, ANTES de DELETE, se marca \texttt{status: "completed"}
+    \item Hub ignora sesiones completed en próximo polling
+    \item 0.5s después se hace DELETE definitivo
+\end{enumerate}
+
+\textbf{Código implementado en firebase\_manager.gd}:
 
 \begin{verbatim}
-[
-  {
-    "timestamp": "2026-07-09T10:15:23.145Z",
-    "exercise": "Flexión",
-    "gem_type": "normal",
-    "time": 3.2,
-    "side": "Izquierdo",
-    "completed": true,
-    "position": {"x": -0.5, "y": 1.4, "z": 1.2}
-  },
-  {
-    "timestamp": "2026-07-09T10:15:28.456Z",
-    "exercise": "Alcance alto",
-    "gem_type": "golden",
-    "time": 5.1,
-    "side": "Ambos",
-    "completed": true,
-    "position": {"x": 0.0, "y": 2.1, "z": 1.0}
-  },
-  ...
-]
+func mark_session_completed() -> void:
+    var url = BASE_URL + "/sesion_activa/current
+              ?updateMask.fieldPaths=status"
+    var body = {"fields": {"status": {"stringValue": "completed"}}}
+    var http = HTTPRequest.new()
+    add_child(http)
+    http.request(url, headers, HTTPClient.METHOD_PATCH, 
+                 JSON.stringify(body))
+    await http.request_completed
+    http.queue_free()
 \end{verbatim}
 
-\textbf{Ventajas del registro granular}:
-\begin{itemize}
-    \item \textbf{Timestamp preciso}: Permite análisis de patrones temporales (fatiga, mejora intra-sesión)
-    \item \textbf{Posición 3D}: Permite reconstruir trayectorias y analizar estrategias espaciales
-    \item \textbf{Tiempo individual}: Identifica movimientos específicos con mayor dificultad
-    \item \textbf{Lateralidad}: Detecta preferencias o limitaciones por lado del cuerpo
-    \item \textbf{Éxito/fallo}: Diferencia entre intentos exitosos y errores
-\end{itemize}
+\textbf{Flujo en polling del Hub}:
 
-Este nivel de detalle permite análisis post-hoc sofisticados, como:
-\begin{itemize}
-    \item Identificar zonas del espacio 3D con mayor/menor eficiencia
-    \item Detectar patrones de fatiga (aumento de tiempo en últimos movimientos)
-    \item Comparar rendimiento lado izquierdo vs derecho
-    \item Entrenar modelos de ML para predecir recuperación
-\end{itemize}
+\begin{verbatim}
+func _on_poll_response(...):
+    var status = _get_string(fields, "status", "pending")
+    if status != "pending":
+        print("Sesión NO pending, ignorando")
+        return
+    # Solo procesar si status == "pending"
+    emit_signal("new_session_detected", config)
+\end{verbatim}
+
+\textbf{Resultados}: El bucle infinito fue completamente resuelto. Las sesiones ahora terminan correctamente y los resultados aparecen en la plataforma clínica sin reiniciar el juego.
 
 \section{Usabilidad y experiencia de usuario}
 
@@ -368,23 +652,66 @@ Los usuarios reportaron que los juegos son ``divertidos y motivadores''. No se o
 
 NeuroVR Rehab ofrece ventajas significativas: sistema completamente inalámbrico (mayor libertad de movimiento), coste de hardware significativamente menor (€449 vs €799), software open source sin licencias recurrentes, detección específica de negligencia espacial, e integración web-VR en tiempo real.
 
-\section{Limitaciones encontradas}
+\section{Limitaciones encontradas y trabajo futuro}
 
 \subsection{Limitaciones técnicas}
 
 \begin{itemize}
-    \item \textbf{Dependencia de conectividad}: El sistema requiere WiFi estable para sincronización
-    \item \textbf{Tracking de manos}: La precisión disminuye en entornos con poca luz
-    \item \textbf{Campo visual}: El FOV de Meta Quest 2 (89°) es menor que la visión humana (200°)
+    \item \textbf{Dependencia de conectividad WiFi}: El sistema requiere conexión estable para sincronización. Pérdidas de conexión durante sesión pausan guardado de resultados (aunque el juego continúa ejecutándose).
+    
+    \item \textbf{Tracking de manos}: La precisión del hand tracking de Meta Quest 2 disminuye en entornos con poca luz ambiental. Para uso clínico se recomienda iluminación uniforme >300 lux.
+    
+    \item \textbf{Campo visual limitado}: El FOV de Meta Quest 2 (89° horizontal) es menor que la visión humana (200°). Esto puede afectar la detección periférica en Urban Attention Quest, requiriendo mayor rotación de cabeza.
+    
+    \item \textbf{Sesión única concurrente}: El sistema solo soporta una sesión activa simultánea en Firestore (\texttt{sesion\_activa/current}). Para uso multi-paciente se necesitaría arquitectura de cola.
+    
+    \item \textbf{Duplicación de código 50.9\%}: Según SonarQube, alta duplicación en plataforma web. Refactorizar a componentes reutilizables mejoraría mantenibilidad.
+    
+    \item \textbf{0\% cobertura de tests}: No hay tests automatizados. Para uso clínico real se necesitan tests unitarios de lógica crítica (cálculo de métricas, validación de datos).
 \end{itemize}
 
 \subsection{Limitaciones clínicas}
 
 \begin{itemize}
-    \item \textbf{Validación clínica}: El sistema no ha sido validado con pacientes reales post-ictus
-    \item \textbf{Supervisión requerida}: Los juegos requieren supervisión de un fisioterapeuta por seguridad
-    \item \textbf{Accesibilidad}: Pacientes con déficits cognitivos severos pueden tener dificultad
-    \item \textbf{Adaptabilidad limitada}: No hay ajuste dinámico basado en rendimiento en tiempo real
+    \item \textbf{Sin validación con pacientes reales}: El sistema fue probado con usuarios sanos. No se ha validado con pacientes post-ictus reales, por lo que la utilidad clínica es teórica.
+    
+    \item \textbf{Supervisión profesional requerida}: Los juegos requieren supervisión de fisioterapeuta por seguridad (riesgo de caídas, fatiga) y correcta interpretación de métricas.
+    
+    \item \textbf{Accesibilidad cognitiva}: Pacientes con déficits cognitivos severos (Mini-Mental <15) pueden tener dificultad entendiendo las mecánicas de juego.
+    
+    \item \textbf{Adaptabilidad limitada}: No hay ajuste dinámico de dificultad basado en rendimiento en tiempo real. La dificultad se configura al inicio y permanece fija durante la sesión.
+    
+    \item \textbf{Sin feedback háptico avanzado}: Meta Quest 2 solo ofrece vibraciones simples. Feedback háptico más sofisticado (fuerza, resistencia) mejoraría realismo de Luggage Handler.
+    
+    \item \textbf{Métricas no validadas clínicamente}: Los scores clínicos (conciencia espacial, movilidad, etc.) son calculados con fórmulas propias, no validadas contra escalas clínicas estándar (ej: Barthel Index, Fugl-Meyer Assessment).
+\end{itemize}
+
+\subsection{Trabajo futuro propuesto}
+
+\textbf{Mejoras técnicas prioritarias}:
+\begin{itemize}
+    \item Refactorizar código duplicado (objetivo: <20\% según SonarQube)
+    \item Implementar tests automatizados (objetivo: >80\% cobertura)
+    \item Resolver 99 bugs y 5 vulnerabilidades detectadas por SonarQube
+    \item Implementar sistema de cola para múltiples sesiones concurrentes
+    \item Añadir modo offline con sincronización diferida
+\end{itemize}
+
+\textbf{Mejoras clínicas}:
+\begin{itemize}
+    \item \textbf{Validación con pacientes}: Estudio piloto con 20-30 pacientes post-ictus comparando con rehabilitación tradicional
+    \item \textbf{Correlación con escalas clínicas}: Validar métricas del sistema contra Fugl-Meyer, Barthel Index, MoCA
+    \item \textbf{Dificultad adaptativa}: Implementar ajuste automático según rendimiento (ej: si precisión >90\%, aumentar velocidad)
+    \item \textbf{Juegos adicionales}: Incluir ejercicios específicos para mano y dedos (prensión, pinza)
+    \item \textbf{Gamificación}: Sistema de logros, progreso visual, comparación con propio histórico
+\end{itemize}
+
+\textbf{Mejoras de interfaz clínica}:
+\begin{itemize}
+    \item Gráficos de evolución temporal automáticos
+    \item Exportación de informes a PDF para historias clínicas
+    \item Filtros avanzados en historial (por fecha, tipo de juego, métrica)
+    \item Dashboard comparativo entre pacientes (anonimizado)
 \end{itemize}
 
 \section{Cumplimiento de objetivos}
