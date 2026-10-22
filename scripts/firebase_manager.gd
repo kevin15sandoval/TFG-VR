@@ -29,6 +29,9 @@ var _poll_interval := 3.0  # Revisar cada 3 segundos
 var _last_session_id := ""  # Para detectar nuevas sesiones
 var _poll_timer := 0.0
 
+## Estado del último guardado: "ninguno", "pendiente", "confirmado", "error" o "rechazado" (sin identificadores)
+var estado_guardado := "ninguno"
+
 # ─── OBTENCIÓN / CREACIÓN DEL NODO ───────────────────────────────────────────
 
 ## Devuelve el nodo "FirebaseManager" hijo de `padre`. Si la escena no lo declara,
@@ -203,7 +206,19 @@ func _on_config_received(result: int, code: int, _headers, body: PackedByteArray
 
 # ─── GUARDAR RESULTADOS ───────────────────────────────────────────────────────
 
+## true solo si el servidor confirmó el último guardado
+func guardado_confirmado() -> bool:
+	return estado_guardado == "confirmado"
+
 func save_results(results: Dictionary) -> void:
+	# Validación defensiva: nunca enviar resultados que no se puedan asociar a un paciente y una sesión.
+	# El log no incluye identificadores ni datos personales.
+	if str(results.get("patient_id", "")).strip_edges() == "" or str(results.get("session_id", "")).strip_edges() == "":
+		estado_guardado = "rechazado"
+		print("[Firebase] ❌ Resultados sin identificador de paciente o de sesión: no se envían")
+		emit_signal("results_error", "identidad_incompleta")
+		return
+
 	var url = BASE_URL + "/" + COL_RESULTS
 	var headers = ["Content-Type: application/json"]
 	
@@ -250,8 +265,10 @@ func save_results(results: Dictionary) -> void:
 			_add_luggage_fields(body["fields"], results)
 	
 	var json_body = JSON.stringify(body)
+	estado_guardado = "pendiente"
 	var err = _http_save.request(url, headers, HTTPClient.METHOD_POST, json_body)
 	if err != OK:
+		estado_guardado = "error"
 		emit_signal("results_error", "Error al guardar resultados: " + str(err))
 
 func _add_gems_fields(fields: Dictionary, results: Dictionary) -> void:
@@ -371,8 +388,10 @@ func _on_results_saved(result: int, code: int, _headers, body: PackedByteArray) 
 	
 	if result == HTTPRequest.RESULT_SUCCESS and (code == 200 or code == 201):
 		print("[Firebase] ✅✅✅ RESULTADOS GUARDADOS EXITOSAMENTE EN FIRESTORE ✅✅✅")
+		estado_guardado = "confirmado"
 		emit_signal("results_saved")
 	else:
+		estado_guardado = "error"
 		print("[Firebase] ❌❌❌ ERROR AL GUARDAR RESULTADOS ❌❌❌")
 		print("[Firebase] Código HTTP: ", code)
 		print("[Firebase] Body completo: ", body.get_string_from_utf8())
