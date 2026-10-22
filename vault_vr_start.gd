@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const VRUI = preload("res://scripts/vr_ui.gd")
 var firebase_manager: Node = null
 var vault_manager: Node = null
 var waiting_mode := true
@@ -118,57 +119,19 @@ func _create_game_hud() -> void:
 	print("[VaultVR] 🎨 Creando HUD del juego...")
 	
 	# Score (arriba izquierda) - IGUAL QUE CITYWORLD
-	hud_score = Label3D.new()
-	hud_score.pixel_size = 0.002
-	hud_score.position = Vector3(-0.6, 0.4, -1.2)
-	hud_score.font_size = 48
-	hud_score.modulate = Color(1.0, 0.9, 0.0)
-	hud_score.outline_size = 6
-	hud_score.outline_modulate = Color.BLACK
-	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_score.visible = false
-	hud_score.text = "0 pts"
-	xr_camera.add_child(hud_score)
+	hud_score = VRUI.crear_label(xr_camera, Vector3(-0.6, 0.4, -1.2), 48, Color(1.0, 0.9, 0.0), 6, false, "0 pts")
 	print("[VaultVR]   ✅ Score HUD creado")
 	
 	# Timer (arriba derecha) - MÁS VISIBLE IGUAL QUE CITYWORLD
-	hud_timer = Label3D.new()
-	hud_timer.pixel_size = 0.002
-	hud_timer.position = Vector3(0.6, 0.4, -1.2)
-	hud_timer.font_size = 56  # MÁS GRANDE
-	hud_timer.modulate = Color(0.2, 1.0, 0.4)
-	hud_timer.outline_size = 8  # BORDE MÁS GRUESO
-	hud_timer.outline_modulate = Color.BLACK
-	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_timer.visible = false
-	hud_timer.text = "03:00"
-	xr_camera.add_child(hud_timer)
+	hud_timer = VRUI.crear_label(xr_camera, Vector3(0.6, 0.4, -1.2), 56, Color(0.2, 1.0, 0.4), 8, false, "03:00")
 	print("[VaultVR]   ✅ Timer HUD creado")
 	
 	# Instrucción (abajo centro) - IGUAL QUE CITYWORLD
-	hud_instruction = Label3D.new()
-	hud_instruction.pixel_size = 0.002
-	hud_instruction.position = Vector3(0, -0.3, -1.5)
-	hud_instruction.font_size = 32
-	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
-	hud_instruction.outline_size = 4
-	hud_instruction.outline_modulate = Color.BLACK
-	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_instruction.visible = false
-	xr_camera.add_child(hud_instruction)
+	hud_instruction = VRUI.crear_label(xr_camera, Vector3(0, -0.3, -1.5), 32, Color(1.0, 1.0, 1.0), 4, false)
 	print("[VaultVR]   ✅ Instruction HUD creado")
 	
 	# Indicador de vidas (centro superior)
-	hud_laser_hits = Label3D.new()
-	hud_laser_hits.pixel_size = 0.002
-	hud_laser_hits.position = Vector3(0, 0.5, -1.2)
-	hud_laser_hits.font_size = 40
-	hud_laser_hits.modulate = Color(1.0, 0.2, 0.2)
-	hud_laser_hits.outline_size = 6
-	hud_laser_hits.outline_modulate = Color.BLACK
-	hud_laser_hits.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_laser_hits.visible = false
-	xr_camera.add_child(hud_laser_hits)
+	hud_laser_hits = VRUI.crear_label(xr_camera, Vector3(0, 0.5, -1.2), 40, Color(1.0, 0.2, 0.2), 6, false)
 	print("[VaultVR]   ✅ Lives HUD creado")
 	
 	print("[VaultVR] ✅ HUD completo inicializado")
