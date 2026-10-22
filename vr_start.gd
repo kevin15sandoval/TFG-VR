@@ -4,6 +4,7 @@ extends Node3D
 # Espera polling de Firestore → Detecta sesión → Inicia gemas
 # ─────────────────────────────────────────────────────────────────────────────
 
+const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
 var firebase_manager: Node = null
 var current_game_manager: Node = null  # Manager del juego actual (vault, city, luggage)
 var waiting_mode := true
@@ -77,11 +78,7 @@ func _ready() -> void:
 		print("[GemsVR] ✅ FirebaseManager encontrado en escena")
 	else:
 		print("[GemsVR] ⚙️ Creando FirebaseManager dinámicamente...")
-		var script = load("res://scripts/firebase_manager.gd")
-		firebase_manager = Node.new()
-		firebase_manager.set_script(script)
-		firebase_manager.name = "FirebaseManager"
-		add_child(firebase_manager)
+		firebase_manager = FirebaseManagerScript.obtener_o_crear(self)
 		print("[GemsVR] ✅ FirebaseManager creado")
 
 	# Conectar señales de FirebaseManager

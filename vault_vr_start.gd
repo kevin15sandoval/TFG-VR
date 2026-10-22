@@ -4,6 +4,7 @@ extends Node3D
 # Integra VR, UI, y coordinación con VaultGameManager
 # ─────────────────────────────────────────────────────────────────────────────
 
+const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
 var firebase_manager: Node = null
 var vault_manager: Node = null
 var waiting_mode := true
@@ -58,13 +59,7 @@ func _ready() -> void:
 	GameManager.session_finished.connect(_on_session_finished)
 	
 	# Crear FirebaseManager si no existe
-	if has_node("FirebaseManager"):
-		firebase_manager = get_node("FirebaseManager")
-	else:
-		var script = load("res://scripts/firebase_manager.gd")
-		firebase_manager = Node.new()
-		firebase_manager.set_script(script)
-		add_child(firebase_manager)
+	firebase_manager = FirebaseManagerScript.obtener_o_crear(self)
 	
 	firebase_manager.config_loaded.connect(_on_config_loaded)
 	firebase_manager.config_error.connect(_on_config_error)

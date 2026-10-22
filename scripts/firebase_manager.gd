@@ -29,6 +29,21 @@ var _poll_interval := 3.0  # Revisar cada 3 segundos
 var _last_session_id := ""  # Para detectar nuevas sesiones
 var _poll_timer := 0.0
 
+# ─── OBTENCIÓN / CREACIÓN DEL NODO ───────────────────────────────────────────
+
+## Devuelve el nodo "FirebaseManager" hijo de `padre`. Si la escena no lo declara,
+## lo crea dinámicamente (fallback) y lo añade como hijo de `padre`.
+## El nodo creado se llama siempre "FirebaseManager".
+## Uso: const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+##      firebase_manager = FirebaseManagerScript.obtener_o_crear(self)
+static func obtener_o_crear(padre: Node) -> Node:
+	if padre.has_node("FirebaseManager"):
+		return padre.get_node("FirebaseManager")
+	var nuevo: Node = new()
+	nuevo.name = "FirebaseManager"
+	padre.add_child(nuevo)
+	return nuevo
+
 func _ready() -> void:
 	_http_load = HTTPRequest.new()
 	add_child(_http_load)
