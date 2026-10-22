@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const VRUI = preload("res://scripts/vr_ui.gd")
 var firebase_manager: Node = null
 var current_game_manager: Node = null  # Manager del juego actual (vault, city, luggage)
 var waiting_mode := true
@@ -151,52 +152,16 @@ func _create_game_hud() -> void:
 		return
 	
 	# Score (arriba izquierda)
-	hud_score = Label3D.new()
-	hud_score.pixel_size = 0.002
-	hud_score.position = Vector3(-0.6, 0.4, -1.2)
-	hud_score.font_size = 48
-	hud_score.modulate = Color(1.0, 0.9, 0.0)
-	hud_score.outline_size = 6
-	hud_score.outline_modulate = Color.BLACK
-	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_score.visible = false
-	xr_camera.add_child(hud_score)
+	hud_score = VRUI.crear_label(xr_camera, Vector3(-0.6, 0.4, -1.2), 48, Color(1.0, 0.9, 0.0), 6, false)
 	
 	# Timer (arriba derecha)
-	hud_timer = Label3D.new()
-	hud_timer.pixel_size = 0.002
-	hud_timer.position = Vector3(0.6, 0.4, -1.2)
-	hud_timer.font_size = 48
-	hud_timer.modulate = Color(0.2, 1.0, 0.4)
-	hud_timer.outline_size = 6
-	hud_timer.outline_modulate = Color.BLACK
-	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_timer.visible = false
-	xr_camera.add_child(hud_timer)
+	hud_timer = VRUI.crear_label(xr_camera, Vector3(0.6, 0.4, -1.2), 48, Color(0.2, 1.0, 0.4), 6, false)
 	
 	# Instrucción actual (abajo centro)
-	hud_instruction = Label3D.new()
-	hud_instruction.pixel_size = 0.002
-	hud_instruction.position = Vector3(0, -0.3, -1.5)
-	hud_instruction.font_size = 28
-	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
-	hud_instruction.outline_size = 4
-	hud_instruction.outline_modulate = Color.BLACK
-	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_instruction.visible = false
-	xr_camera.add_child(hud_instruction)
+	hud_instruction = VRUI.crear_label(xr_camera, Vector3(0, -0.3, -1.5), 28, Color(1.0, 1.0, 1.0), 4, false)
 	
 	# Combo multiplier (centro)
-	hud_combo = Label3D.new()
-	hud_combo.pixel_size = 0.002
-	hud_combo.position = Vector3(0, 0.1, -1.2)
-	hud_combo.font_size = 56
-	hud_combo.modulate = Color(1.0, 0.4, 0.0)
-	hud_combo.outline_size = 8
-	hud_combo.outline_modulate = Color.BLACK
-	hud_combo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_combo.visible = false
-	xr_camera.add_child(hud_combo)
+	hud_combo = VRUI.crear_label(xr_camera, Vector3(0, 0.1, -1.2), 56, Color(1.0, 0.4, 0.0), 8, false)
 	
 	# ⚡ BARRA DE ENERGÍA (abajo izquierda) - MUY VISIBLE
 	_create_energy_bar(xr_camera)
@@ -238,16 +203,7 @@ func _create_energy_bar(xr_camera: Node3D) -> void:
 	hud_energy_bar.material_override = bar_mat
 	
 	# Label de energía (porcentaje)
-	hud_energy_label = Label3D.new()
-	energy_container.add_child(hud_energy_label)
-	hud_energy_label.position = Vector3(0, 0, 0.02)
-	hud_energy_label.pixel_size = 0.002
-	hud_energy_label.text = "⚡ 100%"
-	hud_energy_label.font_size = 36
-	hud_energy_label.modulate = Color.WHITE
-	hud_energy_label.outline_size = 4
-	hud_energy_label.outline_modulate = Color.BLACK
-	hud_energy_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	hud_energy_label = VRUI.crear_label(energy_container, Vector3(0, 0, 0.02), 36, Color.WHITE, 4, true, "⚡ 100%")
 	
 	# Conectar señal de cambio de energía
 	if not GameManager.energy_changed.is_connected(_on_energy_changed):
