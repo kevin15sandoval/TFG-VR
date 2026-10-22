@@ -14,6 +14,7 @@ extends Node3D
 # 
 # ═════════════════════════════════════════════════════════════════════════════
 
+const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
 var firebase_manager: Node = null
 var waiting_mode := true
 var current_game_scene: Node = null
@@ -88,16 +89,8 @@ func _get_label_references() -> void:
 			print("[Hub] ⚠️ No se pudieron obtener todas las referencias a Labels")
 
 func _setup_firebase_manager() -> void:
-	# Buscar FirebaseManager en la escena
-	if has_node("FirebaseManager"):
-		firebase_manager = get_node("FirebaseManager")
-	else:
-		# Crear dinámicamente si no existe
-		var script = load("res://scripts/firebase_manager.gd")
-		firebase_manager = Node.new()
-		firebase_manager.set_script(script)
-		firebase_manager.name = "FirebaseManager"
-		add_child(firebase_manager)
+	# Reutiliza el FirebaseManager de la escena o lo crea dinámicamente si no existe
+	firebase_manager = FirebaseManagerScript.obtener_o_crear(self)
 	
 	# Conectar señales
 	firebase_manager.config_loaded.connect(_on_config_loaded)
