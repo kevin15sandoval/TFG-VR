@@ -15,6 +15,7 @@ var guardados: Array = []   # resultados recibidos en save_results
 var completadas := 0        # llamadas a mark_session_completed
 var polling_iniciado := false
 var polling_detenido := 0
+var confirmado := false     # simula la confirmación del guardado (ver guardado_confirmado)
 
 func start_polling() -> void:
 	polling_iniciado = true
@@ -24,6 +25,10 @@ func stop_polling() -> void:
 
 func save_results(results: Dictionary) -> void:
 	guardados.append(results)
+	confirmado = true
+
+func guardado_confirmado() -> bool:
+	return confirmado
 
 func mark_session_completed() -> void:
 	completadas += 1
