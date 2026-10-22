@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const VRUI = preload("res://scripts/vr_ui.gd")
 var firebase_manager: Node = null
 var luggage_manager: Node = null
 var waiting_mode := true
@@ -131,64 +132,19 @@ func _create_game_hud() -> void:
 		return
 	
 	# Score (arriba izquierda)
-	hud_score = Label3D.new()
-	hud_score.pixel_size = 0.002
-	hud_score.position = Vector3(-0.6, 0.4, -1.2)
-	hud_score.font_size = 48
-	hud_score.modulate = Color(1.0, 0.9, 0.0)
-	hud_score.outline_size = 6
-	hud_score.outline_modulate = Color.BLACK
-	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_score.visible = false
-	_xr_camera.add_child(hud_score)
+	hud_score = VRUI.crear_label(_xr_camera, Vector3(-0.6, 0.4, -1.2), 48, Color(1.0, 0.9, 0.0), 6, false)
 	
 	# Timer (arriba derecha)
-	hud_timer = Label3D.new()
-	hud_timer.pixel_size = 0.002
-	hud_timer.position = Vector3(0.6, 0.4, -1.2)
-	hud_timer.font_size = 48
-	hud_timer.modulate = Color(0.2, 1.0, 0.4)
-	hud_timer.outline_size = 6
-	hud_timer.outline_modulate = Color.BLACK
-	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_timer.visible = false
-	_xr_camera.add_child(hud_timer)
+	hud_timer = VRUI.crear_label(_xr_camera, Vector3(0.6, 0.4, -1.2), 48, Color(0.2, 1.0, 0.4), 6, false)
 	
 	# Peso total (izquierda medio)
-	hud_weight = Label3D.new()
-	hud_weight.pixel_size = 0.002
-	hud_weight.position = Vector3(-0.6, 0.2, -1.2)
-	hud_weight.font_size = 32
-	hud_weight.modulate = Color(1.0, 0.6, 0.2)
-	hud_weight.outline_size = 4
-	hud_weight.outline_modulate = Color.BLACK
-	hud_weight.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_weight.visible = false
-	_xr_camera.add_child(hud_weight)
+	hud_weight = VRUI.crear_label(_xr_camera, Vector3(-0.6, 0.2, -1.2), 32, Color(1.0, 0.6, 0.2), 4, false)
 	
 	# Combo (centro superior)
-	hud_combo = Label3D.new()
-	hud_combo.pixel_size = 0.002
-	hud_combo.position = Vector3(0, 0.5, -1.2)
-	hud_combo.font_size = 56
-	hud_combo.modulate = Color(1.0, 0.3, 0.9)
-	hud_combo.outline_size = 8
-	hud_combo.outline_modulate = Color.BLACK
-	hud_combo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_combo.visible = false
-	_xr_camera.add_child(hud_combo)
+	hud_combo = VRUI.crear_label(_xr_camera, Vector3(0, 0.5, -1.2), 56, Color(1.0, 0.3, 0.9), 8, false)
 	
 	# Instrucción (abajo centro)
-	hud_instruction = Label3D.new()
-	hud_instruction.pixel_size = 0.002
-	hud_instruction.position = Vector3(0, -0.3, -1.5)
-	hud_instruction.font_size = 32
-	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
-	hud_instruction.outline_size = 4
-	hud_instruction.outline_modulate = Color.BLACK
-	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_instruction.visible = false
-	_xr_camera.add_child(hud_instruction)
+	hud_instruction = VRUI.crear_label(_xr_camera, Vector3(0, -0.3, -1.5), 32, Color(1.0, 1.0, 1.0), 4, false)
 
 func _create_countdown_ui() -> void:
 	if not _xr_camera:
