@@ -65,12 +65,14 @@ func _ready() -> void:
 		print("[GemsVR] 🎮 ¡Sesión ya configurada desde Hub!")
 		print("[GemsVR] Session ID: ", GameManager.session_id)
 		print("[GemsVR] Patient ID: ", GameManager.patient_id)
+		# Reutiliza el FirebaseManager de la escena para guardar resultados y limpiar la sesión (sin polling)
+		firebase_manager = FirebaseManagerScript.obtener_o_crear(self)
 		print("[GemsVR] ⏱️ Iniciando countdown...")
 		_hide_waiting_ui()
 		await _show_countdown()
 		print("[GemsVR] 🚀 Iniciando sesión...")
 		GameManager.start_session()
-		return  # No crear FirebaseManager ni hacer polling
+		return  # No hacer polling
 
 	# Si NO hay sesión, entrar en modo sala de espera con polling
 	print("[GemsVR] 🔍 No hay sesión configurada, creando FirebaseManager...")
