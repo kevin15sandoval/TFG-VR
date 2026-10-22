@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const VRUI = preload("res://scripts/vr_ui.gd")
 var firebase_manager: Node = null
 var city_manager: Node = null
 var waiting_mode := true
@@ -182,70 +183,23 @@ func _create_game_hud() -> void:
 	print("[CityVR] 🎨 Creando HUD del juego...")
 	
 	# Score (arriba izquierda)
-	hud_score = Label3D.new()
-	hud_score.pixel_size = 0.002
-	hud_score.position = Vector3(-0.6, 0.4, -1.2)
-	hud_score.font_size = 48
-	hud_score.modulate = Color(1.0, 0.9, 0.0)
-	hud_score.outline_size = 6
-	hud_score.outline_modulate = Color.BLACK
-	hud_score.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_score.visible = false
-	hud_score.text = "0 pts"
-	_xr_camera.add_child(hud_score)
+	hud_score = VRUI.crear_label(_xr_camera, Vector3(-0.6, 0.4, -1.2), 48, Color(1.0, 0.9, 0.0), 6, false, "0 pts")
 	print("[CityVR]   ✅ Score HUD creado")
 	
 	# Timer (arriba derecha) - MÁS VISIBLE
-	hud_timer = Label3D.new()
-	hud_timer.pixel_size = 0.002
-	hud_timer.position = Vector3(0.6, 0.4, -1.2)
-	hud_timer.font_size = 56  # MÁS GRANDE
-	hud_timer.modulate = Color(0.2, 1.0, 0.4)
-	hud_timer.outline_size = 8  # BORDE MÁS GRUESO
-	hud_timer.outline_modulate = Color.BLACK
-	hud_timer.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_timer.visible = false
-	hud_timer.text = "03:00"  # Texto inicial
-	_xr_camera.add_child(hud_timer)
+	hud_timer = VRUI.crear_label(_xr_camera, Vector3(0.6, 0.4, -1.2), 56, Color(0.2, 1.0, 0.4), 8, false, "03:00")
 	print("[CityVR]   ✅ Timer HUD creado")
 	
 	# Instrucción (abajo centro)
-	hud_instruction = Label3D.new()
-	hud_instruction.pixel_size = 0.002
-	hud_instruction.position = Vector3(0, -0.3, -1.5)
-	hud_instruction.font_size = 32
-	hud_instruction.modulate = Color(1.0, 1.0, 1.0)
-	hud_instruction.outline_size = 4
-	hud_instruction.outline_modulate = Color.BLACK
-	hud_instruction.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_instruction.visible = false
-	_xr_camera.add_child(hud_instruction)
+	hud_instruction = VRUI.crear_label(_xr_camera, Vector3(0, -0.3, -1.5), 32, Color(1.0, 1.0, 1.0), 4, false)
 	print("[CityVR]   ✅ Instruction HUD creado")
 	
 	# Secuencia actual (centro superior)
-	hud_sequence = Label3D.new()
-	hud_sequence.pixel_size = 0.002
-	hud_sequence.position = Vector3(0, 0.5, -1.2)
-	hud_sequence.font_size = 56
-	hud_sequence.modulate = Color(0.2, 0.8, 1.0)
-	hud_sequence.outline_size = 8
-	hud_sequence.outline_modulate = Color.BLACK
-	hud_sequence.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_sequence.visible = false
-	_xr_camera.add_child(hud_sequence)
+	hud_sequence = VRUI.crear_label(_xr_camera, Vector3(0, 0.5, -1.2), 56, Color(0.2, 0.8, 1.0), 8, false)
 	print("[CityVR]   ✅ Sequence HUD creado")
 	
 	# Indicador de asimetría (negligencia) (abajo)
-	hud_asymmetry = Label3D.new()
-	hud_asymmetry.pixel_size = 0.002
-	hud_asymmetry.position = Vector3(0, -0.5, -1.5)
-	hud_asymmetry.font_size = 28
-	hud_asymmetry.modulate = Color(1.0, 0.8, 0.2)
-	hud_asymmetry.outline_size = 4
-	hud_asymmetry.outline_modulate = Color.BLACK
-	hud_asymmetry.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	hud_asymmetry.visible = false
-	_xr_camera.add_child(hud_asymmetry)
+	hud_asymmetry = VRUI.crear_label(_xr_camera, Vector3(0, -0.5, -1.5), 28, Color(1.0, 0.8, 0.2), 4, false)
 	print("[CityVR]   ✅ Asymmetry HUD creado")
 	
 	print("[CityVR] ✅ HUD completo inicializado")
