@@ -39,9 +39,8 @@ import { PatientProfilePage } from "./pages/PatientProfilePage";
 
 import { cx, getInitials, formatDate } from "./utils/helpers";
 import { AVATAR_COLORS, SIDES, DIFFICULTIES, HEIGHTS, SESSION_TYPES, DURATIONS } from "./constants";
-import { MINIGAMES, GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
-import { usePagination } from "./hooks/usePagination";
-import { AvatarIcon, Badge, Card, Modal, ProgressBar } from "./components/shared";
+import { GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
+import { AvatarIcon, Badge, ProgressBar } from "./components/shared";
 
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
 // Patient, SessionRecord, SessionConfig, Screen
