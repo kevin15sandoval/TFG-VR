@@ -1,0 +1,466 @@
+rules_version = '2';
+
+// ============================================================================
+// firestore.rules.next  -  PROPUESTA (PR3). NO DESPLEGADA. NO sustituye a firestore.rules.
+// Implementa el diseño PR2 (roles + vinculación de gafas + sesión activa + resultados).
+// Solo la carga tests/rules/roles.rules-next.test.mjs en el emulador.
+//
+// Modelo de identidad:
+//   - Gafa Quest   = usuario de Firebase Auth ANÓNIMO (sign_in_provider 'anonymous').
+//   - Clínico      = usuario NO anónimo, email verificado y con doc usuarios/{uid} con
+//                    rol 'fisioterapeuta' | 'admin' (doc escrito solo por Admin SDK/consola).
+//   - Un anónimo NUNCA es clínico, aunque exista usuarios/{uid} (lo bloquea el provider).
+//
+// Límite de accesos a documentos por petición (get/exists/getAfter): 10 en operaciones
+// simples y 20 en batch/transacción (cada evaluación sigue limitada a 10); los accesos
+// repetidos al mismo documento se cachean. Peor caso aquí (confirmación de vinculación,
+// batch de 2 escrituras): usuarios/uid (exists+get, 1 doc), dispositivos/X (getAfter),
+// vinculos/C (get + getAfter) => ~5 documentos distintos, muy por debajo del límite.
+// ============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------ identidad
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function esGafa() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function esClinico() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['fisioterapeuta', 'admin'];
+    }
+
+    function esAdmin() {
+      return esClinico()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    // ------------------------------------------------------------------ helpers de datos
+    function disp(id) {
+      return get(/databases/$(database)/documents/dispositivos/$(id)).data;
+    }
+
+    function dispDespues(id) {
+      return getAfter(/databases/$(database)/documents/dispositivos/$(id)).data;
+    }
+
+    function vinc(codigo) {
+      return get(/databases/$(database)/documents/vinculos/$(codigo)).data;
+    }
+
+    function vincDespues(codigo) {
+      return getAfter(/databases/$(database)/documents/vinculos/$(codigo)).data;
+    }
+
+    // Alfabeto de 31 símbolos (sin 0, O, 1, I, L) y longitud 8.
+    function codigoValido(c) {
+      return c is string && c.matches('^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{8}$');
+    }
+
+    // Identificadores opacos (sessionId, patientId).
+    function idOpaco(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
+    }
+
+    function aliasDispositivoOk(d) {
+      return !('alias' in d)
+        || (d.alias is string && d.alias.matches('^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ _.-]{1,30}$'));
+    }
+
+    function strOpt(d, k, max) {
+      return !(k in d) || (d[k] is string && d[k].size() <= max);
+    }
+
+    function intOpt(d, k, lo, hi) {
+      return !(k in d) || (d[k] is int && d[k] >= lo && d[k] <= hi);
+    }
+
+    function numOpt(d, k, lo, hi) {
+      return !(k in d) || (d[k] is number && d[k] >= lo && d[k] <= hi);
+    }
+
+    // ------------------------------------------------------------------ usuarios
+    // Roles: SOLO Admin SDK / consola. Ningún cliente escribe, ni siquiera su propio doc.
+    match /usuarios/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // ------------------------------------------------------------------ vinculos
+    // id = código de 8 símbolos que la gafa muestra y el clínico introduce.
+    match /vinculos/{codigo} {
+      allow get: if esClinico();
+      allow list: if false;
+
+      // La gafa crea su solicitud pendiente; debe ir en batch con dispositivos/{uid}.codigoActual.
+      allow create: if esGafa()
+        && codigoValido(codigo)
+        && request.resource.data.keys().hasOnly(['deviceUid', 'estado', 'usado', 'creadoEn', 'expira'])
+        && request.resource.data.keys().hasAll(['deviceUid', 'estado', 'usado', 'creadoEn', 'expira'])
+        && request.resource.data.deviceUid == request.auth.uid
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.usado == false
+        && request.resource.data.creadoEn == request.time
+        && request.resource.data.expira is timestamp
+        && request.resource.data.expira > request.time
+        && request.resource.data.expira <= request.time + duration.value(10, 'm')
+        && dispDespues(request.auth.uid).codigoActual == codigo
+        && dispDespues(request.auth.uid).estado == 'sin_vincular';
+
+      // Confirmación por un clínico (batch con dispositivos/{deviceUid}).
+      allow update: if esClinico()
+        && resource.data.estado == 'pendiente'
+        && resource.data.usado == false
+        && request.time < resource.data.expira
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['estado', 'usado', 'confirmadoPor', 'confirmadoEn'])
+        && request.resource.data.estado == 'vinculado'
+        && request.resource.data.usado == true
+        && request.resource.data.confirmadoPor == request.auth.uid
+        && request.resource.data.confirmadoEn == request.time
+        && dispDespues(resource.data.deviceUid).ownerUid == request.auth.uid
+        && dispDespues(resource.data.deviceUid).estado == 'vinculado'
+        && dispDespues(resource.data.deviceUid).codigoActual == codigo;
+
+      // La gafa cancela su propia solicitud mientras siga pendiente.
+      allow delete: if esGafa()
+        && resource.data.deviceUid == request.auth.uid
+        && resource.data.estado == 'pendiente';
+    }
+
+    // ------------------------------------------------------------------ dispositivos
+    function dispAliasYClaves(n, o) {
+      return n.diff(o).affectedKeys().hasOnly(['ownerUid', 'estado', 'vinculadoEn', 'alias']);
+    }
+
+    // Rama 1: la gafa solo rota su código mientras está sin vincular.
+    function gafaCambiaCodigo(deviceUid) {
+      return esGafa()
+        && request.auth.uid == deviceUid
+        && resource.data.estado == 'sin_vincular'
+        && request.resource.data.estado == 'sin_vincular'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['codigoActual'])
+        && codigoValido(request.resource.data.codigoActual);
+    }
+
+    // Rama 2: un clínico vincula (sin_vincular -> vinculado), coherente con el vínculo confirmado en el mismo batch.
+    function clinicoVincula(deviceUid) {
+      return esClinico()
+        && resource.data.estado == 'sin_vincular'
+        && request.resource.data.estado == 'vinculado'
+        && dispAliasYClaves(request.resource.data, resource.data)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.vinculadoEn == request.time
+        && aliasDispositivoOk(request.resource.data)
+        && vinc(resource.data.codigoActual).estado == 'pendiente'
+        && vinc(resource.data.codigoActual).deviceUid == deviceUid
+        && vincDespues(resource.data.codigoActual).estado == 'vinculado'
+        && vincDespues(resource.data.codigoActual).usado == true
+        && vincDespues(resource.data.codigoActual).confirmadoPor == request.auth.uid;
+    }
+
+    // Rama 3: revoca el propietario o un admin (vinculado -> revocado, terminal).
+    function clinicoRevoca() {
+      return esClinico()
+        && resource.data.estado == 'vinculado'
+        && request.resource.data.estado == 'revocado'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'revocadoEn'])
+        && request.resource.data.revocadoEn == request.time
+        && (resource.data.ownerUid == request.auth.uid || esAdmin());
+    }
+
+    // Rama 4: el propietario (o un admin, igual que en la revocación) renombra la gafa. Solo 'alias',
+    // solo mientras está vinculada (revocado es terminal e inmutable). Alias obligatorio y válido (no se puede borrar).
+    function clinicoEditaAlias() {
+      return esClinico()
+        && resource.data.estado == 'vinculado'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias'])
+        && 'alias' in request.resource.data
+        && aliasDispositivoOk(request.resource.data)
+        && (resource.data.ownerUid == request.auth.uid || esAdmin());
+    }
+
+    match /dispositivos/{deviceUid} {
+      allow get: if (esGafa() && request.auth.uid == deviceUid) || esClinico();
+      // Un clínico solo lista SUS dispositivos (la query debe filtrar ownerUid == uid).
+      allow list: if esClinico() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if esGafa()
+        && request.auth.uid == deviceUid
+        && request.resource.data.keys().hasOnly(['estado', 'codigoActual', 'creadoEn'])
+        && request.resource.data.keys().hasAll(['estado', 'codigoActual', 'creadoEn'])
+        && request.resource.data.estado == 'sin_vincular'
+        && codigoValido(request.resource.data.codigoActual)
+        && request.resource.data.creadoEn == request.time;
+
+      allow update: if gafaCambiaCodigo(deviceUid)
+        || clinicoVincula(deviceUid)
+        || clinicoRevoca()
+        || clinicoEditaAlias();
+
+      // Solo la gafa y solo si nunca fue vinculada/revocada (revocado es terminal y no se borra desde cliente).
+      allow delete: if esGafa()
+        && request.auth.uid == deviceUid
+        && resource.data.estado == 'sin_vincular';
+
+      // ---------------------------------------------------------------- sesion_activa
+      match /sesion_activa/{docId} {
+        function propietario() {
+          return esClinico() && disp(deviceUid).ownerUid == request.auth.uid;
+        }
+
+        function propietarioVinculado() {
+          return propietario() && disp(deviceUid).estado == 'vinculado';
+        }
+
+        function sesionActivaValida(d) {
+          return d.keys().hasOnly(['sessionId', 'patientId', 'patientAlias', 'gameId', 'duration',
+                                   'difficulty', 'therapySide', 'sessionType', 'status', 'publicadaEn', 'venceEn'])
+            && d.keys().hasAll(['sessionId', 'patientId', 'patientAlias', 'gameId', 'duration',
+                                'difficulty', 'therapySide', 'sessionType', 'status', 'publicadaEn', 'venceEn'])
+            && idOpaco(d.sessionId)
+            && idOpaco(d.patientId)
+            && d.patientAlias is string && d.patientAlias.size() >= 1 && d.patientAlias.size() <= 30
+            && d.gameId in ['gems', 'vault_escape', 'urban_attention_quest', 'luggage_handler']
+            && d.duration is int && d.duration >= 1 && d.duration <= 7200
+            && d.difficulty is string && d.difficulty.size() >= 1 && d.difficulty.size() <= 20
+            && d.therapySide is string && d.therapySide.size() >= 1 && d.therapySide.size() <= 20
+            && d.sessionType is string && d.sessionType.size() >= 1 && d.sessionType.size() <= 30
+            && d.status == 'pending'
+            && d.publicadaEn == request.time
+            && d.venceEn is timestamp
+            && d.venceEn > request.time
+            && d.venceEn <= request.time + duration.value(24, 'h');
+        }
+
+        // Lectura: la gafa VINCULADA propietaria del path y el clínico propietario. Nunca list.
+        // DECISIÓN: la lectura NO se deniega por vencimiento. Un 403 por vencida se confundiría con el 403
+        // de revocación/no vinculada (el cliente lo trata como fallo de polling). El vencimiento se aplica
+        // donde importa (create de resultado y PATCH de status); el cliente debe ignorar venceEn <= ahora.
+        allow get: if docId == 'current'
+          && ((esGafa() && request.auth.uid == deviceUid && disp(deviceUid).estado == 'vinculado')
+              || propietario());
+        allow list: if false;
+
+        allow create: if docId == 'current'
+          && propietarioVinculado()
+          && sesionActivaValida(request.resource.data);
+
+        allow update: if docId == 'current'
+          && (
+            // el propietario republica la sesión completa (siempre 'pending')
+            (propietarioVinculado() && sesionActivaValida(request.resource.data))
+            // la gafa vinculada solo marca pending -> completed
+            || (esGafa()
+                && request.auth.uid == deviceUid
+                && disp(deviceUid).estado == 'vinculado'
+                // sesión vencida: ya no se puede cerrar (evita usar una sesión caducada)
+                && request.time < resource.data.venceEn
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                && resource.data.status == 'pending'
+                && request.resource.data.status == 'completed')
+          );
+
+        // El propietario puede limpiar aunque el dispositivo haya sido revocado.
+        allow delete: if docId == 'current' && propietario();
+      }
+    }
+
+    // ------------------------------------------------------------------ sesiones (resultados)
+    function clavesComunesResultado() {
+      return ['patientId', 'sessionId', 'deviceUid', 'gameId', 'game', 'date', 'duration', 'score',
+              'side', 'difficulty', 'sessionType', 'fromVR', 'notes', 'createdAt'];
+    }
+
+    function clavesGems() {
+      return ['accuracy', 'gemsNormal', 'gemsGolden', 'gemsGreen', 'gemsPurple', 'gemsRed', 'gemsRedAvoided',
+              'totalGems', 'avgTimePerGem', 'totalMovements', 'movementsSummary', 'zonesWorked'];
+    }
+
+    function clavesVault() {
+      return ['completion_percentage', 'panels_collected', 'total_panels', 'laser_hits', 'avg_time_per_panel',
+              'vertical_range_meters', 'crosses_midline', 'motor_control_score', 'planning_score',
+              'spatial_awareness_score'];
+    }
+
+    function clavesCity() {
+      return ['accuracy', 'completion_percentage', 'targets_collected', 'total_targets', 'sequence_errors',
+              'left_side_targets', 'right_side_targets', 'asymmetry_percentage', 'neglect_score',
+              'avg_reaction_time', 'cervical_rom_left', 'cervical_rom_right', 'cervical_rom_extension',
+              'cervical_rom_flexion', 'cervical_rom_total', 'spatial_awareness', 'orientation',
+              'processing_speed', 'cervical_mobility', 'visual_search_efficiency'];
+    }
+
+    function clavesLuggage() {
+      return ['accuracy_percentage', 'luggage_placed', 'luggage_dropped', 'luggage_wrong', 'max_combo',
+              'total_weight_moved', 'max_weight_lifted', 'time_under_load', 'trunk_rotations_left',
+              'trunk_rotations_right', 'trunk_asymmetry', 'strength_score', 'endurance_score',
+              'trunk_mobility_score', 'coordination_score'];
+    }
+
+    // Validación por juego. Para respetar el límite de 1000 expresiones por evaluación se usan
+    // comparaciones directas (d.campo >= lo && d.campo <= hi) y campos OBLIGATORIOS (hasAll):
+    // un tipo incorrecto (string, bool, null...) provoca error de evaluación => denegado.
+    // Consecuencia documentada: no se distingue int de float en los campos numéricos.
+    function gemsOk(d) {
+      return d.keys().hasAll(clavesGems())
+        && d.accuracy >= 0 && d.accuracy <= 100
+        && d.gemsNormal >= 0 && d.gemsNormal <= 100000 && d.gemsGolden >= 0 && d.gemsGolden <= 100000
+        && d.gemsGreen >= 0 && d.gemsGreen <= 100000 && d.gemsPurple >= 0 && d.gemsPurple <= 100000
+        && d.gemsRed >= 0 && d.gemsRed <= 100000 && d.gemsRedAvoided >= 0 && d.gemsRedAvoided <= 100000
+        && d.totalGems >= 0 && d.totalGems <= 100000 && d.avgTimePerGem >= 0 && d.avgTimePerGem <= 3600
+        && d.totalMovements >= 0 && d.totalMovements <= 100000
+        // Los elementos de la lista no se pueden validar en reglas (sin bucles): solo tipo y nº máximo.
+        && d.movementsSummary is list && d.movementsSummary.size() <= 50
+        && d.zonesWorked is map && d.zonesWorked.keys().hasOnly(['Alto', 'Medio', 'Lateral', 'Bajo'])
+        && d.zonesWorked.Alto >= 0 && d.zonesWorked.Alto <= 100000 && d.zonesWorked.Medio >= 0 && d.zonesWorked.Medio <= 100000
+        && d.zonesWorked.Lateral >= 0 && d.zonesWorked.Lateral <= 100000 && d.zonesWorked.Bajo >= 0 && d.zonesWorked.Bajo <= 100000;
+    }
+
+    function vaultOk(d) {
+      return d.keys().hasAll(clavesVault())
+        && d.completion_percentage >= 0 && d.completion_percentage <= 100
+        && d.panels_collected >= 0 && d.panels_collected <= 10000 && d.total_panels >= 0 && d.total_panels <= 10000
+        && d.laser_hits >= 0 && d.laser_hits <= 100000 && d.avg_time_per_panel >= 0 && d.avg_time_per_panel <= 3600
+        && d.vertical_range_meters >= 0 && d.vertical_range_meters <= 10
+        && d.crosses_midline >= 0 && d.crosses_midline <= 100000
+        && d.motor_control_score >= 0 && d.motor_control_score <= 100
+        && d.planning_score >= 0 && d.planning_score <= 100
+        && d.spatial_awareness_score >= 0 && d.spatial_awareness_score <= 100;
+    }
+
+    function cityOk(d) {
+      return d.keys().hasAll(clavesCity())
+        && d.accuracy >= 0 && d.accuracy <= 100 && d.completion_percentage >= 0 && d.completion_percentage <= 100
+        && d.targets_collected >= 0 && d.targets_collected <= 10000 && d.total_targets >= 0 && d.total_targets <= 10000
+        && d.sequence_errors >= 0 && d.sequence_errors <= 100000
+        && d.left_side_targets >= 0 && d.left_side_targets <= 10000 && d.right_side_targets >= 0 && d.right_side_targets <= 10000
+        && d.asymmetry_percentage >= 0 && d.asymmetry_percentage <= 100 && d.neglect_score >= 0 && d.neglect_score <= 100
+        && d.avg_reaction_time >= 0 && d.avg_reaction_time <= 3600
+        && d.cervical_rom_left >= -360 && d.cervical_rom_left <= 360 && d.cervical_rom_right >= -360 && d.cervical_rom_right <= 360
+        && d.cervical_rom_extension >= -360 && d.cervical_rom_extension <= 360
+        && d.cervical_rom_flexion >= -360 && d.cervical_rom_flexion <= 360
+        && d.cervical_rom_total >= -1440 && d.cervical_rom_total <= 1440
+        && d.spatial_awareness >= 0 && d.spatial_awareness <= 100 && d.orientation >= 0 && d.orientation <= 100
+        && d.processing_speed >= 0 && d.processing_speed <= 100 && d.cervical_mobility >= 0 && d.cervical_mobility <= 100
+        && d.visual_search_efficiency >= 0 && d.visual_search_efficiency <= 100;
+    }
+
+    function luggageOk(d) {
+      return d.keys().hasAll(clavesLuggage())
+        && d.accuracy_percentage >= 0 && d.accuracy_percentage <= 100
+        && d.luggage_placed >= 0 && d.luggage_placed <= 10000 && d.luggage_dropped >= 0 && d.luggage_dropped <= 10000
+        && d.luggage_wrong >= 0 && d.luggage_wrong <= 10000 && d.max_combo >= 0 && d.max_combo <= 10000
+        && d.total_weight_moved >= 0 && d.total_weight_moved <= 1000000
+        && d.max_weight_lifted >= 0 && d.max_weight_lifted <= 1000 && d.time_under_load >= 0 && d.time_under_load <= 86400
+        && d.trunk_rotations_left >= 0 && d.trunk_rotations_left <= 100000
+        && d.trunk_rotations_right >= 0 && d.trunk_rotations_right <= 100000
+        && d.trunk_asymmetry >= 0 && d.trunk_asymmetry <= 100
+        && d.strength_score >= 0 && d.strength_score <= 100 && d.endurance_score >= 0 && d.endurance_score <= 100
+        && d.trunk_mobility_score >= 0 && d.trunk_mobility_score <= 100
+        && d.coordination_score >= 0 && d.coordination_score <= 100;
+    }
+
+    function resultadoComunOk(d, sessionIdPath) {
+      return d.keys().hasAll(['patientId', 'sessionId', 'deviceUid', 'gameId', 'duration', 'score'])
+        && idOpaco(d.patientId)
+        && idOpaco(d.sessionId)
+        && d.sessionId == sessionIdPath
+        && d.deviceUid == request.auth.uid
+        && d.gameId in ['gems', 'vault_escape', 'urban_attention_quest', 'luggage_handler']
+        && d.duration is int && d.duration >= 0 && d.duration <= 86400
+        && d.score is int && d.score >= 0 && d.score <= 1000000
+        && strOpt(d, 'game', 60) && strOpt(d, 'date', 40) && strOpt(d, 'side', 20)
+        && strOpt(d, 'difficulty', 30) && strOpt(d, 'sessionType', 30)
+        && (!('fromVR' in d) || d.fromVR == true)
+        // Texto libre prohibido desde la gafa: notes solo puede ir vacío.
+        && (!('notes' in d) || d.notes == '')
+        && (!('createdAt' in d) || d.createdAt == request.time);
+    }
+
+    function resultadoPorJuegoOk(d) {
+      return (d.gameId == 'gems' && d.keys().hasOnly(clavesComunesResultado().concat(clavesGems())) && gemsOk(d))
+        || (d.gameId == 'vault_escape' && d.keys().hasOnly(clavesComunesResultado().concat(clavesVault())) && vaultOk(d))
+        || (d.gameId == 'urban_attention_quest' && d.keys().hasOnly(clavesComunesResultado().concat(clavesCity())) && cityOk(d))
+        || (d.gameId == 'luggage_handler' && d.keys().hasOnly(clavesComunesResultado().concat(clavesLuggage())) && luggageOk(d));
+    }
+
+    // La gafa está vinculada y hay una sesión activa pendiente, vigente y del mismo paciente.
+    function sesionActivaVigente(d) {
+      // let: una sola evaluación de la ruta (el límite de reglas es 1000 expresiones por evaluación).
+      let a = get(/databases/$(database)/documents/dispositivos/$(request.auth.uid)/sesion_activa/current).data;
+      return disp(request.auth.uid).estado == 'vinculado'
+        && a.sessionId == d.sessionId
+        && a.gameId == d.gameId
+        && a.status == 'pending'
+        && request.time < a.venceEn
+        && a.patientId == d.patientId;
+    }
+
+    match /sesiones/{sessionId} {
+      // Create-only desde la gafa: un segundo create con el mismo id se deniega (idempotencia).
+      allow create: if esGafa()
+        && resultadoComunOk(request.resource.data, sessionId)
+        && resultadoPorJuegoOk(request.resource.data)
+        && sesionActivaVigente(request.resource.data);
+
+      // La gafa lee sus propios resultados solo mientras siga vinculada (una gafa revocada pierde todo acceso a datos).
+      allow get: if esClinico()
+        || (esGafa() && resource.data.deviceUid == request.auth.uid && disp(request.auth.uid).estado == 'vinculado');
+      allow list: if esClinico();
+
+      // El clínico solo edita 'notes' y, opcionalmente, 'updatedAt' (== request.time). Nada más.
+      allow update: if esClinico()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'updatedAt'])
+        && strOpt(request.resource.data, 'notes', 2000)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['updatedAt'])
+            || request.resource.data.updatedAt == request.time);
+
+      allow delete: if esClinico();
+    }
+
+    // ------------------------------------------------------------------ pacientes
+    function pacienteValido(d) {
+      return d.keys().hasAll(['name', 'initials', 'age', 'affectedSide', 'lastSession', 'progress',
+                              'diagnosis', 'sessions', 'status', 'colorIdx', 'notes'])
+        && d.keys().hasOnly(['name', 'initials', 'age', 'affectedSide', 'lastSession', 'progress',
+                             'diagnosis', 'sessions', 'status', 'colorIdx', 'notes', 'alias',
+                             'createdAt', 'updatedAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 100
+        && d.initials is string && d.initials.size() <= 4
+        && d.age is int && d.age >= 0 && d.age <= 120
+        && d.affectedSide in ['Derecho', 'Izquierdo', 'Ambos']
+        && d.lastSession is string && d.lastSession.size() <= 40
+        && d.progress is number && d.progress >= 0 && d.progress <= 100
+        && d.diagnosis is string && d.diagnosis.size() <= 200
+        && d.sessions is int && d.sessions >= 0 && d.sessions <= 100000
+        && d.status in ['activo', 'inactivo']
+        && d.colorIdx is int && d.colorIdx >= 0 && d.colorIdx <= 50
+        && d.notes is string && d.notes.size() <= 2000
+        && strOpt(d, 'alias', 30)
+        && (!('createdAt' in d) || d.createdAt is timestamp)
+        && (!('updatedAt' in d) || d.updatedAt is timestamp);
+    }
+
+    match /pacientes/{id} {
+      allow get, list: if esClinico();
+      allow create: if esClinico()
+        && pacienteValido(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if esClinico()
+        && pacienteValido(request.resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt']);
+      allow delete: if esClinico();
+    }
+
+    // Todo lo demás (incluida sesion_activa en raíz y colecciones sin regla): denegado por defecto.
+  }
+}
