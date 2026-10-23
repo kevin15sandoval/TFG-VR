@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-tfg-vr \"node --test tests/rules/*.test.mjs\""
+    "test:rules": "firebase emulators:exec --only firestore,auth --project demo-tfg-vr \"node --test --test-concurrency=1 tests/rules/*.test.mjs\""
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

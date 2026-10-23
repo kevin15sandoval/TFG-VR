@@ -7,7 +7,7 @@ Suite que carga `Plataforma_Clinica/firestore.rules` (reglas versionadas ACTUALE
 ```bash
 cd Plataforma_Clinica
 pnpm install          # (o: npx pnpm@9 install)
-pnpm test:rules       # arranca el emulador, lanza `node --test` y lo apaga
+pnpm test:rules       # arranca emuladores Firestore + Auth, lanza `node --test` (secuencial) y los apaga
 ```
 
 ## Requisitos
@@ -30,3 +30,11 @@ Cada test lleva una etiqueta:
 - Proyecto ficticio `demo-tfg-vr`: el emulador no contacta con ningún proyecto real de Firebase.
 - No requiere `firebase login` ni credenciales; no se despliega nada.
 - Los logs del emulador (`firestore-debug.log`, etc.) están en `.gitignore`.
+
+## PR1 - Emulador de Auth y acceso anonimo
+
+`firebase.json` incluye el emulador de Authentication (127.0.0.1:9099) y `test:rules` usa `--only firestore,auth`. Los ficheros de test se ejecutan en secuencia (`--test-concurrency=1`) porque comparten el mismo emulador de Firestore y se limpian entre si.
+
+`anonymous-auth.characterization.test.mjs` crea un usuario anonimo REAL en el emulador de Auth (`accounts:signUp`), comprueba en el JWT que `firebase.sign_in_provider === 'anonymous'` y hace peticiones REST a Firestore con `Authorization: Bearer <idToken>`, como lo haria Godot. Demuestra, contra las reglas ACTUALES, que un anonimo con token lee/escribe `pacientes`, lee/modifica/borra `sesiones`, escribe/borra `sesion_activa` y lee/lista/actualiza `dispositivos`: por eso NO se puede activar Anonymous Auth sin endurecer antes las reglas. Incluye contrastes `[ESPERADO]` sin token. Datos solo sinteticos (`PACIENTE-SINTETICO-1`...).
+
+Todo es local: proyecto ficticio `demo-tfg-vr`, sin `firebase login`, sin despliegue, sin red hacia produccion. Requiere JDK 21+.
