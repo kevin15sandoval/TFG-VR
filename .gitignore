@@ -9,6 +9,10 @@ Plataforma_Clinica/node_modules/
 Plataforma_Clinica/dist/
 Plataforma_Clinica/.vite/
 Plataforma_Clinica/package-lock.json
+Plataforma_Clinica/firestore-debug.log
+Plataforma_Clinica/ui-debug.log
+Plataforma_Clinica/firebase-debug.log
+Plataforma_Clinica/pubsub-debug.log
 
 # ── Credenciales — NUNCA subir ────────────────────────────────────────────────
 Plataforma_Clinica/.env
