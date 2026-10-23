@@ -15,7 +15,9 @@ extends Node3D
 # ═════════════════════════════════════════════════════════════════════════════
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const VinculacionPanelScript = preload("res://scripts/vinculacion_panel.gd")
 var firebase_manager: Node = null
+var vinculacion_panel: Node3D = null
 var waiting_mode := true
 var current_game_scene: Node = null
 
@@ -54,6 +56,8 @@ func _ready() -> void:
 	
 	# Configurar FirebaseManager
 	_setup_firebase_manager()
+	# La vinculacion tiene su propia identidad y no bloquea los juegos existentes.
+	_iniciar_vinculacion()
 	
 	# Mostrar mensaje de bienvenida
 	_show_welcome_message()
@@ -107,6 +111,13 @@ func _setup_firebase_manager() -> void:
 	# Iniciar polling
 	firebase_manager.start_polling()
 	print("[Hub] ✅ Firebase Manager configurado y polling iniciado")
+
+func _iniciar_vinculacion() -> void:
+	if vinculacion_panel != null:
+		return
+	vinculacion_panel = VinculacionPanelScript.new()
+	add_child(vinculacion_panel)
+	vinculacion_panel.iniciar(firebase_manager, self)
 
 func _show_welcome_message() -> void:
 	if status_label:

@@ -16,6 +16,8 @@ Plataforma_Clinica/.env.local
 Plataforma_Clinica/.env.*.local
 Plataforma_Clinica/serviceAccount.json
 Plataforma_Clinica/*-adminsdk-*.json
+# Clave pública de cliente de Firebase para Godot (ver scripts/README_firebase_config.md)
+firebase_public.cfg
 
 # ── Editor ────────────────────────────────────────────────────────────────────
 .vscode/
