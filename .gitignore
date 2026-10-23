@@ -18,6 +18,7 @@ Plataforma_Clinica/pubsub-debug.log
 Plataforma_Clinica/.env
 Plataforma_Clinica/.env.local
 Plataforma_Clinica/.env.*.local
+Plataforma_Clinica/.env.emulator
 Plataforma_Clinica/serviceAccount.json
 Plataforma_Clinica/*-adminsdk-*.json
 

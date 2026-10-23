@@ -100,3 +100,22 @@ pnpm test:rules
 ### Cambios necesarios en clientes (no hechos en PR3)
 
 Godot: Anonymous Auth, `deviceUid` en cada resultado, no enviar `patientName`, nueva ruta de `sesion_activa`, flujo `dispositivos`/`vinculos`. Web: login con email verificado + `usuarios/{uid}` creado con Admin SDK, `addSession`/`seedIfEmpty` (create de `sesiones` ya no permitido a clinicos), `updateSession` (ahora compatible: `notes` + `updatedAt` serverTimestamp), `publishActiveSession` (nueva ruta/esquema, sin nombre), `createDeviceLink`/`subscribeDeviceLink` (modelo antiguo).
+
+## PR5a - Desarrollo local contra emuladores (reglas candidatas) y siembra sintetica
+
+Solo infraestructura de desarrollo. No cambia `firebase.json`, `firestore.rules` ni la logica de la web. Requiere JDK 21+ (en esta maquina, JDK 25 en la sesion).
+
+Arranque (3 terminales, desde `Plataforma_Clinica`):
+
+```bash
+cp .env.emulator.example .env.emulator   # sin secretos; esta en .gitignore
+pnpm emulators:dev      # Auth 127.0.0.1:9099 + Firestore 127.0.0.1:8080 con firestore.rules.next (firebase.emulator.json, proyecto demo-tfg-vr, sin UI)
+pnpm seed:emulator      # siembra sintetica (node --env-file=.env.emulator scripts/seed-emulator.mjs); idempotente
+pnpm dev:emulator       # vite --mode emulator: la web se conecta a los emuladores y no inicia Analytics
+```
+
+- Usuarios sinteticos (contrasena `PruebaSintetica-123`): `fisio.sintetico@example.test` (fisioterapeuta verificado), `admin.sintetico@example.test` (admin), `noverificado.sintetico@example.test` (con rol pero sin verificar), `sinrol.sintetico@example.test` (verificado, sin `usuarios/{uid}`). Tres pacientes `PACIENTE-SINTETICO-n` (alias `Paciente n`) y una gafa anonima con solicitud `PRUEBAS2` pendiente (caduca a los 9 min; repetir `seed:emulator` la renueva).
+- La web solo entra en modo emulador con `import.meta.env.DEV` y `VITE_USE_EMULATORS=true`. Con esa variable en un build de produccion la web lanza un error al arrancar (`app/emulators.ts`). El bundle normal no contiene host/puertos del emulador.
+- El seed aborta (codigo 1) si faltan `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST`, si no son `127.0.0.1`/`localhost`, o si algun projectId no empieza por `demo-`. No usa credenciales.
+- Nota: la web actual NO es compatible con `firestore.rules.next` (ver "Cambios necesarios en clientes"); en modo emulador veras denegaciones hasta PR5b.
+- Pruebas: `pnpm test:emulator` (`tests/emulator/`, 20 tests: guard, abortos del seed, seed idempotente y acceso por rol con `firestore.rules.next`). `pnpm test:rules` sigue siendo la suite de 153 tests. No ejecutarlas a la vez (mismos puertos).
