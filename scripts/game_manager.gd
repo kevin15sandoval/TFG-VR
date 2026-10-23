@@ -272,13 +272,27 @@ func finish_session() -> void:
 	print("Puntuación: ", score, " | Precisión: ", accuracy, "% | Tiempo: ", elapsed, "s")
 	print("Movimientos: ", movements_summary)
 	emit_signal("session_finished", results)
-	
-	# ⭐ RESETEAR IDs para evitar auto-inicio en próxima escena
-	print("[GameManager] 🧹 Reseteando IDs de sesión...")
+	# La identidad (patient_id, session_id, patient_name) NO se borra aquí: los gestores de
+	# Vault, City y Luggage la leen al terminar su propio temporizador, que puede ser posterior.
+	# Se libera con release_session() cuando el guardado está confirmado.
+
+# ─── IDENTIDAD DE SESIÓN ──────────────────────────────────────────────────────
+
+## Borra la identidad de la sesión (evita reutilizar ids antiguos, p. ej. el autoarranque de Gemas).
+func release_session() -> void:
 	patient_id = ""
 	session_id = ""
 	patient_name = ""
-	print("[GameManager] ✅ IDs limpiados")
+	print("[GameManager] 🧹 Identidad de sesión liberada")
+
+## Libera la identidad SOLO si el gestor de Firebase confirma que los resultados se guardaron.
+## Devuelve true si se liberó; si no, la conserva (guardado pendiente o fallido).
+func release_session_si_confirmado(gestor_firebase: Node) -> bool:
+	if gestor_firebase == null or not gestor_firebase.has_method("guardado_confirmado") or not gestor_firebase.guardado_confirmado():
+		print("[GameManager] ⚠️ Identidad de sesión conservada: guardado sin confirmar")
+		return false
+	release_session()
+	return true
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 

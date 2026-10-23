@@ -550,6 +550,7 @@ func _on_game_finished(results: Dictionary) -> void:
 		print("[CityVR] ✅ Polling detenido")
 	
 	await get_tree().create_timer(8.0).timeout
+	GameManager.release_session_si_confirmado(firebase_manager)  # libera la identidad solo si el guardado está confirmado
 	print("[CityVR] 🔄 Regresando al HubWorld...")
 	
 	# Regresar al HubWorld

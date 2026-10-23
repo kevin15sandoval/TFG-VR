@@ -740,6 +740,7 @@ func _on_session_finished(results: Dictionary) -> void:
 	# Esperar 8 segundos antes de regresar (MÁS TIEMPO para propagación)
 	print("[VR] ⏱️ Esperando 8 segundos antes de regresar...")
 	await get_tree().create_timer(8.0).timeout
+	GameManager.release_session_si_confirmado(firebase_manager)  # libera la identidad solo si el guardado está confirmado
 	
 	# Regresar al HubWorld (igual que CityWorld)
 	print("[VR] 🔄 Regresando al HubWorld...")

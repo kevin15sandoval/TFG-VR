@@ -379,6 +379,7 @@ func _on_game_finished(results: Dictionary) -> void:
 		print("[LuggageVR] ✅ Polling detenido")
 	
 	await get_tree().create_timer(8.0).timeout
+	GameManager.release_session_si_confirmado(firebase_manager)  # libera la identidad solo si el guardado está confirmado
 	print("[LuggageVR] 🔄 Regresando al HubWorld...")
 	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
