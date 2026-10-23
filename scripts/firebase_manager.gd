@@ -5,8 +5,8 @@ extends Node
 # NUEVO: Sistema de polling para detectar nuevas sesiones automáticamente
 # ─────────────────────────────────────────────────────────────────────────────
 
-const PROJECT_ID := "tfg-vr"
-const BASE_URL := "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents"
+const FirebaseConfig = preload("res://scripts/firebase_config.gd")
+const DeviceAuthScript = preload("res://scripts/device_auth.gd")
 
 # Colecciones Firestore
 const COL_SESSION_CONFIG := "sesion_activa"   # Web escribe aquí la config
@@ -31,6 +31,30 @@ var _poll_timer := 0.0
 
 ## Estado del último guardado: "ninguno", "pendiente", "confirmado", "error" o "rechazado" (sin identificadores)
 var estado_guardado := "ninguno"
+
+## Autenticación opcional del dispositivo (PR4a). Es null mientras nadie llame a activar_device_auth():
+## en ese caso las peticiones salen exactamente igual que antes (sin cabecera Authorization).
+var device_auth: Node = null
+
+## URL base de Firestore (producción por defecto; emulador solo en editor/debug, ver FirebaseConfig)
+func _base_url() -> String:
+	return FirebaseConfig.base_url()
+
+## Cabeceras de la petición: las indicadas más Authorization solo si DeviceAuth tiene token vigente
+func _cabeceras(base: Array = []) -> PackedStringArray:
+	var h := PackedStringArray(base)
+	if device_auth != null and is_instance_valid(device_auth) and device_auth.has_method("get_headers"):
+		h.append_array(device_auth.get_headers())
+	return h
+
+## Crea (una vez) el nodo DeviceAuth como hijo. NO inicia ninguna petición: hay que llamar a
+## asegurar_identidad() del nodo devuelto de forma explícita. Hoy nadie lo invoca (se usará en PR4b).
+func activar_device_auth() -> Node:
+	if device_auth == null or not is_instance_valid(device_auth):
+		device_auth = DeviceAuthScript.new()
+		device_auth.name = "DeviceAuth"
+		add_child(device_auth)
+	return device_auth
 
 # ─── OBTENCIÓN / CREACIÓN DEL NODO ───────────────────────────────────────────
 
@@ -78,7 +102,7 @@ func start_polling() -> void:
 	print("═══ 🔄 INICIANDO POLLING AUTOMÁTICO ═══")
 	print("═══════════════════════════════════════════════════════════════")
 	print("[Firebase] Intervalo: ", _poll_interval, "s")
-	print("[Firebase] URL: ", BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE)
+	print("[Firebase] URL: ", _base_url() + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE)
 	_polling_enabled = true
 	_poll_timer = 0.0
 	print("[Firebase] ✅ Polling habilitado")
@@ -90,9 +114,9 @@ func stop_polling() -> void:
 	_polling_enabled = false
 
 func _poll_for_new_session() -> void:
-	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
+	var url = _base_url() + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
 	print("[Firebase] 🔍 Polling sesión activa: ", url)
-	var err = _http_poll.request(url, [], HTTPClient.METHOD_GET)
+	var err = _http_poll.request(url, _cabeceras(), HTTPClient.METHOD_GET)
 	if err != OK:
 		print("[Firebase] ❌ Error en polling: ", err)
 
@@ -170,8 +194,8 @@ func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) 
 # ─── LEER CONFIG DE SESIÓN ───────────────────────────────────────────────────
 
 func load_session_config() -> void:
-	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
-	var err = _http_load.request(url, [], HTTPClient.METHOD_GET)
+	var url = _base_url() + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
+	var err = _http_load.request(url, _cabeceras(), HTTPClient.METHOD_GET)
 	if err != OK:
 		emit_signal("config_error", "Error al conectar con Firestore: " + str(err))
 
@@ -219,8 +243,8 @@ func save_results(results: Dictionary) -> void:
 		emit_signal("results_error", "identidad_incompleta")
 		return
 
-	var url = BASE_URL + "/" + COL_RESULTS
-	var headers = ["Content-Type: application/json"]
+	var url = _base_url() + "/" + COL_RESULTS
+	var headers = _cabeceras(["Content-Type: application/json"])
 	
 	var game_type = results.get("game_type", "gems")
 	var game_name = results.get("game_name", "Recolectar gemas")
@@ -406,8 +430,8 @@ func mark_session_completed() -> void:
 	print("🔒 MARCANDO SESIÓN COMO COMPLETED (evitar bucle infinito)")
 	print("═══════════════════════════════════════════════════════════════")
 	
-	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE + "?updateMask.fieldPaths=status"
-	var headers = ["Content-Type: application/json"]
+	var url = _base_url() + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE + "?updateMask.fieldPaths=status"
+	var headers = _cabeceras(["Content-Type: application/json"])
 	
 	var body = {
 		"fields": {
