@@ -281,6 +281,16 @@ Estado: *pendiente* salvo indicación. Origen: PR #29 (Vault), #30 (Gemas), #31 
 - Investigar el aviso «busy/add_child» y las fugas de RID de `World.tscn`.
 - `_active_gems` se modifica durante su iteración (`gem_spawner.gd`).
 
+### PR5c (vinculación de Quest) — riesgos conocidos (PR #34)
+- `rules.next` permite leer sesiones activas caducadas: la Quest debe ignorar las de `venceEn` pasado.
+- El vencimiento (`venceEn`) depende del reloj del cliente; un desfase de ±1 h puede hacer fallar la publicación.
+- Falta protección contra la creación abusiva de códigos de vinculación.
+- `difficulty`, `therapySide` y `sessionType` solo se validan en longitud, no contra valores permitidos.
+- Las cuentas anónimas huérfanas (Quests revocadas o reinstaladas) necesitan una estrategia de limpieza (Admin SDK).
+- El administrador no puede listar dispositivos ajenos con las reglas actuales (`list` exige `ownerUid == auth.uid`).
+- La integración de PR5c con W1/W2 necesita una estrategia de ramas (`db.ts` diverge entre #31/#32 y la cadena #26 → #28 → #33 → #34).
+- Falta probar con Quest 3 y con un proyecto Firebase de pruebas con Anonymous Auth (nunca en producción por ahora).
+
 ### Pruebas pendientes
 - Validar puntuación, HUD, controles e integración real en Meta Quest 3 física.
 - Validar errores de red y pérdida de conexión.
