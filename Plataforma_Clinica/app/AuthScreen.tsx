@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Brain, Mail, Lock, Eye, EyeOff, Loader2, User, ArrowRight, KeyRound } from "lucide-react";
-import { login, register, resetPassword, authErrorMsg } from "./auth";
+import { Brain, Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, KeyRound, Info } from "lucide-react";
+import { login, resetPassword, authErrorMsg } from "./auth";
 
-type AuthView = "login" | "register" | "reset";
+type AuthView = "login" | "reset";
 
 function cx(...cls: (string | false | null | undefined)[]) {
   return cls.filter(Boolean).join(" ");
@@ -11,7 +11,7 @@ function cx(...cls: (string | false | null | undefined)[]) {
 // ─── INPUT ────────────────────────────────────────────────────────────────────
 
 function Input({
-  label, type = "text", value, onChange, placeholder, error, icon: Icon, rightIcon, onRightClick, autoComplete,
+  label, type = "text", value, onChange, placeholder, error, icon: Icon, rightIcon: RightIcon, onRightClick, autoComplete,
 }: {
   label: string; type?: string; value: string;
   onChange: (v: string) => void; placeholder?: string;
@@ -38,14 +38,14 @@ function Input({
             "w-full py-3 rounded-xl border text-sm text-slate-800 bg-white placeholder-slate-400",
             "focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all",
             Icon ? "pl-10" : "pl-4",
-            rightIcon ? "pr-10" : "pr-4",
+            RightIcon ? "pr-10" : "pr-4",
             error ? "border-rose-400 focus:border-rose-400" : "border-slate-200 focus:border-blue-400"
           )}
         />
-        {rightIcon && (
+        {RightIcon && (
           <button type="button" onClick={onRightClick}
             className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
-            {<rightIcon size={15} />}
+            <RightIcon size={15} />
           </button>
         )}
       </div>
@@ -102,85 +102,10 @@ function LoginForm({ onSwitch }: { onSwitch: (v: AuthView) => void }) {
           className="text-slate-400 hover:text-blue-600 cursor-pointer transition-colors">
           ¿Olvidaste tu contraseña?
         </button>
-        <button type="button" onClick={() => onSwitch("register")}
-          className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer transition-colors">
-          Crear cuenta
-        </button>
       </div>
-    </form>
-  );
-}
-
-// ─── REGISTRO ─────────────────────────────────────────────────────────────────
-
-function RegisterForm({ onSwitch }: { onSwitch: (v: AuthView) => void }) {
-  const [name, setName]         = useState("");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm]   = useState("");
-  const [showPw, setShowPw]     = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [errors, setErrors]     = useState<Record<string, string>>({});
-  const [globalError, setGlobalError] = useState("");
-
-  function validate() {
-    const e: Record<string, string> = {};
-    if (!name.trim())       e.name     = "El nombre es obligatorio";
-    if (!email.trim())      e.email    = "El correo es obligatorio";
-    if (password.length < 6) e.password = "Mínimo 6 caracteres";
-    if (password !== confirm) e.confirm = "Las contraseñas no coinciden";
-    return e;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    setLoading(true); setGlobalError(""); setErrors({});
-    try {
-      await register(email, password, name);
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? "";
-      setGlobalError(authErrorMsg(code));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Input label="Nombre completo" value={name} onChange={v => { setName(v); setErrors(p => ({ ...p, name: "" })); }}
-        placeholder="Dra. Sara Martínez" icon={User} error={errors.name} autoComplete="name" />
-      <Input label="Correo electrónico" type="email" value={email}
-        onChange={v => { setEmail(v); setErrors(p => ({ ...p, email: "" })); }}
-        placeholder="terapeuta@hospital.es" icon={Mail} error={errors.email} autoComplete="email" />
-      <Input label="Contraseña" type={showPw ? "text" : "password"} value={password}
-        onChange={v => { setPassword(v); setErrors(p => ({ ...p, password: "" })); }}
-        placeholder="Mínimo 6 caracteres" icon={Lock}
-        rightIcon={showPw ? EyeOff : Eye} onRightClick={() => setShowPw(p => !p)}
-        error={errors.password} autoComplete="new-password" />
-      <Input label="Confirmar contraseña" type={showPw ? "text" : "password"} value={confirm}
-        onChange={v => { setConfirm(v); setErrors(p => ({ ...p, confirm: "" })); }}
-        placeholder="Repite la contraseña" icon={Lock} error={errors.confirm}
-        autoComplete="new-password" />
-
-      {globalError && (
-        <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-xs text-rose-600 font-medium">
-          {globalError}
-        </div>
-      )}
-
-      <button type="submit" disabled={loading}
-        className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md shadow-blue-200">
-        {loading ? <><Loader2 size={16} className="animate-spin" /> Creando cuenta...</> : <>Crear cuenta <ArrowRight size={15} /></>}
-      </button>
 
       <p className="text-center text-xs text-slate-400 pt-1">
-        ¿Ya tienes cuenta?{" "}
-        <button type="button" onClick={() => onSwitch("login")}
-          className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer">
-          Inicia sesión
-        </button>
+        El acceso es solo por invitación. Solicita tu alta al administrador de la plataforma.
       </p>
     </form>
   );
@@ -202,8 +127,13 @@ function ResetForm({ onSwitch }: { onSwitch: (v: AuthView) => void }) {
       await resetPassword(email);
       setSent(true);
     } catch (err: unknown) {
+      // Respuesta genérica: no se revela si la cuenta existe. Solo se distinguen errores que no dependen de la
+      // cuenta (formato del correo, límite de peticiones, red); cualquier otro (p. ej. user-not-found) = éxito aparente.
       const code = (err as { code?: string }).code ?? "";
-      setError(authErrorMsg(code));
+      if (code === "auth/invalid-email") setError("El correo electrónico no es válido");
+      else if (code === "auth/too-many-requests") setError("Demasiadas solicitudes. Inténtalo de nuevo más tarde");
+      else if (code === "auth/network-request-failed") setError(authErrorMsg(code));
+      else setSent(true);
     } finally {
       setLoading(false);
     }
@@ -215,9 +145,9 @@ function ResetForm({ onSwitch }: { onSwitch: (v: AuthView) => void }) {
         <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
           <Mail size={24} className="text-emerald-600" />
         </div>
-        <h3 className="text-base font-bold text-slate-800 mb-2">Correo enviado</h3>
+        <h3 className="text-base font-bold text-slate-800 mb-2">Revisa tu correo</h3>
         <p className="text-sm text-slate-500 mb-6">
-          Hemos enviado un enlace de recuperación a <strong>{email}</strong>.
+          Si el correo existe, recibirás un enlace para restablecer tu contraseña.
           Revisa también la carpeta de spam.
         </p>
         <button onClick={() => onSwitch("login")}
@@ -254,22 +184,11 @@ function ResetForm({ onSwitch }: { onSwitch: (v: AuthView) => void }) {
   );
 }
 
-// ─── PANTALLA PRINCIPAL DE AUTH ───────────────────────────────────────────────
+// ─── MARCO COMÚN (también lo usan las pantallas de estado de acceso) ────────────
 
-export default function AuthScreen() {
-  const [view, setView] = useState<AuthView>("login");
-
-  const titles: Record<AuthView, string> = {
-    login:    "Bienvenido de nuevo",
-    register: "Crear cuenta",
-    reset:    "Recuperar contraseña",
-  };
-  const subtitles: Record<AuthView, string> = {
-    login:    "Accede a la plataforma clínica NeuroVR Rehab",
-    register: "Regístrate para acceder a la plataforma",
-    reset:    "Te enviaremos un enlace de recuperación",
-  };
-
+export function AuthLayout({ title, subtitle, children }: {
+  title: string; subtitle: string; children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 flex items-center justify-center p-4">
       {/* Fondo decorativo */}
@@ -291,13 +210,11 @@ export default function AuthScreen() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100 p-8">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-800">{titles[view]}</h2>
-            <p className="text-sm text-slate-400 mt-0.5">{subtitles[view]}</p>
+            <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>
           </div>
 
-          {view === "login"    && <LoginForm    onSwitch={setView} />}
-          {view === "register" && <RegisterForm onSwitch={setView} />}
-          {view === "reset"    && <ResetForm    onSwitch={setView} />}
+          {children}
         </div>
 
         {/* Footer */}
@@ -306,5 +223,33 @@ export default function AuthScreen() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ─── PANTALLA PRINCIPAL DE AUTH ───────────────────────────────────────────────
+
+export default function AuthScreen({ aviso }: { aviso?: string }) {
+  const [view, setView] = useState<AuthView>("login");
+
+  const titles: Record<AuthView, string> = {
+    login: "Bienvenido de nuevo",
+    reset: "Recuperar contraseña",
+  };
+  const subtitles: Record<AuthView, string> = {
+    login: "Accede a la plataforma clínica NeuroVR Rehab",
+    reset: "Te enviaremos un enlace de recuperación",
+  };
+
+  return (
+    <AuthLayout title={titles[view]} subtitle={subtitles[view]}>
+      {aviso && (
+        <div role="status" className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 font-medium">
+          <Info size={14} className="mt-0.5 shrink-0" />
+          <span>{aviso}</span>
+        </div>
+      )}
+      {view === "login" && <LoginForm onSwitch={setView} />}
+      {view === "reset" && <ResetForm onSwitch={setView} />}
+    </AuthLayout>
   );
 }
