@@ -38,6 +38,13 @@ import { PatientProfilePage } from "./pages/PatientProfilePage";
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { cx, getInitials, formatDate } from "./utils/helpers";
+import {
+  normalizeDuration, normalizeSession,
+  selectPatientSessions, filterByRange, computeStats, buildChartData,
+  resolveActivePatientId, deriveHistoryStatus, formatDuration, qualityLabel,
+  normalizeAll, sumDuration, formatTotalDuration, durationNotice, originLabel, formatRawDuration,
+  type HistoryRange,
+} from "./utils/sessionHistory";
 import { AVATAR_COLORS, SIDES, DIFFICULTIES, HEIGHTS, SESSION_TYPES, DURATIONS } from "./constants";
 import { GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
 import { AvatarIcon, Badge, ProgressBar } from "./components/shared";
@@ -757,14 +764,16 @@ function DashboardScreen({ patients, sessions, onNewSession, onViewHistory, onPa
   onSelectPatient: (p: Patient) => void;
 }) {
   const activeCount = patients.filter(p => p.status === "activo").length;
-  const totalMinutes = sessions.reduce((acc, s) => acc + s.duration, 0);
+  // Duración normalizada (s/min según origen); indeterminables y no VR no se suman
+  const normalizedSessions = useMemo(() => normalizeAll(sessions as unknown as Record<string, unknown>[]), [sessions]);
+  const totalDuration = useMemo(() => sumDuration(normalizedSessions), [normalizedSessions]);
   const avgProgress = patients.length ? Math.round(patients.reduce((a, p) => a + p.progress, 0) / patients.length) : 0;
-  const recentSessions = [...sessions].sort((a, b) => b.id - a.id).slice(0, 5);
+  const recentSessions = normalizedSessions.slice(0, 5);
 
   const stats = [
     { label: "Pacientes activos", value: String(activeCount), Icon: Users, iconBg: "bg-blue-100", iconColor: "text-blue-600", trend: `${patients.length} total` },
     { label: "Sesiones realizadas", value: String(sessions.length), Icon: Activity, iconBg: "bg-emerald-100", iconColor: "text-emerald-600", trend: "Total acumulado" },
-    { label: "Tiempo rehabilitación", value: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`, Icon: Timer, iconBg: "bg-violet-100", iconColor: "text-violet-600", trend: "Total acumulado" },
+    { label: "Tiempo rehabilitación", value: formatTotalDuration(totalDuration.seconds), Icon: Timer, iconBg: "bg-violet-100", iconColor: "text-violet-600", trend: durationNotice(totalDuration) || "Total acumulado (sesiones VR)" },
     { label: "Progreso medio", value: `${avgProgress}%`, Icon: TrendingUp, iconBg: "bg-amber-100", iconColor: "text-amber-600", trend: "Todos los pacientes" },
   ];
 
@@ -843,10 +852,10 @@ function DashboardScreen({ patients, sessions, onNewSession, onViewHistory, onPa
                     return (
                       <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3"><div className="flex items-center gap-2.5"><AvatarIcon initials={pat.initials} colorIdx={pat.colorIdx} size="sm" /><span className="font-medium text-slate-700 text-xs truncate max-w-[100px]">{pat.name.split(" ")[0]} {pat.name.split(" ")[1]}</span></div></td>
-                        <td className="px-4 py-3 text-xs text-slate-500">{s.game}</td>
-                        <td className="px-4 py-3 text-xs text-slate-400">{s.date}</td>
-                        <td className="px-4 py-3 text-right"><span className="text-xs font-bold text-slate-700 font-mono">{s.score.toLocaleString()}</span></td>
-                        <td className="px-4 py-3 text-right"><Badge color={s.accuracy >= 80 ? "green" : s.accuracy >= 65 ? "amber" : "red"}>{s.accuracy}%</Badge></td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{s.game}{s.origin !== "vr" && <span className="block text-[10px] text-amber-700">{originLabel(s.origin)}</span>}</td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{s.dateLabel}</td>
+                        <td className="px-4 py-3 text-right"><span className="text-xs font-bold text-slate-700 font-mono">{typeof s.score === "number" ? s.score.toLocaleString() : "—"}</span></td>
+                        <td className="px-4 py-3 text-right">{typeof s.accuracy === "number" ? <Badge color={s.accuracy >= 80 ? "green" : s.accuracy >= 65 ? "amber" : "red"}>{s.accuracy}%</Badge> : <span className="text-xs text-slate-400">—</span>}</td>
                       </tr>
                     );
                   })}
@@ -1343,7 +1352,8 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
   const totalMovements = hasVRData ? session.movementsSummary!.reduce((sum, m) => sum + m.count, 0) : 0;
   
   // Ratio de eficiencia (puntos por minuto)
-  const efficiencyRatio = session.duration > 0 ? Math.round(session.score / session.duration) : 0;
+  const detailSecs = normalizeDuration(session as unknown as Record<string, unknown>).seconds;
+  const efficiencyRatio = detailSecs !== null && detailSecs > 0 ? Math.round(session.score / (detailSecs / 60)) : 0;
   
   // Balance de trabajo (simetría entre tipos de movimiento opuestos)
   const movementBalance = hasVRData ? (() => {
@@ -1386,7 +1396,7 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
     });
     const dominant = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
     
-    let interpretation = `<strong>Volumen de trabajo:</strong> Se realizaron ${totalMovements} movimientos en total durante ${session.duration} minutos. `;
+    let interpretation = `<strong>Volumen de trabajo:</strong> Se realizaron ${totalMovements} movimientos en total durante ${formatDuration(detailSecs)}. `;
     interpretation += `El tipo de movimiento predominante fue ${dominant[0]} con ${dominant[1]} repeticiones (${Math.round((dominant[1]/totalMovements)*100)}% del total). `;
     
     // Análisis de balance
@@ -1489,7 +1499,7 @@ function SessionDetailScreen({ session, onBack, onSaveNotes }: {
               {[
                 { label: "Puntuación", value: session.score.toLocaleString(), color: "text-blue-600", bg: "bg-blue-50", Icon: Trophy },
                 { label: "Precisión", value: `${session.accuracy}%`, color: session.accuracy >= 80 ? "text-emerald-600" : session.accuracy >= 65 ? "text-amber-600" : "text-rose-600", bg: session.accuracy >= 80 ? "bg-emerald-50" : session.accuracy >= 65 ? "bg-amber-50" : "bg-rose-50", Icon: Target },
-                { label: "Duración", value: `${session.duration} min`, color: "text-violet-600", bg: "bg-violet-50", Icon: Timer },
+                { label: "Duración", value: formatDuration(detailSecs), color: "text-violet-600", bg: "bg-violet-50", Icon: Timer },
               ].map(({ label, value, color, bg, Icon }) => (
                 <div key={label} className={cx("rounded-xl px-4 py-3 flex items-center justify-between", bg)}>
                   <div className="flex items-center gap-2">
@@ -2182,7 +2192,7 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
   const bestScore = totalSessions ? Math.max(...patientSessions.map(s => s.score)) : 0;
   const avgAccuracy = totalSessions
     ? Math.round(patientSessions.reduce((a, s) => a + s.accuracy, 0) / totalSessions) : 0;
-  const totalMinutes = patientSessions.reduce((a, s) => a + s.duration, 0);
+  const profileDuration = sumDuration(patientSessions.map(s => normalizeSession(s as unknown as Record<string, unknown>)));
   const lastSessionDate = patientSessions[0]?.date ?? patient.lastSession;
 
   const chartData = patientSessions.slice().reverse().map((s, i) => ({
@@ -2233,7 +2243,7 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
                 {[
                   { label: "Última sesión",   value: lastSessionDate },
                   { label: "Total sesiones",  value: String(totalSessions) },
-                  { label: "Tiempo total",    value: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` },
+                  { label: "Tiempo total",    value: formatTotalDuration(profileDuration.seconds) },
                   { label: "Precisión media", value: totalSessions ? `${avgAccuracy}%` : "—" },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
@@ -2339,7 +2349,7 @@ function PatientProfileScreen({ patient, sessions, onBack, onStartSession, onEdi
                     <tr key={row.id} className="hover:bg-blue-50/40 transition-colors cursor-pointer" onClick={() => onViewSessionDetail(row)}>
                       <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
                       <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{row.duration} min</td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{formatRawDuration(row)}</td>
                       <td className="px-4 py-3"><Badge color={row.side === "Izquierdo" ? "blue" : row.side === "Derecho" ? "purple" : "amber"}>{row.side}</Badge></td>
                       <td className="px-4 py-3"><Badge color={row.difficulty === "Fácil" ? "green" : row.difficulty === "Media" ? "amber" : "red"}>{row.difficulty}</Badge></td>
                       <td className="px-4 py-3 text-xs font-bold text-slate-700 font-mono">{row.score.toLocaleString()}</td>
@@ -2441,36 +2451,32 @@ function MinigamesScreen({ onStartSession, onViewSpec }: {
 
 // ─── SCREEN: HISTORY ──────────────────────────────────────────────────────────
 
-function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: SessionRecord[] }) {
-  const [activePatientId, setActivePatientId] = useState(patients[0]?.id ?? 1);
-  const [filterDate, setFilterDate] = useState("all");
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+function HistoryScreen({ patients, sessions, sessionsLoading, sessionsError }: {
+  patients: Patient[]; sessions: SessionRecord[]; sessionsLoading: boolean; sessionsError: boolean;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<HistoryRange>("all");
+  const activePatientId = resolveActivePatientId(patients, selectedId);
 
-  const patient = patients.find(p => p.id === activePatientId) ?? patients[0];
-  const patientSessions = useMemo(() => sessions.filter(s => s.patientId === activePatientId), [sessions, activePatientId]);
-
-  const filteredSessions = useMemo(() => {
-    if (filterDate === "all") return patientSessions;
-    const now = new Date("2026-06-22");
-    const cutoff = new Date(now);
-    if (filterDate === "week") cutoff.setDate(now.getDate() - 7);
-    else cutoff.setMonth(now.getMonth() - 1);
-    return patientSessions;
-  }, [patientSessions, filterDate]);
+  const patient = patients.find(p => String(p.id) === activePatientId) ?? patients[0];
+  // Datos reales de Firestore normalizados en memoria (no se modifica lo almacenado)
+  const patientSessions = useMemo(
+    () => selectPatientSessions(sessions as unknown as Record<string, unknown>[], activePatientId),
+    [sessions, activePatientId]);
+  const filteredSessions = useMemo(() => filterByRange(patientSessions, filterDate), [patientSessions, filterDate]);
+  const stats = useMemo(() => computeStats(filteredSessions), [filteredSessions]);
+  const chartData = useMemo(() => buildChartData(filteredSessions), [filteredSessions]);
+  const status = deriveHistoryStatus({ loading: sessionsLoading, error: sessionsError, count: filteredSessions.length });
 
   const pagSessions = usePagination(filteredSessions, 10);
   const pagPatients = usePagination(patients, 25);
 
-  const chartData = HISTORY_CHART_BY_PATIENT[activePatientId] ?? [];
-  const bestScore = patientSessions.length ? Math.max(...patientSessions.map(s => s.score)) : 0;
-  const avgAccuracy = patientSessions.length ? Math.round(patientSessions.reduce((a, s) => a + s.accuracy, 0) / patientSessions.length) : 0;
-
   if (!patient) return <div className="p-8 text-center text-slate-400">No hay pacientes registrados</div>;
 
   const metrics = [
-    { label: "Mejor puntuación", value: bestScore ? bestScore.toLocaleString() : "—", Icon: Trophy, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "Precisión media", value: patientSessions.length ? `${avgAccuracy}%` : "—", Icon: Award, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Total sesiones", value: String(patientSessions.length), Icon: Activity, color: "text-violet-600", bg: "bg-violet-50" },
+    { label: "Mejor puntuación", value: stats.bestScore !== null ? stats.bestScore.toLocaleString() : "—", Icon: Trophy, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Precisión media", value: stats.avgAccuracy !== null ? `${stats.avgAccuracy}%` : "—", Icon: Award, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Total sesiones", value: status === "ready" || status === "empty" ? String(stats.total) : "—", Icon: Activity, color: "text-violet-600", bg: "bg-violet-50" },
     { label: "Progreso global", value: `${patient.progress}%`, Icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
   ];
 
@@ -2488,8 +2494,8 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
       <Card className="p-4 mb-6">
         <div className="flex items-center gap-2 flex-wrap">
           {pagPatients.paged.map(p => (
-            <button key={p.id} onClick={() => setActivePatientId(p.id)}
-              className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer", activePatientId === p.id ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-600 hover:border-blue-200")}>
+            <button key={p.id} onClick={() => setSelectedId(String(p.id))} aria-pressed={activePatientId === String(p.id)}
+              className={cx("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer", activePatientId === String(p.id) ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-600 hover:border-blue-200")}>
               <AvatarIcon initials={p.initials} colorIdx={p.colorIdx} size="sm" />
               {p.name.split(" ")[0]} {p.name.split(" ")[1]}
             </button>
@@ -2519,16 +2525,16 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
           </Card>
         ))}
       </div>
-      {chartData.length > 0 && (
+      {status === "ready" && chartData.length > 0 && (
         <Card className="p-5 mb-6">
           <h2 className="text-sm font-bold text-slate-700 mb-5 flex items-center gap-2"><TrendingUp size={15} className="text-blue-500" /> Evolución de puntuación y precisión</h2>
-          <div className="h-56">
+          <div className="h-56" role="img" aria-label={`Gráfica de evolución de puntuación y precisión con ${chartData.length} sesiones`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5FB" />
                 <XAxis dataKey="s" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="score" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={50} />
-                <YAxis yAxisId="prec" orientation="right" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} domain={[40, 100]} width={35} unit="%" />
+                <YAxis yAxisId="prec" orientation="right" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} domain={[0, 100]} width={35} unit="%" />
                 <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", fontSize: "12px" }} labelStyle={{ fontWeight: "bold", color: "#1E293B" }} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
                 <Line yAxisId="score" type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2.5} dot={{ fill: "#3B82F6", r: 3 }} activeDot={{ r: 5 }} name="Puntuación" />
@@ -2540,10 +2546,10 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
       )}
       <Card>
         <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Calendar size={14} className="text-slate-400" /> Registro de sesiones ({filteredSessions.length})</h2>
+          <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Calendar size={14} className="text-slate-400" /> Registro de sesiones ({status === "ready" || status === "empty" ? filteredSessions.length : "—"})</h2>
           <div className="flex items-center gap-2">
             <Filter size={13} className="text-slate-400" />
-            <select value={filterDate} onChange={e => setFilterDate(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer">
+            <select aria-label="Filtrar sesiones por fecha" value={filterDate} onChange={e => setFilterDate(e.target.value as HistoryRange)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer">
               <option value="all">Todas las fechas</option>
               <option value="week">Última semana</option>
               <option value="month">Último mes</option>
@@ -2560,24 +2566,50 @@ function HistoryScreen({ patients, sessions }: { patients: Patient[]; sessions: 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filteredSessions.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400">No hay sesiones registradas para este paciente</td></tr>
+              {status === "loading" && (
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400" role="status" aria-live="polite">Cargando sesiones…</td></tr>
               )}
-              {pagSessions.paged.map(row => (
+              {status === "error" && (
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-red-600" role="alert">No se pudieron cargar las sesiones. Comprueba tu conexión o tus permisos e inténtalo de nuevo.</td></tr>
+              )}
+              {status === "empty" && (
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400" role="status">No hay sesiones registradas para este paciente{filterDate !== "all" ? " en el periodo seleccionado" : ""}.</td></tr>
+              )}
+              {status === "ready" && pagSessions.paged.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-xs text-slate-500">{row.date}</td>
-                  <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{row.duration} min</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{row.dateLabel}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}<span className={cx("block text-[10px] font-normal", row.origin === "vr" ? "text-slate-400" : "text-amber-700")}>{originLabel(row.origin)}</span></td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{formatDuration(row.durationSec)}</td>
                   <td className="px-4 py-3"><Badge color={row.side === "Izquierdo" ? "blue" : row.side === "Derecho" ? "purple" : "amber"}>{row.side}</Badge></td>
                   <td className="px-4 py-3"><Badge color={row.difficulty === "Fácil" ? "green" : row.difficulty === "Media" ? "amber" : "red"}>{row.difficulty}</Badge></td>
-                  <td className="px-4 py-3 text-xs font-bold text-slate-700 font-mono">{row.score.toLocaleString()}</td>
-                  <td className="px-4 py-3"><Badge color={row.accuracy >= 80 ? "green" : row.accuracy >= 65 ? "amber" : "red"}>{row.accuracy}%</Badge></td>
+                  <td className="px-4 py-3 text-xs font-bold text-slate-700 font-mono">{row.score === null ? "—" : row.score.toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    {row.insufficient
+                      ? <Badge color="amber">{qualityLabel(row.quality)}</Badge>
+                      : row.accuracy === null ? <span className="text-xs text-slate-400">—</span>
+                      : <Badge color={row.accuracy >= 80 ? "green" : row.accuracy >= 65 ? "amber" : "red"}>{row.accuracy}%</Badge>}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {filteredSessions.length > 0 && <Paginacion {...pagSessions} />}
+        {status === "ready" && filteredSessions.some(r => r.quality === "desconocida") && (
+          <p className="px-5 py-2 text-xs text-slate-500 border-t border-slate-100" role="note">
+            Los datos disponibles no indican si cada sesión se completó o se interrumpió; se muestran tal como se registraron.
+          </p>
+        )}
+        {status === "ready" && stats.unverified > 0 && (
+          <p className="px-5 py-2 text-xs text-amber-700 bg-amber-50 border-t border-amber-100" role="note">
+            {stats.unverified} {stats.unverified === 1 ? "registro no procedente de VR (manual de la plataforma u origen no determinado) excluido" : "registros no procedentes de VR (manuales de la plataforma u origen no determinado) excluidos"} de la gráfica y de los promedios; se muestra{stats.unverified === 1 ? "" : "n"} en la tabla con su procedencia.
+          </p>
+        )}
+        {status === "ready" && stats.insufficient > 0 && (
+          <p className="px-5 py-2 text-xs text-amber-700 bg-amber-50 border-t border-amber-100" role="note">
+            {stats.insufficient} {stats.insufficient === 1 ? "sesión sin datos suficientes excluida" : "sesiones sin datos suficientes excluidas"} de la gráfica y de los promedios.
+          </p>
+        )}
+        {status === "ready" && <Paginacion {...pagSessions} />}
       </Card>
     </div>
   );
@@ -2693,6 +2725,8 @@ export default function App({ user }: { user: FirebaseUser }) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState(false);
   const [pendingPatient, setPendingPatient] = useState<Patient | null>(null);
   const [pendingGame, setPendingGame] = useState<string>("");
   const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
@@ -2720,7 +2754,9 @@ export default function App({ user }: { user: FirebaseUser }) {
   // ── Suscripción en tiempo real a Firestore ────────────────────────────────
   useEffect(() => {
     const unsubP = subscribePatients(data => { setPatients(data); setLoading(false); });
-    const unsubS = subscribeSessions(data => setSessions(data));
+    const unsubS = subscribeSessions(
+      data => { setSessions(data); setSessionsError(false); setSessionsLoading(false); },
+      () => { setSessionsError(true); setSessionsLoading(false); });
     return () => { unsubP(); unsubS(); };
   }, []);
 
@@ -2920,7 +2956,7 @@ export default function App({ user }: { user: FirebaseUser }) {
             onSave={handleSaveSession} 
           />
         )}
-        {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} />}
+        {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} sessionsLoading={sessionsLoading} sessionsError={sessionsError} />}
         {screen === "patient-profile" && profilePatient && (
           <PatientProfilePage
             patient={patients.find(p => p.id === profilePatient.id) ?? profilePatient}

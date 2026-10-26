@@ -8,6 +8,7 @@ import {
   Timestamp, writeBatch, getDocs, where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { sortRawSessionsDesc } from "./utils/sessionHistory";
 import type { Patient, SessionRecord, SessionConfig } from "./types";
 
 // Re-exportar db para uso externo
@@ -63,39 +64,46 @@ export async function deletePatient(id: string) {
 
 // ── SESIONES ──────────────────────────────────────────────────────────────────
 
-/** Suscripción en tiempo real a todas las sesiones ordenadas por fecha desc */
-export function subscribeSessions(cb: (sessions: SessionRecord[]) => void) {
-  const q = query(collection(db, COL_SESSIONS), orderBy("createdAt", "desc"));
+/**
+ * Suscripción en tiempo real a todas las sesiones. No usa orderBy("createdAt"):
+ * Firestore excluiría los documentos sin ese campo (p. ej. los de Godot actuales).
+ * El orden (fecha desc, createdAt desc, id) se aplica en cliente con sortRawSessionsDesc.
+ * La consulta sigue siendo la misma colección completa; no cambia quién puede leer qué.
+ */
+export function subscribeSessions(cb: (sessions: SessionRecord[]) => void, onError?: (err: unknown) => void) {
+  const q = query(collection(db, COL_SESSIONS));
   return onSnapshot(q, snap => {
-    const sessions = snap.docs.map(d => {
+    const unsorted = snap.docs.map(d => {
       const data = d.data();
       return {
         ...(data as Omit<SessionRecord, "id">),
         id: d.id,
-        // Convertir Timestamp de Firestore a string legible si hace falta
+        // Convertir Timestamp de Firestore a string legible si hace falta.
+        // Sin date ni createdAt se deja vacío: no se inventa fecha (la UI muestra "—").
         date: data.date ?? (data.createdAt instanceof Timestamp
           ? data.createdAt.toDate().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
-          : String(data.date)),
+          : ""),
       } as unknown as SessionRecord;
     });
+    const sessions = sortRawSessionsDesc(unsorted as unknown as Record<string, unknown>[]) as unknown as SessionRecord[];
     cb(sessions);
     
     // Auto-limpiar sesión activa si detectamos nueva sesión desde VR
     // (el juego terminó y guardó resultados)
-    const latestFromVR = sessions.find(s => s.fromVR === true);
+    // Solo cuenta con createdAt real (Timestamp): un documento sin createdAt NO
+    // debe considerarse "reciente", o limpiaría la sesión activa en cada snapshot.
+    const latestFromVR = sessions.find(s => s.fromVR === true && s.createdAt instanceof Timestamp);
     if (latestFromVR) {
       // Verificar si es reciente (últimos 10 segundos)
       const now = Date.now();
-      const sessionTime = latestFromVR.createdAt instanceof Timestamp 
-        ? latestFromVR.createdAt.toMillis() 
-        : now;
-      
+      const sessionTime = (latestFromVR.createdAt as unknown as Timestamp).toMillis();
+
       if (now - sessionTime < 10000) {  // Menos de 10 segundos
         console.log("[DB] Nueva sesión VR detectada, limpiando sesión activa...");
         clearActiveSession().catch(console.error);
       }
     }
-  });
+  }, err => { console.error("[DB] Error en suscripción a sesiones:", err); onError?.(err); });
 }
 
 /** Guardar una sesión completada */
