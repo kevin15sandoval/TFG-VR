@@ -11,6 +11,7 @@ import { cx, formatDate } from "../utils/helpers";
 import { AVATAR_COLORS } from "../constants";
 import { MINIGAMES } from "../config/gameConfig";
 import { generatePatientReport } from "../pdfReport";
+import { normalizeSession, sumDuration, formatTotalDuration, durationNotice, formatRawDuration } from "../utils/sessionHistory";
 
 interface PatientProfilePageProps {
   patient: Patient;
@@ -40,20 +41,21 @@ export function PatientProfilePage({
   // Calcular estadísticas
   const stats = useMemo(() => {
     const total = patientSessions.length;
-    if (total === 0) return { total: 0, avgScore: 0, avgAccuracy: 0, totalTime: 0, lastSession: null };
+    if (total === 0) return { total: 0, avgScore: 0, avgAccuracy: 0, totalTime: formatTotalDuration(0), totalTimeNotice: "", lastSession: null };
 
     const scores = patientSessions.map(s => s.score || 0);
     const accuracies = patientSessions.map(s => s.accuracy || 0);
-    const durations = patientSessions.map(s => s.duration || 0);
     
     const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / total);
     const avgAccuracy = Math.round(accuracies.reduce((a, b) => a + b, 0) / total);
-    const totalTime = durations.reduce((a, b) => a + b, 0);
+    const totalDur = sumDuration(patientSessions.map(s => normalizeSession(s as unknown as Record<string, unknown>)));
+    const totalTime = formatTotalDuration(totalDur.seconds);
+    const totalTimeNotice = durationNotice(totalDur);
     const lastSession = patientSessions.sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     )[0];
 
-    return { total, avgScore, avgAccuracy, totalTime, lastSession };
+    return { total, avgScore, avgAccuracy, totalTime, totalTimeNotice, lastSession };
   }, [patientSessions]);
 
   // Datos para gráfico de evolución
@@ -182,8 +184,9 @@ export function PatientProfilePage({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">Tiempo total</span>
-                <span className="text-lg font-bold text-violet-600 font-mono">{stats.totalTime} min</span>
+                <span className="text-lg font-bold text-violet-600 font-mono">{stats.totalTime}</span>
               </div>
+              {stats.totalTimeNotice && <p className="text-[10px] text-amber-700 text-right">{stats.totalTimeNotice}</p>}
             </div>
           </Card>
 
@@ -329,7 +332,7 @@ export function PatientProfilePage({
                               <CheckCircle size={12} className="text-emerald-500" />
                             )}
                           </div>
-                          <p className="text-xs text-slate-400">{formatDate(session.date)} · {session.duration} min</p>
+                          <p className="text-xs text-slate-400">{formatDate(session.date)} · {formatRawDuration(session)}</p>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-bold text-blue-600 font-mono">{session.score || 0}</div>

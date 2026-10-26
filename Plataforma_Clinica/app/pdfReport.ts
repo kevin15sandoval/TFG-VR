@@ -4,6 +4,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Patient, SessionRecord } from "./types";
+import { durationKpi, formatRawDuration } from "./utils/sessionHistory";
 
 export function generatePatientReport(patient: Patient, sessions: SessionRecord[]): void {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -22,9 +23,12 @@ export function generatePatientReport(patient: Patient, sessions: SessionRecord[
 
   // ── Calcular métricas ────────────────────────────────────────────────────
   const total      = sessions.length;
-  const bestScore  = total ? Math.max(...sessions.map(s => s.score)) : 0;
-  const avgAcc     = total ? Math.round(sessions.reduce((a, s) => a + s.accuracy, 0) / total) : 0;
-  const totalMins  = sessions.reduce((a, s) => a + s.duration, 0);
+  // Solo valores numéricos: una sesión sin puntuación/precisión no debe romper el informe ni contar como 0
+  const scores     = sessions.map(s => s.score).filter((n): n is number => typeof n === "number");
+  const accs       = sessions.map(s => s.accuracy).filter((n): n is number => typeof n === "number");
+  const bestScore  = scores.length ? Math.max(...scores) : 0;
+  const avgAcc     = accs.length ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length) : 0;
+  const timeKpi    = durationKpi(sessions); // mismas reglas de unidad que el Historial
   const lastDate   = sessions[0]?.date ?? "—";
 
   // ── CABECERA ─────────────────────────────────────────────────────────────
@@ -91,7 +95,7 @@ export function generatePatientReport(patient: Patient, sessions: SessionRecord[
     { label: "Sesiones realizadas", value: String(total) },
     { label: "Mejor puntuación", value: bestScore.toLocaleString() },
     { label: "Precisión media", value: `${avgAcc}%` },
-    { label: "Tiempo total", value: `${Math.floor(totalMins / 60)}h ${totalMins % 60}m` },
+    timeKpi,
     { label: "Última sesión", value: lastDate },
     { label: "Progreso global", value: `${patient.progress}%` },
   ];
@@ -110,7 +114,7 @@ export function generatePatientReport(patient: Patient, sessions: SessionRecord[
     doc.setTextColor(...GRAY);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(kpi.label.toUpperCase(), x + 3, ky + 6);
+    doc.text(doc.splitTextToSize(kpi.label.toUpperCase(), kpiW - 6), x + 3, ky + 5); // el aviso de exclusiones puede ocupar 2 líneas
 
     doc.setTextColor(...DARK);
     doc.setFontSize(11);
@@ -153,13 +157,13 @@ export function generatePatientReport(patient: Patient, sessions: SessionRecord[
     margin: { left: margin, right: margin },
     head: [["Fecha", "Ejercicio", "Duración", "Lado", "Dificultad", "Puntuación", "Precisión"]],
     body: sessions.map(s => [
-      s.date,
+      s.date || "—",
       s.game,
-      `${s.duration} min`,
+      formatRawDuration(s),
       s.side,
       s.difficulty,
-      s.score.toLocaleString(),
-      `${s.accuracy}%`,
+      typeof s.score === "number" ? s.score.toLocaleString() : "—",
+      typeof s.accuracy === "number" ? `${s.accuracy}%` : "—",
     ]),
     headStyles: {
       fillColor: BLUE,

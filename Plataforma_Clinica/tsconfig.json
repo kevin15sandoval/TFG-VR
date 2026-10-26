@@ -17,5 +17,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["app", "styles"]
+  "include": ["app", "styles"],
+  "exclude": ["app/**/*.test.ts"]
 }
