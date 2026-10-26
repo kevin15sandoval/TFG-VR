@@ -27,6 +27,7 @@ var normal_gems:     int   = 0
 var golden_gems:     int   = 0
 var red_gems_hit:    int   = 0
 var red_gems_avoided:int   = 0
+var gems_missed:     int   = 0   # gemas NO rojas que expiraron sin ser tocadas
 var green_gems:      int   = 0
 var purple_gems:     int   = 0
 var start_time:      float = 0.0
@@ -118,6 +119,7 @@ func start_session() -> void:
 	golden_gems       = 0
 	red_gems_hit      = 0
 	red_gems_avoided  = 0
+	gems_missed       = 0
 	green_gems        = 0
 	purple_gems       = 0
 	movement_log      = []
@@ -165,17 +167,26 @@ func collect_gem(gem_type: String, points: int, exercise_name: String = "") -> v
 		return
 
 	var elapsed_for_gem = (Time.get_ticks_msec() / 1000.0) - _gem_start_time
-	score          += points
-	gems_collected += 1
 
+	# gems_collected cuenta SOLO gemas buenas recogidas: ni la roja tocada (red_gems_hit)
+	# ni la roja esquivada (red_gems_avoided) son "recogidas".
 	match gem_type:
-		"normal":       normal_gems       += 1
-		"golden":       golden_gems       += 1
-		"green":        green_gems        += 1
-		"purple":       purple_gems       += 1
-		"red":          red_gems_hit      += 1; score -= points  # penalización
-		"red_avoided":  red_gems_avoided  += 1
-		_:              normal_gems       += 1
+		"red":
+			# Penalización única por toque, siempre resta (aunque llegue con signo positivo).
+			red_gems_hit += 1
+			points = -absi(points)
+		"red_avoided":
+			red_gems_avoided += 1
+			points = absi(points)
+		_:
+			gems_collected += 1
+			match gem_type:
+				"golden": golden_gems += 1
+				"green":  green_gems  += 1
+				"purple": purple_gems += 1
+				_:        normal_gems += 1
+	# La puntuación nunca es negativa (convención del resto de minijuegos).
+	score = maxi(0, score + points)
 
 	# Registrar en log clínico
 	if exercise_name != "" and gem_type != "red":
@@ -197,6 +208,13 @@ func collect_gem(gem_type: String, points: int, exercise_name: String = "") -> v
 
 	print("[GameManager] ", gem_type, " '", exercise_name, "' +", points, " → ", score)
 	emit_signal("gem_collected", gem_type, points, score)
+
+## Gema NO roja que expira sin ser tocada: cuenta como fallo, no como recogida ni puntúa.
+func register_gem_missed() -> void:
+	if game_finished or not session_active:
+		return
+	gems_missed += 1
+	_gem_start_time = Time.get_ticks_msec() / 1000.0
 
 # ─── FIN DE SESIÓN ────────────────────────────────────────────────────────────
 
@@ -238,7 +256,12 @@ func finish_session() -> void:
 		else:
 			zones["Medio"] += 1
 
+	# Sin eventos reales (0 recogidas, 0 rojas tocadas/esquivadas, 0 perdidas) no se afirma
+	# rendimiento: accuracy y score quedan en 0 y se marca "sin_datos" = true.
+	var sin_datos: bool = _total_events() == 0
+
 	var results = {
+		"sin_datos":        sin_datos,
 		# Datos básicos
 		"patient_id":       patient_id,
 		"patient_name":     patient_name,
@@ -258,6 +281,7 @@ func finish_session() -> void:
 		"golden_gems":      golden_gems,
 		"red_gems_hit":     red_gems_hit,
 		"red_gems_avoided": red_gems_avoided,
+		"gems_missed":      gems_missed,
 		"green_gems":       green_gems,
 		"purple_gems":      purple_gems,
 		# Métricas clínicas
@@ -296,10 +320,16 @@ func release_session_si_confirmado(gestor_firebase: Node) -> bool:
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+## Eventos reales de la sesión: recogidas, rojas tocadas, rojas esquivadas y gemas perdidas.
+func _total_events() -> int:
+	return gems_collected + red_gems_hit + red_gems_avoided + gems_missed
+
+## % de resultados correctos (recogida buena o roja esquivada) sobre todos los eventos reales.
 func _calculate_accuracy() -> int:
-	if gems_collected == 0: return 0
-	var good = gems_collected - red_gems_hit
-	return int((float(good) / float(gems_collected)) * 100.0)
+	var total := _total_events()
+	if total == 0: return 0
+	var good := gems_collected + red_gems_avoided
+	return int((float(good) / float(total)) * 100.0)
 
 func get_elapsed_time() -> float:
 	if not session_active and not game_finished: return 0.0
