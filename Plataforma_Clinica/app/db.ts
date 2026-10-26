@@ -5,7 +5,7 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
   onSnapshot, query, orderBy, serverTimestamp,
-  Timestamp, writeBatch, getDocs, where,
+  Timestamp, writeBatch, getDocs, where, limit,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { sortRawSessionsDesc } from "./utils/sessionHistory";
@@ -104,6 +104,36 @@ export function subscribeSessions(cb: (sessions: SessionRecord[]) => void, onErr
       }
     }
   }, err => { console.error("[DB] Error en suscripción a sesiones:", err); onError?.(err); });
+}
+
+/**
+ * Lectura (solo lectura, sin escrituras) de UNA sesión para la pantalla de resultados.
+ * - kind "sessionId": busca por el campo `sessionId` (Godot guarda ahí la sesión enviada;
+ *   el id del documento lo autogenera Firestore). Devuelve 0..5 documentos para poder avisar de duplicados.
+ * - kind "docId": lee el documento por id (acceso desde el Historial).
+ * Devuelve la función para cancelar la suscripción.
+ */
+export function subscribeSessionResult(
+  target: { kind: "sessionId" | "docId"; value: string },
+  cb: (docs: Array<Record<string, unknown>>) => void,
+  onError: (err: unknown) => void,
+) {
+  // includeMetadataChanges: los snapshots que vienen SOLO de la caché local (sin confirmar con el servidor) se
+  // ignoran: no significan "no existe" ni garantizan que el usuario siga autorizado ni que el dato esté al día.
+  // La pantalla sigue en "cargando" hasta la respuesta del servidor (o error de permisos/red).
+  const opts = { includeMetadataChanges: true };
+  const toRaw = (d: { id: string; data: () => Record<string, unknown> }) => ({ ...d.data(), id: d.id });
+  if (target.kind === "docId") {
+    return onSnapshot(doc(db, COL_SESSIONS, target.value), opts, snap => {
+      if (snap.metadata.fromCache) return;
+      cb(snap.exists() ? [toRaw(snap as unknown as { id: string; data: () => Record<string, unknown> })] : []);
+    }, onError);
+  }
+  const q = query(collection(db, COL_SESSIONS), where("sessionId", "==", target.value), limit(5));
+  return onSnapshot(q, opts, snap => {
+    if (snap.metadata.fromCache) return;
+    cb(snap.docs.map(d => toRaw(d)));
+  }, onError);
 }
 
 /** Guardar una sesión completada */

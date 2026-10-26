@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Headset, Activity, X, Loader2, RotateCcw, ArrowRight } from "lucide-react";
 import { collection, query, where, limit, onSnapshot } from "firebase/firestore";
 import type { Patient, SessionConfig } from "../types";
@@ -17,6 +17,10 @@ interface ConnectDevicePageProps {
 export function ConnectDevicePage({ config, patients, onSessionSent, onBack }: ConnectDevicePageProps) {
   const [status, setStatus] = useState<"idle" | "sending" | "ready" | "playing" | "error">("idle");
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  // La callback se guarda en una ref: si estuviera en las dependencias del efecto, cada re-render del
+  // padre re-suscribiría la lectura y dispararía onSessionSent varias veces.
+  const onSentRef = useRef(onSessionSent);
+  onSentRef.current = onSessionSent;
   const patient = patients.find(p => p.id === config.patientId);
   const game = MINIGAMES.find(g => g.id === config.selectedGame);
 
@@ -32,22 +36,23 @@ export function ConnectDevicePage({ config, patients, onSessionSent, onBack }: C
       limit(1)
     );
     
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let notified = false;
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const sessionData = snapshot.docs[0].data();
-        console.log("[Web] ✅ Resultados detectados desde VR:", sessionData);
+      if (!snapshot.empty && !notified) {
+        notified = true;
+        console.log("[Web] ✅ Resultados detectados desde VR para la sesión", currentSessionId);
         setStatus("playing");
-        setTimeout(() => {
-          onSessionSent(currentSessionId);
-        }, 1000);
+        timer = setTimeout(() => onSentRef.current(currentSessionId), 1000);
       }
     });
     
     return () => {
       console.log("[Web] 🔌 Desconectando listener de resultados");
+      if (timer) clearTimeout(timer);
       unsubscribe();
     };
-  }, [currentSessionId, onSessionSent]);
+  }, [currentSessionId]);
 
   async function handleSend() {
     if (!patient) return;
