@@ -123,7 +123,20 @@ func end_game() -> void:
 	if total_lasers > 0:
 		dodge_rate = (float(lasers_dodged) / float(total_lasers)) * 100.0
 	
+	# Criterio sin datos: si no hubo ningún evento real (0 esquives + 0 impactos), no se puede
+	# afirmar ningún rendimiento. Las puntuaciones derivadas quedan en 0 y se marca
+	# "sin_datos" = true; la interfaz muestra un mensaje neutro. Con eventos, todo se calcula
+	# solo a partir de los esquives e impactos registrados.
+	var sin_datos: bool = total_lasers == 0
+	var motor_control := 0
+	var reaction_score := 0
+	if not sin_datos:
+		motor_control = max(0, 100 - (laser_hits * 15))
+		if lasers_dodged > 0:
+			reaction_score = int(max(0, 100 - avg_dodge_time * 10))
+
 	var results = {
+		"sin_datos": sin_datos,
 		"game_type": "vault_escape",
 		"game_name": "Laser Limbo Escape",
 		"score": score,
@@ -146,8 +159,8 @@ func end_game() -> void:
 		"failed_dodges": laser_hits,
 		
 		# Datos clínicos
-		"motor_control_score": max(0, 100 - (laser_hits * 15)),
-		"reaction_time_score": int(max(0, 100 - avg_dodge_time * 10)),
+		"motor_control_score": motor_control,
+		"reaction_time_score": reaction_score,
 		"flexibility_score": int(dodge_rate),
 	}
 	

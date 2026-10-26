@@ -134,7 +134,7 @@ func _spawn_next() -> void:
 	print("[LaserSpawner] ⏱️ Próximo láser en ", laser_data["delay"], "s")
 
 func _on_laser_hit(laser: Node) -> void:
-	print("[LaserSpawner] ⚡ ¡JUGADOR TOCÓ LÁSER! Tipo: ", laser.laser_type if laser.has("laser_type") else "unknown")
+	print("[LaserSpawner] ⚡ ¡JUGADOR TOCÓ LÁSER! Tipo: ", laser.get("laser_type") if "laser_type" in laser else "unknown")
 	
 	# Notificar al game manager
 	if GameManager and GameManager.has_method("register_laser_hit"):
