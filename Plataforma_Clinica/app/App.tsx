@@ -21,7 +21,7 @@ import type { Patient, SessionRecord, SessionConfig, Screen } from "./types";
 import {
   subscribePatients, subscribeSessions,
   addPatient, updatePatient, deletePatient,
-  addSession, updateSession, publishActiveSession,
+  updateSession, publishActiveSession,
   createDeviceLink, subscribeDeviceLink, sendSessionToDevice, db,
 } from "./db";
 import { collection, query, where, limit, onSnapshot } from "firebase/firestore";
@@ -32,12 +32,13 @@ import { collection, query, where, limit, onSnapshot } from "firebase/firestore"
 
 import { ConnectDevicePage } from "./pages/ConnectDevicePage";
 import { ResultsPage } from "./pages/ResultsPage.tsx";
+import type { ResultsTarget } from "./utils/resultsView";
 import { GameSpecPage } from "./pages/GameSpecPage";
 import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { PatientProfilePage } from "./pages/PatientProfilePage";
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { cx, getInitials, formatDate } from "./utils/helpers";
+import { cx, getInitials } from "./utils/helpers";
 import {
   normalizeDuration, normalizeSession,
   selectPatientSessions, filterByRange, computeStats, buildChartData,
@@ -2451,8 +2452,9 @@ function MinigamesScreen({ onStartSession, onViewSpec }: {
 
 // ─── SCREEN: HISTORY ──────────────────────────────────────────────────────────
 
-function HistoryScreen({ patients, sessions, sessionsLoading, sessionsError }: {
+function HistoryScreen({ patients, sessions, sessionsLoading, sessionsError, onViewResults }: {
   patients: Patient[]; sessions: SessionRecord[]; sessionsLoading: boolean; sessionsError: boolean;
+  onViewResults: (session: { id: string; patientId: string }) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<HistoryRange>("all");
@@ -2560,23 +2562,23 @@ function HistoryScreen({ patients, sessions, sessionsLoading, sessionsError }: {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-50">
-                {["Fecha", "Ejercicio", "Duración", "Lado", "Dificultad", "Puntuación", "Precisión"].map(h => (
+                {["Fecha", "Ejercicio", "Duración", "Lado", "Dificultad", "Puntuación", "Precisión", "Resultados"].map(h => (
                   <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {status === "loading" && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400" role="status" aria-live="polite">Cargando sesiones…</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-xs text-slate-400" role="status" aria-live="polite">Cargando sesiones…</td></tr>
               )}
               {status === "error" && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-red-600" role="alert">No se pudieron cargar las sesiones. Comprueba tu conexión o tus permisos e inténtalo de nuevo.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-xs text-red-600" role="alert">No se pudieron cargar las sesiones. Comprueba tu conexión o tus permisos e inténtalo de nuevo.</td></tr>
               )}
               {status === "empty" && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-400" role="status">No hay sesiones registradas para este paciente{filterDate !== "all" ? " en el periodo seleccionado" : ""}.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-xs text-slate-400" role="status">No hay sesiones registradas para este paciente{filterDate !== "all" ? " en el periodo seleccionado" : ""}.</td></tr>
               )}
               {status === "ready" && pagSessions.paged.map(row => (
-                <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={row.id} data-session-id={row.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 text-xs text-slate-500">{row.dateLabel}</td>
                   <td className="px-4 py-3 text-xs font-medium text-slate-700">{row.game}<span className={cx("block text-[10px] font-normal", row.origin === "vr" ? "text-slate-400" : "text-amber-700")}>{originLabel(row.origin)}</span></td>
                   <td className="px-4 py-3 text-xs text-slate-500">{formatDuration(row.durationSec)}</td>
@@ -2588,6 +2590,9 @@ function HistoryScreen({ patients, sessions, sessionsLoading, sessionsError }: {
                       ? <Badge color="amber">{qualityLabel(row.quality)}</Badge>
                       : row.accuracy === null ? <span className="text-xs text-slate-400">—</span>
                       : <Badge color={row.accuracy >= 80 ? "green" : row.accuracy >= 65 ? "amber" : "red"}>{row.accuracy}%</Badge>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => onViewResults({ id: row.id, patientId: row.patientId })} className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">Ver resultados</button>
                   </td>
                 </tr>
               ))}
@@ -2730,7 +2735,8 @@ export default function App({ user }: { user: FirebaseUser }) {
   const [pendingPatient, setPendingPatient] = useState<Patient | null>(null);
   const [pendingGame, setPendingGame] = useState<string>("");
   const [lastConfig, setLastConfig] = useState<SessionConfig>(DEFAULT_CONFIG);
-  const [lastSessionId, setLastSessionId] = useState<string>("");  // ← NUEVO: Para pasar a ResultsPage
+  // Sesión que muestra ResultsPage (solo lectura). expectResult: se llega desde el envío a las gafas.
+  const [resultsTarget, setResultsTarget] = useState<{ target: ResultsTarget; expectedPatientId: string | null; expectResult: boolean } | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [profilePatient, setProfilePatient] = useState<Patient | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null);
@@ -2850,41 +2856,10 @@ export default function App({ user }: { user: FirebaseUser }) {
     setScreen("connect-device");
   }
 
-  async function handleSaveSession() {
-    const game = MINIGAMES.find(g => g.id === lastConfig.selectedGame);
-    if (!game || !lastConfig.patientId) { showToast("Error al guardar la sesión", "error"); return; }
-
-    const baseScore = lastConfig.difficulty === "Fácil" ? 3500 : lastConfig.difficulty === "Media" ? 6000 : 8500;
-    const score = baseScore + Math.floor(lastConfig.duration * 120);
-    const accuracy = lastConfig.difficulty === "Fácil" ? 75 : lastConfig.difficulty === "Media" ? 82 : 70;
-    const today = formatDate(new Date());
-
-    try {
-      await addSession({
-        patientId: lastConfig.patientId,
-        date: today,
-        game: game.name, gameId: game.id,
-        duration: lastConfig.duration, score, accuracy,
-        side: lastConfig.therapySide,
-        difficulty: lastConfig.difficulty,
-        sessionType: lastConfig.sessionType,
-        notes: "",
-      });
-
-      const patientSessions = sessions.filter(s => s.patientId === lastConfig.patientId);
-      const newCount = patientSessions.length + 1;
-      const avgAcc = (patientSessions.reduce((a, s) => a + s.accuracy, 0) + accuracy) / newCount;
-      const newProgress = Math.min(100, Math.round(avgAcc * 0.8 + newCount * 0.5));
-
-      await updatePatient(lastConfig.patientId, {
-        sessions: newCount,
-        lastSession: today,
-        progress: newProgress,
-      });
-
-      showToast("Sesión guardada correctamente");
-      navigate("patient-profile");
-    } catch { showToast("Error al guardar la sesión", "error"); }
+  // Abre los resultados de una sesión ya almacenada (solo lectura; no escribe en Firestore).
+  function handleViewSessionResults(session: { id: string; patientId: string }) {
+    setResultsTarget({ target: { kind: "docId", value: session.id }, expectedPatientId: session.patientId || null, expectResult: false });
+    setScreen("results");
   }
 
   const activeCount = patients.filter(p => p.status === "activo").length;
@@ -2940,23 +2915,24 @@ export default function App({ user }: { user: FirebaseUser }) {
             patients={patients}
             onBack={() => setScreen("new-session")}
             onSessionSent={(sessionId) => {
-              setLastSessionId(sessionId);  // ← Guardar sessionId
-              setLastConfig(c => ({ ...c }));
-              showToast("Sesión enviada a las gafas ✓");
+              // Godot guarda la sesión en el campo `sessionId` (no como id de documento).
+              setResultsTarget({ target: { kind: "sessionId", value: sessionId }, expectedPatientId: lastConfig.patientId || null, expectResult: true });
+              showToast("Resultados de las gafas recibidos ✓");
               setTimeout(() => setScreen("results"), 1500);
             }}
           />
         )}
         {screen === "results" && (
-          <ResultsPage 
-            config={lastConfig} 
+          <ResultsPage
+            target={resultsTarget?.target ?? null}
             patients={patients}
-            sessionId={lastSessionId}  // ← NUEVO: Pasar sessionId
-            onNewSession={() => navigate("new-session")} 
-            onSave={handleSaveSession} 
+            expectedPatientId={resultsTarget?.expectedPatientId ?? null}
+            expectResult={resultsTarget?.expectResult ?? false}
+            onNewSession={() => navigate("new-session")}
+            onViewHistory={() => navigate("history")}
           />
         )}
-        {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} sessionsLoading={sessionsLoading} sessionsError={sessionsError} />}
+        {screen === "history" && <HistoryScreen patients={patients} sessions={sessions} sessionsLoading={sessionsLoading} sessionsError={sessionsError} onViewResults={handleViewSessionResults} />}
         {screen === "patient-profile" && profilePatient && (
           <PatientProfilePage
             patient={patients.find(p => p.id === profilePatient.id) ?? profilePatient}
