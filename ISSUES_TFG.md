@@ -248,6 +248,45 @@ Implementar tests unitarios y de integración para componentes críticos.
 
 ---
 
+## ⚠️ RIESGOS Y PENDIENTES (octubre 2026: G1, G2, W1, W2)
+
+Estado: *pendiente* salvo indicación. Origen: PR #29 (Vault), #30 (Gemas), #31 (historial), #32 (resultados).
+
+### R-REGLAS-01 — Reglas versionadas demasiado permisivas (BLOQUEA cualquier piloto con datos clínicos reales)
+- `Plataforma_Clinica/firestore.rules`: `sesiones` con `write: if true`; lectura de `sesiones` y `pacientes` para cualquier cuenta autenticada; `sesion_activa` y `dispositivos` legibles sin autenticación; `dispositivos` con `update: if true`.
+- No consta que sean las reglas desplegadas en producción (no comprobado).
+- No desplegar `firestore.rules.next` (PR #26) hasta tener compatibles web y Godot (PR5c y PR6).
+
+### PR6 — Contrato Godot → Firestore
+- Identificador de sesión consistente (`?documentId=<sessionId>`), autenticación con token, `deviceUid`, alias en lugar de `patientName`.
+- `durationUnit: "s"`, `createdAt` coherente, y `status`/`completed`/`interrupted`.
+- Distinguir métricas no medidas de ceros legítimos (Godot rellena con 0 los campos ausentes).
+- Enviar `gems_missed`, `sin_datos`, `lasers_dodged`, `luggage_missed`.
+- Versión de métricas: las de Gemas anteriores a G2 no son comparables con las nuevas.
+
+### Métricas no válidas como medición clínica
+- `avg_dodge_time` (Vault) no es un tiempo de reacción: mide desde el inicio de la sesión.
+- El tiempo por gema (Gemas) sale ≈0 (`on_gem_spawned()` se llama justo antes de `collect_gem`).
+- Revisar `sin_datos` de Vault en la integración con la plataforma.
+
+### Web
+- Revisar el aviso «Resultados recibidos» (se muestra antes de validar el paciente).
+- Revisar el borrado automático de `sesion_activa` al recibir sesiones.
+- El listener de `sesiones` es demasiado amplio (colección completa con filtro en cliente).
+- Perfil de paciente y PDF aún mezclan procedencias en promedios y gráficas.
+- `addSession` (db.ts) queda sin llamadores tras W2.
+- Error genérico y timeout de 15 s de ResultsPage solo probados con tests unitarios.
+
+### Godot
+- Investigar el aviso «busy/add_child» y las fugas de RID de `World.tscn`.
+- `_active_gems` se modifica durante su iteración (`gem_spawner.gd`).
+
+### Pruebas pendientes
+- Validar puntuación, HUD, controles e integración real en Meta Quest 3 física.
+- Validar errores de red y pérdida de conexión.
+
+---
+
 ## 📊 MÉTRICAS DEL PROYECTO
 
 **Issues totales:** 11
