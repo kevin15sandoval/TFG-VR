@@ -3,7 +3,7 @@
 export type Screen =
   | "dashboard" | "patients" | "patient-profile" | "session-detail"
   | "new-session" | "minigames" | "game-spec" | "results" | "history"
-  | "settings" | "connect-device";
+  | "settings" | "connect-device" | "devices";
 
 export interface GameSpecification {
   id: string;

@@ -35,13 +35,13 @@ import { ResultsPage } from "./pages/ResultsPage.tsx";
 import { GameSpecPage } from "./pages/GameSpecPage";
 import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { PatientProfilePage } from "./pages/PatientProfilePage";
+import { DevicesPage } from "./pages/DevicesPage";
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { cx, getInitials, formatDate } from "./utils/helpers";
 import { AVATAR_COLORS, SIDES, DIFFICULTIES, HEIGHTS, SESSION_TYPES, DURATIONS } from "./constants";
-import { MINIGAMES, GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
-import { usePagination } from "./hooks/usePagination";
-import { AvatarIcon, Badge, Card, Modal, ProgressBar } from "./components/shared";
+import { GAME_CONFIG_FIELDS, getGameConfig, getGameInfo } from "./config/gameConfig";
+import { AvatarIcon, Badge, ProgressBar } from "./components/shared";
 
 // ─── TIPOS — importados desde ./types ─────────────────────────────────────────
 // Patient, SessionRecord, SessionConfig, Screen
@@ -619,6 +619,7 @@ const NAV = [
   { id: "new-session", label: "Nueva sesión", Icon: PlayCircle },
   { id: "minigames", label: "Minijuegos", Icon: Gamepad2 },
   { id: "history", label: "Historial", Icon: History },
+  { id: "devices", label: "Dispositivos VR", Icon: Headset },
   { id: "settings", label: "Configuración", Icon: Settings },
 ] as const;
 
@@ -2712,6 +2713,7 @@ export default function App({ user }: { user: FirebaseUser }) {
       "/nueva-sesion": "new-session",
       "/minijuegos": "minigames",
       "/historial": "history",
+      "/dispositivos": "devices",
       "/configuracion": "settings",
     };
     const newScreen = pathToScreen[location.pathname] || "dashboard";
@@ -2741,6 +2743,7 @@ export default function App({ user }: { user: FirebaseUser }) {
       "new-session": "/nueva-sesion",
       "minigames": "/minijuegos",
       "history": "/historial",
+      "devices": "/dispositivos",
       "settings": "/configuracion",
       "patient-profile": "/pacientes",
       "session-detail": "/historial",
@@ -2956,6 +2959,7 @@ export default function App({ user }: { user: FirebaseUser }) {
             }}
           />
         )}
+        {screen === "devices" && <DevicesPage key={user.uid} />}
         {screen === "settings" && <SettingsScreen user={user} />}
       </main>
     </div>
