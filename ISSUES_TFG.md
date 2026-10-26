@@ -291,6 +291,13 @@ Estado: *pendiente* salvo indicación. Origen: PR #29 (Vault), #30 (Gemas), #31 
 - La integración de PR5c con W1/W2 necesita una estrategia de ramas (`db.ts` diverge entre #31/#32 y la cadena #26 → #28 → #33 → #34).
 - Falta probar con Quest 3 y con un proyecto Firebase de pruebas con Anonymous Auth (nunca en producción por ahora).
 
+### PR5c-2 (pantalla Dispositivos VR) — pendientes (PR #36)
+- El menú lateral no es responsive (`w-64` fijo, preexistente): en móvil el contenido queda muy estrecho.
+- Prueba física con Meta Quest 3 (sin PR6 no hay gafa que genere códigos de vinculación).
+- Validación real de estados de red: la carga inicial sin red no tiene límite y el estado «error» de carga solo está probado como lógica pura.
+- Compatibilidad con `rules.next`: contra las reglas actuales la lista sale vacía y vincular da permiso denegado; solo funciona tras desplegar `rules.next` con aprobación explícita.
+- Integración con W1/W2: conflictos esperados en `App.tsx` y `types.ts` (hunks aditivos pequeños).
+
 ### Pruebas pendientes
 - Validar puntuación, HUD, controles e integración real en Meta Quest 3 física.
 - Validar errores de red y pérdida de conexión.
