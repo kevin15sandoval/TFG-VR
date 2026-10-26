@@ -609,7 +609,7 @@ func _on_gem_collected(gem_type: String, points: int, total: int) -> void:
 	
 	# Sistema de combos
 	var current_time = Time.get_ticks_msec() / 1000.0
-	if current_time - _last_gem_time < 2.0 and gem_type != "red":  # Menos de 2s entre gemas
+	if current_time - _last_gem_time < 2.0 and gem_type != "red" and gem_type != "red_avoided":  # Menos de 2s entre gemas
 		_combo_count += 1
 		if _combo_count >= 3:
 			_show_combo()
@@ -706,7 +706,10 @@ func _on_session_finished(results: Dictionary) -> void:
 		print("[VR] ✅ Label status mostrado")
 	if label_info:
 		label_info.visible = true
-		label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Gemas: " + str(results.get("gems_collected", 0))
+		if results.get("sin_datos", false):
+			label_info.text = "Sin datos suficientes en esta sesión"
+		else:
+			label_info.text = "Puntuación: " + str(results.get("score", 0)) + " pts | Gemas: " + str(results.get("gems_collected", 0))
 		print("[VR] ✅ Label info mostrado: ", label_info.text)
 	
 	# Limpiar game manager actual

@@ -435,6 +435,8 @@ func _on_gem_caught(gem) -> void:
 func _on_gem_missed(gem) -> void:
 	if gem.gem_type == "red":
 		GameManager.collect_gem("red_avoided", 5, "")
+	else:
+		GameManager.register_gem_missed()
 	_active_gems.erase(gem)
 
 func _clear_all_gems() -> void:
