@@ -322,7 +322,7 @@ func _on_laser_dodged(points: int) -> void:
 		var color_tween = create_tween()
 		color_tween.tween_property(hud_score, "modulate", original_color, 0.5).set_delay(0.2)
 
-func _on_laser_hit(laser: Node) -> void:
+func _on_laser_hit() -> void:  # VaultGameManager.laser_hit no lleva argumentos
 	if not hud_laser_hits or not vault_manager:
 		return
 	
@@ -360,6 +360,20 @@ func _on_timer_updated(remaining: float) -> void:
 		else:
 			hud_timer.modulate = Color(0.2, 1.0, 0.4)
 
+# Mensaje final a partir de los resultados reales. Sin eventos (0 esquives + 0 impactos,
+# "sin_datos") no se valora el rendimiento: mensaje neutro, nunca "EXCELENTE".
+static func mensaje_final(results: Dictionary) -> Dictionary:
+	var sin_datos: bool = results.get("sin_datos", false) \
+		or (int(results.get("lasers_dodged", 0)) + int(results.get("laser_hits", 0))) == 0
+	if sin_datos:
+		return {"text": "SIN DATOS", "color": Color(0.8, 0.8, 0.8)}
+	var dodge_rate = results.get("dodge_rate_percentage", 0)
+	if dodge_rate >= 80:
+		return {"text": "🎉 ¡EXCELENTE!", "color": Color(0.2, 1.0, 0.2)}
+	elif dodge_rate >= 50:
+		return {"text": "✅ ¡BIEN HECHO!", "color": Color(0.2, 1.0, 0.8)}
+	return {"text": "⏰ TIEMPO AGOTADO", "color": Color(1.0, 0.5, 0.0)}
+
 func _on_game_finished(results: Dictionary) -> void:
 	print("[VaultVR] 🏁 Juego terminado")
 	_hide_game_hud()
@@ -370,16 +384,9 @@ func _on_game_finished(results: Dictionary) -> void:
 	# Mostrar resultado
 	if label_status:
 		label_status.visible = true
-		var dodge_rate = results.get("dodge_rate_percentage", 0)
-		if dodge_rate >= 80:
-			label_status.text = "🎉 ¡EXCELENTE!"
-			label_status.modulate = Color(0.2, 1.0, 0.2)
-		elif dodge_rate >= 50:
-			label_status.text = "✅ ¡BIEN HECHO!"
-			label_status.modulate = Color(0.2, 1.0, 0.8)
-		else:
-			label_status.text = "⏰ TIEMPO AGOTADO"
-			label_status.modulate = Color(1.0, 0.5, 0.0)
+		var msg := mensaje_final(results)
+		label_status.text = msg["text"]
+		label_status.modulate = msg["color"]
 	
 	if label_info:
 		label_info.visible = true
