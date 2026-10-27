@@ -5,6 +5,8 @@ extends Node
 # NUEVO: Sistema de polling para detectar nuevas sesiones automáticamente
 # ─────────────────────────────────────────────────────────────────────────────
 
+const ModoLocalScript = preload("res://scripts/modo_local.gd")
+
 const PROJECT_ID := "tfg-vr"
 const BASE_URL := "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents"
 
@@ -74,6 +76,8 @@ func _process(delta: float) -> void:
 
 ## Activa el polling para detectar nuevas sesiones automáticamente
 func start_polling() -> void:
+	if ModoLocalScript.bloquea_red("polling sesion_activa/current (start_polling)"):
+		return
 	print("═══════════════════════════════════════════════════════════════")
 	print("═══ 🔄 INICIANDO POLLING AUTOMÁTICO ═══")
 	print("═══════════════════════════════════════════════════════════════")
@@ -90,9 +94,12 @@ func stop_polling() -> void:
 	_polling_enabled = false
 
 func _poll_for_new_session() -> void:
+	if ModoLocalScript.bloquea_red("GET sesion_activa/current (poll)"):
+		_polling_enabled = false
+		return
 	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
 	print("[Firebase] 🔍 Polling sesión activa: ", url)
-	var err = _http_poll.request(url, [], HTTPClient.METHOD_GET)
+	var err = ModoLocalScript.enviar(_http_poll, url, [], HTTPClient.METHOD_GET)
 	if err != OK:
 		print("[Firebase] ❌ Error en polling: ", err)
 
@@ -170,8 +177,10 @@ func _on_poll_response(result: int, code: int, _headers, body: PackedByteArray) 
 # ─── LEER CONFIG DE SESIÓN ───────────────────────────────────────────────────
 
 func load_session_config() -> void:
+	if ModoLocalScript.bloquea_red("GET sesion_activa/current (load_session_config)"):
+		return
 	var url = BASE_URL + "/" + COL_SESSION_CONFIG + "/" + DOC_ACTIVE
-	var err = _http_load.request(url, [], HTTPClient.METHOD_GET)
+	var err = ModoLocalScript.enviar(_http_load, url, [], HTTPClient.METHOD_GET)
 	if err != OK:
 		emit_signal("config_error", "Error al conectar con Firestore: " + str(err))
 
@@ -211,6 +220,11 @@ func guardado_confirmado() -> bool:
 	return estado_guardado == "confirmado"
 
 func save_results(results: Dictionary) -> void:
+	# Sesión local de prueba: no hay red; las métricas quedan en user://pruebas_locales/
+	if ModoLocalScript.bloquea_red("POST sesiones (save_results)"):
+		ModoLocalScript.guardar_resultados(results)
+		estado_guardado = "local"
+		return
 	# Validación defensiva: nunca enviar resultados que no se puedan asociar a un paciente y una sesión.
 	# El log no incluye identificadores ni datos personales.
 	if str(results.get("patient_id", "")).strip_edges() == "" or str(results.get("session_id", "")).strip_edges() == "":
@@ -266,7 +280,7 @@ func save_results(results: Dictionary) -> void:
 	
 	var json_body = JSON.stringify(body)
 	estado_guardado = "pendiente"
-	var err = _http_save.request(url, headers, HTTPClient.METHOD_POST, json_body)
+	var err = ModoLocalScript.enviar(_http_save, url, headers, HTTPClient.METHOD_POST, json_body)
 	if err != OK:
 		estado_guardado = "error"
 		emit_signal("results_error", "Error al guardar resultados: " + str(err))
@@ -402,6 +416,8 @@ func _on_results_saved(result: int, code: int, _headers, body: PackedByteArray) 
 ## Marca la sesión actual como "completed" para que el Hub no la detecte de nuevo
 ## DEBE llamarse ANTES de hacer DELETE
 func mark_session_completed() -> void:
+	if ModoLocalScript.bloquea_red("PATCH sesion_activa/current status=completed (mark_session_completed)"):
+		return
 	print("═══════════════════════════════════════════════════════════════")
 	print("🔒 MARCANDO SESIÓN COMO COMPLETED (evitar bucle infinito)")
 	print("═══════════════════════════════════════════════════════════════")
@@ -421,7 +437,7 @@ func mark_session_completed() -> void:
 	add_child(http)
 	
 	print("[Firebase] 📡 Enviando PATCH para marcar completed...")
-	var error = http.request(url, headers, HTTPClient.METHOD_PATCH, json_body)
+	var error = ModoLocalScript.enviar(http, url, headers, HTTPClient.METHOD_PATCH, json_body)
 	
 	if error != OK:
 		print("[Firebase] ❌ Error al marcar sesión completed: ", error)
