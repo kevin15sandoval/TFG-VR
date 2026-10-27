@@ -15,7 +15,11 @@ extends Node3D
 # ═════════════════════════════════════════════════════════════════════════════
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const DebugGameSelectorScript = preload("res://scripts/debug_game_selector.gd")
+const DebugReturnToHubScript = preload("res://scripts/debug_return_to_hub.gd")
+const ModoLocalScript = preload("res://scripts/modo_local.gd")
 var firebase_manager: Node = null
+var debug_selector: Node3D = null  # solo en compilaciones de depuración
 var waiting_mode := true
 var current_game_scene: Node = null
 
@@ -52,8 +56,15 @@ func _ready() -> void:
 	# Obtener referencias a los labels
 	_get_label_references()
 	
+	# Depuración: sesión local, sin conexión con Firebase (ni polling ni escrituras)
+	if OS.is_debug_build():
+		ModoLocalScript.activar()
+	
 	# Configurar FirebaseManager
 	_setup_firebase_manager()
+	
+	# Selector manual de juegos (SOLO depuración; en release no se crea)
+	_iniciar_selector_debug()
 	
 	# Mostrar mensaje de bienvenida
 	_show_welcome_message()
@@ -75,6 +86,32 @@ func _init_openxr() -> void:
 		print("[Hub] ✅ OpenXR activado")
 	else:
 		print("[Hub] ❌ Error al inicializar OpenXR")
+
+func _iniciar_selector_debug() -> void:
+	if not OS.is_debug_build():
+		return
+	debug_selector = DebugGameSelectorScript.new()
+	add_child(debug_selector)
+	debug_selector.iniciar([get_node_or_null("XROrigin3D/LeftController"), get_node_or_null("XROrigin3D/RightController")])
+	debug_selector.game_chosen.connect(_on_debug_game_chosen)
+	# Gesto de vuelta al Hub desde los juegos: vive en la raíz para sobrevivir al cambio de escena
+	if get_tree().root.get_node_or_null("DebugReturnToHub") == null:
+		get_tree().root.add_child(DebugReturnToHubScript.new())
+
+func _on_debug_game_chosen(game_id: String) -> void:
+	_on_new_session_detected(_config_prueba_local(game_id))
+
+func _config_prueba_local(game_id: String) -> Dictionary:
+	return {
+		"patient_id": "test",
+		"patient_name": "Prueba Local",
+		"session_id": "offline_" + str(Time.get_ticks_msec()),
+		"duration": 180,
+		"difficulty": "Media",
+		"therapy_side": "Izquierdo",
+		"session_type": "Alcance",
+		"game_id": game_id
+	}
 
 func _get_label_references() -> void:
 	var welcome_sign = get_node_or_null("WelcomeSign")
@@ -141,6 +178,8 @@ func _on_new_session_detected(config: Dictionary) -> void:
 	
 	waiting_mode = false
 	firebase_manager.stop_polling()
+	if debug_selector != null:
+		debug_selector.activo = false  # evita elegir otro juego mientras carga este
 	
 	# Mostrar mensaje de carga
 	if status_label:
@@ -224,18 +263,11 @@ func _on_config_error(error_msg: String) -> void:
 	# En modo desarrollo, podríamos cargar un juego de prueba
 	
 	if OS.is_debug_build():
+		# Con el selector manual activo no se arranca ningún juego automáticamente.
+		if debug_selector != null:
+			print("[Hub] 🔧 Modo debug — usa el selector manual para elegir juego")
+			return
 		print("[Hub] 🔧 Modo debug — Cargando juego de prueba en 5 segundos...")
 		await get_tree().create_timer(5.0).timeout
 		
-		var test_config = {
-			"patient_id": "test",
-			"patient_name": "Prueba Local",
-			"session_id": "offline_" + str(Time.get_ticks_msec()),
-			"duration": 180,
-			"difficulty": "Media",
-			"therapy_side": "Izquierdo",
-			"session_type": "Alcance",
-			"game_id": "gems"
-		}
-		
-		_on_new_session_detected(test_config)
+		_on_new_session_detected(_config_prueba_local("gems"))

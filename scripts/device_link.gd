@@ -4,6 +4,8 @@ extends Node
 # Muestra pantalla de código, espera confirmación y recibe la config de sesión
 # ─────────────────────────────────────────────────────────────────────────────
 
+const ModoLocalScript = preload("res://scripts/modo_local.gd")
+
 const PROJECT_ID := "tfg-vr"
 const BASE_URL   := "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents"
 const COL_DEVICES := "dispositivos"
@@ -41,6 +43,9 @@ func _ready() -> void:
 # Las gafas llaman a esta función con ese código
 
 func link_with_code(code: String) -> void:
+	if ModoLocalScript.bloquea_red("PATCH dispositivos/<codigo> (link_with_code)"):
+		emit_signal("link_error", "Modo local: sin conexión")
+		return
 	_current_code = code.to_upper().strip_edges()
 	if _current_code.length() != 4:
 		emit_signal("link_error", "El código debe tener 4 caracteres")
@@ -56,7 +61,7 @@ func link_with_code(code: String) -> void:
 		}
 	})
 	var headers = ["Content-Type: application/json", "X-HTTP-Method-Override: PATCH"]
-	_http_link.request(url, headers, HTTPClient.METHOD_PATCH, body)
+	ModoLocalScript.enviar(_http_link, url, headers, HTTPClient.METHOD_PATCH, body)
 
 func _on_link_done(result: int, code: int, _h, _b: PackedByteArray) -> void:
 	if result == HTTPRequest.RESULT_SUCCESS and code in [200, 201]:
@@ -70,8 +75,11 @@ func _on_link_done(result: int, code: int, _h, _b: PackedByteArray) -> void:
 # ─── PASO 2: Polling — esperar a que el fisio envíe la sesión ─────────────────
 
 func _poll_device_status() -> void:
+	if ModoLocalScript.bloquea_red("GET dispositivos/<codigo> (poll)"):
+		_poll_timer.stop()
+		return
 	var url = BASE_URL + "/" + COL_DEVICES + "/" + _current_code
-	_http_poll.request(url, [], HTTPClient.METHOD_GET)
+	ModoLocalScript.enviar(_http_poll, url, [], HTTPClient.METHOD_GET)
 
 func _on_poll_done(result: int, code: int, _h, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
@@ -87,8 +95,10 @@ func _on_poll_done(result: int, code: int, _h, body: PackedByteArray) -> void:
 		_load_session_config()
 
 func _load_session_config() -> void:
+	if ModoLocalScript.bloquea_red("GET sesion_activa/current (device_link)"):
+		return
 	var url = BASE_URL + "/" + COL_SESSION + "/current"
-	_http_session.request(url, [], HTTPClient.METHOD_GET)
+	ModoLocalScript.enviar(_http_session, url, [], HTTPClient.METHOD_GET)
 
 func _on_session_done(result: int, code: int, _h, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:

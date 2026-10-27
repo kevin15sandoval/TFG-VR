@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const ModoLocalScript = preload("res://scripts/modo_local.gd")
 const VRUI = preload("res://scripts/vr_ui.gd")
 var firebase_manager: Node = null
 var vault_manager: Node = null
@@ -412,10 +413,12 @@ func _on_session_finished(results: Dictionary) -> void:
 	pass  # Manejado por _on_game_finished
 
 func _clear_firestore_session() -> void:
+	if ModoLocalScript.bloquea_red("DELETE sesion_activa/current (_clear_firestore_session)"):
+		return
 	var url = "https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current"
 	var http = HTTPRequest.new()
 	add_child(http)
-	http.request(url, [], HTTPClient.METHOD_DELETE)
+	ModoLocalScript.enviar(http, url, [], HTTPClient.METHOD_DELETE)
 	await http.request_completed
 	http.queue_free()
 	print("[VaultVR] ✅ Sesión limpiada")

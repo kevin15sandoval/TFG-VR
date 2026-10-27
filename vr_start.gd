@@ -5,6 +5,7 @@ extends Node3D
 # ─────────────────────────────────────────────────────────────────────────────
 
 const FirebaseManagerScript = preload("res://scripts/firebase_manager.gd")
+const ModoLocalScript = preload("res://scripts/modo_local.gd")
 const VRUI = preload("res://scripts/vr_ui.gd")
 var firebase_manager: Node = null
 var current_game_manager: Node = null  # Manager del juego actual (vault, city, luggage)
@@ -748,13 +749,15 @@ func _on_session_finished(results: Dictionary) -> void:
 	get_tree().change_scene_to_file("res://HubWorld.tscn")
 
 func _clear_firestore_session() -> void:
+	if ModoLocalScript.bloquea_red("DELETE sesion_activa/current (_clear_firestore_session)"):
+		return
 	print("[VR] 🗑️ Iniciando DELETE de sesión activa en Firestore...")
 	var url = "https://firestore.googleapis.com/v1/projects/tfg-vr/databases/(default)/documents/sesion_activa/current"
 	var http = HTTPRequest.new()
 	add_child(http)
 	
 	print("[VR] 📡 Enviando DELETE a: ", url)
-	var error = http.request(url, [], HTTPClient.METHOD_DELETE)
+	var error = ModoLocalScript.enviar(http, url, [], HTTPClient.METHOD_DELETE)
 	
 	if error != OK:
 		print("[VR] ❌ Error al enviar DELETE: ", error)
