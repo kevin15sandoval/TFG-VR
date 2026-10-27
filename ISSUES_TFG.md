@@ -298,6 +298,15 @@ Estado: *pendiente* salvo indicación. Origen: PR #29 (Vault), #30 (Gemas), #31 
 - Compatibilidad con `rules.next`: contra las reglas actuales la lista sale vacía y vincular da permiso denegado; solo funciona tras desplegar `rules.next` con aprobación explícita.
 - Integración con W1/W2: conflictos esperados en `App.tsx` y `types.ts` (hunks aditivos pequeños).
 
+### PR5c-3a (identidad pseudónima del paciente) — riesgos (PR #37)
+- **BLOQUEANTE para cualquier piloto con datos clínicos reales (D1):** los pacientes deben quedar aislados mediante permisos adecuados por clínica o profesional. Hoy todos los clínicos verificados ven y modifican todos los pacientes y sesiones; la implementación actual solo está autorizada para datos sintéticos. Mejora: `clinicId`/`ownerUid` en pacientes y sesiones, y contador de alias por clínica (`clinicas/{id}/config/aliasPacientes`).
+- Riesgo de sesiones huérfanas al eliminar pacientes: `deletePatient` borra solo por `patientId == id`; las sesiones nuevas con `patientId == pid` quedarían con datos de salud sin propietario (protección de datos). Corregir en PR5c-3c.
+- Compatibilidad entre `patientId` antiguo (id de Firestore) y `pid` nuevo en historial (W1) y resultados (W2): integrar `construirMapaPidAPaciente` y `reescribirPatientId`; sin migrar ni reescribir documentos existentes.
+- Recuperación segura tras timeout de asignación: el resultado es desconocido (`resultadoDesconocido`) y se consulta primero la identidad existente; verificar el comportamiento también desde la interfaz (PR5c-3c).
+- Integridad del contador de alias: las reglas impiden saltos, retrocesos y reutilización, pero un borrado fuera del cliente (consola o Admin SDK) reiniciaría la numeración y generaría duplicados; protegerlo (permisos de consola/Admin, copias, auditoría).
+- Validar el comportamiento con múltiples clínicas (aislamiento, contadores independientes, administradores) antes de cualquier piloto.
+- El `pid` solo se valida por formato en las reglas; su aleatoriedad depende de WebCrypto en cliente.
+
 ### Pruebas pendientes
 - Validar puntuación, HUD, controles e integración real en Meta Quest 3 física.
 - Validar errores de red y pérdida de conexión.
