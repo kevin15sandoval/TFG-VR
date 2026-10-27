@@ -62,7 +62,7 @@ const PACIENTES = [1, 2, 3].map((n) => ({
   status: 'activo',
   colorIdx: n,
   notes: 'Paciente sintético. No es una persona real.',
-  alias: `Paciente ${n}`,
+  // Sin alias/pid: la identidad pseudónima (P-NNN + pid) la asigna app/patientIdentity.ts (PR5c-3a) de forma perezosa.
   createdAt: FECHA_FIJA,
 }));
 const CODIGO_GAFA = 'PRUEBAS2'; // 8 símbolos del alfabeto válido de las reglas

@@ -40,6 +40,10 @@ export interface Patient {
   status: "activo" | "inactivo";
   colorIdx: number;
   notes: string;
+  // Identidad pseudónima (PR5c-3a). Opcionales: la asigna app/patientIdentity.ts de forma perezosa; inmutables.
+  pid?: string;        // 22 car. base64url, opaco; es lo que la Quest recibe como patientId
+  alias?: string;      // P-001, P-002... (los pacientes legados pueden tener texto libre hasta que se les asigne)
+  aliasNum?: number;
 }
 
 export interface MovementSummary {

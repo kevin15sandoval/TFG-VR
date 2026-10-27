@@ -151,7 +151,7 @@ describe('seed-emulator contra emuladores reales + reglas firestore.rules.next',
       const db = ctx.firestore();
       const p = (await getDoc(doc(db, 'pacientes/paciente-sintetico-1'))).data();
       assert.equal(p.name, 'PACIENTE-SINTETICO-1');
-      assert.equal(p.alias, 'Paciente 1');
+      assert.equal(p.alias, undefined); // la identidad (alias + pid) se asigna por transacción (PR5c-3a)
       const v = (await getDoc(doc(db, 'vinculos/PRUEBAS2'))).data();
       assert.equal(v.estado, 'pendiente');
       assert.equal(v.usado, false);

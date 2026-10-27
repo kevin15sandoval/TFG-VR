@@ -432,7 +432,7 @@ service cloud.firestore {
       return d.keys().hasAll(['name', 'initials', 'age', 'affectedSide', 'lastSession', 'progress',
                               'diagnosis', 'sessions', 'status', 'colorIdx', 'notes'])
         && d.keys().hasOnly(['name', 'initials', 'age', 'affectedSide', 'lastSession', 'progress',
-                             'diagnosis', 'sessions', 'status', 'colorIdx', 'notes', 'alias',
+                             'diagnosis', 'sessions', 'status', 'colorIdx', 'notes', 'alias', 'pid', 'aliasNum',
                              'createdAt', 'updatedAt'])
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 100
         && d.initials is string && d.initials.size() <= 4
@@ -445,20 +445,112 @@ service cloud.firestore {
         && d.status in ['activo', 'inactivo']
         && d.colorIdx is int && d.colorIdx >= 0 && d.colorIdx <= 50
         && d.notes is string && d.notes.size() <= 2000
+        // Identidad pseudónima (PR5c-3a). Aquí solo tipo/forma; la inmutabilidad y la coherencia con el
+        // contador las imponen create/update de pacientes y el match de config/aliasPacientes.
+        // 'alias' admite además el valor LEGADO (texto libre <= 30) mientras no se asigne identidad.
         && strOpt(d, 'alias', 30)
+        && (!('pid' in d) || pidOk(d.pid))
+        && intOpt(d, 'aliasNum', 1, 999999)
+        && (!(('pid' in d) || ('aliasNum' in d)) || d.keys().hasAll(['alias', 'aliasNum', 'pid']))
         && (!('createdAt' in d) || d.createdAt is timestamp)
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }
 
+    // ------------------------------------------------------------------ identidad de paciente (PR5c-3a)
+    // pid   : 22 caracteres base64url (128 bits aleatorios generados en el cliente con WebCrypto). Es lo ÚNICO
+    //         (junto al alias) que la Quest recibe del paciente. Las reglas no pueden demostrar que es aleatorio.
+    // alias : 'P-' + aliasNum rellenado a 3 dígitos (P-001 ... P-999, P-1000 ... P-999999), único y global.
+    // Contador monótono config/aliasPacientes {ultimo, ultimoPacienteId, actualizadoEn}: solo sube +1 y solo en el
+    // MISMO commit en que un paciente sin identidad recibe alias/aliasNum/pid. Nunca se borra ni retrocede, así
+    // que borrar un paciente NO libera su número (hueco permitido). Probado con string() en el emulador (D5).
+    function pidOk(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{22}$');
+    }
+
+    function aliasDeNum(n) {
+      return 'P-' + (n < 10 ? '00' + string(n) : (n < 100 ? '0' + string(n) : string(n)));
+    }
+
+    function contRuta() {
+      return /databases/$(database)/documents/config/aliasPacientes;
+    }
+
+    function pacRuta(pacienteId) {
+      return /databases/$(database)/documents/pacientes/$(pacienteId);
+    }
+
+    function ultimoAntes() {
+      return exists(contRuta()) ? get(contRuta()).data.ultimo : 0;
+    }
+
+    // Identidad sin cambios (incluye pacientes legados sin pid ni aliasNum, y alias legado intacto).
+    function identidadIgual(n, o) {
+      return n.get('alias', null) == o.get('alias', null)
+        && n.get('pid', null) == o.get('pid', null)
+        && n.get('aliasNum', null) == o.get('aliasNum', null);
+    }
+
+    // Primera (y única) asignación: el paciente aún no tiene pid ni aliasNum; el contador pasa de N a N+1 en el
+    // mismo commit con ultimoPacienteId == este paciente; alias == 'P-' + pad(N+1); aliasNum == N+1.
+    function primeraAsignacion(n, o, pacienteId) {
+      return !('pid' in o) && !('aliasNum' in o)
+        && n.diff(o).affectedKeys().hasOnly(['alias', 'aliasNum', 'pid', 'updatedAt'])
+        && n.keys().hasAll(['alias', 'aliasNum', 'pid'])
+        && n.aliasNum is int && n.aliasNum >= 1 && n.aliasNum <= 999999
+        && n.alias == aliasDeNum(n.aliasNum)
+        && ultimoAntes() == n.aliasNum - 1
+        && existsAfter(contRuta())
+        && getAfter(contRuta()).data.ultimo == n.aliasNum
+        && getAfter(contRuta()).data.ultimoPacienteId == pacienteId;
+    }
+
     match /pacientes/{id} {
       allow get, list: if esClinico();
+      // Al CREAR no hay identidad: ni alias, ni pid, ni aliasNum (se asignan después, de forma perezosa, por la
+      // transacción de app/patientIdentity.ts). Borrar y recrear NO reutiliza nada: el recreado no la tiene.
       allow create: if esClinico()
         && pacienteValido(request.resource.data)
+        && !('alias' in request.resource.data) && !('pid' in request.resource.data)
+        && !('aliasNum' in request.resource.data)
         && request.resource.data.createdAt == request.time;
       allow update: if esClinico()
         && pacienteValido(request.resource.data)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt']);
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt'])
+        && (identidadIgual(request.resource.data, resource.data)
+            || primeraAsignacion(request.resource.data, resource.data, id));
       allow delete: if esClinico();
+    }
+
+    // Contador global de alias (sin multi-clínica: ver D1 en el contrato; futuro clinicas/{id}/config/aliasPacientes).
+    function contadorForma(d) {
+      return d.keys().hasOnly(['ultimo', 'ultimoPacienteId', 'actualizadoEn'])
+        && d.keys().hasAll(['ultimo', 'ultimoPacienteId', 'actualizadoEn'])
+        && d.ultimo is int && d.ultimo >= 1 && d.ultimo <= 999999
+        && idOpaco(d.ultimoPacienteId)
+        && d.actualizadoEn == request.time;
+    }
+
+    // El paciente apuntado existe, NO tenía identidad antes y la recibe en este commit, coherente con el contador.
+    function contadorAsignaPaciente(d) {
+      return exists(pacRuta(d.ultimoPacienteId))
+        && !('pid' in get(pacRuta(d.ultimoPacienteId)).data)
+        && !('aliasNum' in get(pacRuta(d.ultimoPacienteId)).data)
+        && getAfter(pacRuta(d.ultimoPacienteId)).data.aliasNum == d.ultimo
+        && getAfter(pacRuta(d.ultimoPacienteId)).data.alias == aliasDeNum(d.ultimo);
+    }
+
+    match /config/aliasPacientes {
+      allow get: if esClinico();
+      allow list: if false;
+      allow create: if esClinico()
+        && contadorForma(request.resource.data)
+        && request.resource.data.ultimo == 1
+        && contadorAsignaPaciente(request.resource.data);
+      allow update: if esClinico()
+        && contadorForma(request.resource.data)
+        && request.resource.data.ultimo == resource.data.ultimo + 1
+        && contadorAsignaPaciente(request.resource.data);
+      allow delete: if false;
     }
 
     // Todo lo demás (incluida sesion_activa en raíz y colecciones sin regla): denegado por defecto.
