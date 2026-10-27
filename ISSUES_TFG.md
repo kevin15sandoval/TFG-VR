@@ -248,6 +248,71 @@ Implementar tests unitarios y de integración para componentes críticos.
 
 ---
 
+## ⚠️ RIESGOS Y PENDIENTES (octubre 2026: G1, G2, W1, W2)
+
+Estado: *pendiente* salvo indicación. Origen: PR #29 (Vault), #30 (Gemas), #31 (historial), #32 (resultados).
+
+### R-REGLAS-01 — Reglas versionadas demasiado permisivas (BLOQUEA cualquier piloto con datos clínicos reales)
+- `Plataforma_Clinica/firestore.rules`: `sesiones` con `write: if true`; lectura de `sesiones` y `pacientes` para cualquier cuenta autenticada; `sesion_activa` y `dispositivos` legibles sin autenticación; `dispositivos` con `update: if true`.
+- No consta que sean las reglas desplegadas en producción (no comprobado).
+- No desplegar `firestore.rules.next` (PR #26) hasta tener compatibles web y Godot (PR5c y PR6).
+
+### PR6 — Contrato Godot → Firestore
+- Identificador de sesión consistente (`?documentId=<sessionId>`), autenticación con token, `deviceUid`, alias en lugar de `patientName`.
+- `durationUnit: "s"`, `createdAt` coherente, y `status`/`completed`/`interrupted`.
+- Distinguir métricas no medidas de ceros legítimos (Godot rellena con 0 los campos ausentes).
+- Enviar `gems_missed`, `sin_datos`, `lasers_dodged`, `luggage_missed`.
+- Versión de métricas: las de Gemas anteriores a G2 no son comparables con las nuevas.
+
+### Métricas no válidas como medición clínica
+- `avg_dodge_time` (Vault) no es un tiempo de reacción: mide desde el inicio de la sesión.
+- El tiempo por gema (Gemas) sale ≈0 (`on_gem_spawned()` se llama justo antes de `collect_gem`).
+- Revisar `sin_datos` de Vault en la integración con la plataforma.
+
+### Web
+- Revisar el aviso «Resultados recibidos» (se muestra antes de validar el paciente).
+- Revisar el borrado automático de `sesion_activa` al recibir sesiones.
+- El listener de `sesiones` es demasiado amplio (colección completa con filtro en cliente).
+- Perfil de paciente y PDF aún mezclan procedencias en promedios y gráficas.
+- `addSession` (db.ts) queda sin llamadores tras W2.
+- Error genérico y timeout de 15 s de ResultsPage solo probados con tests unitarios.
+
+### Godot
+- Investigar el aviso «busy/add_child» y las fugas de RID de `World.tscn`.
+- `_active_gems` se modifica durante su iteración (`gem_spawner.gd`).
+
+### PR5c (vinculación de Quest) — riesgos conocidos (PR #34)
+- `rules.next` permite leer sesiones activas caducadas: la Quest debe ignorar las de `venceEn` pasado.
+- El vencimiento (`venceEn`) depende del reloj del cliente; un desfase de ±1 h puede hacer fallar la publicación.
+- Falta protección contra la creación abusiva de códigos de vinculación.
+- `difficulty`, `therapySide` y `sessionType` solo se validan en longitud, no contra valores permitidos.
+- Las cuentas anónimas huérfanas (Quests revocadas o reinstaladas) necesitan una estrategia de limpieza (Admin SDK).
+- El administrador no puede listar dispositivos ajenos con las reglas actuales (`list` exige `ownerUid == auth.uid`).
+- La integración de PR5c con W1/W2 necesita una estrategia de ramas (`db.ts` diverge entre #31/#32 y la cadena #26 → #28 → #33 → #34).
+- Falta probar con Quest 3 y con un proyecto Firebase de pruebas con Anonymous Auth (nunca en producción por ahora).
+
+### PR5c-2 (pantalla Dispositivos VR) — pendientes (PR #36)
+- El menú lateral no es responsive (`w-64` fijo, preexistente): en móvil el contenido queda muy estrecho.
+- Prueba física con Meta Quest 3 (sin PR6 no hay gafa que genere códigos de vinculación).
+- Validación real de estados de red: la carga inicial sin red no tiene límite y el estado «error» de carga solo está probado como lógica pura.
+- Compatibilidad con `rules.next`: contra las reglas actuales la lista sale vacía y vincular da permiso denegado; solo funciona tras desplegar `rules.next` con aprobación explícita.
+- Integración con W1/W2: conflictos esperados en `App.tsx` y `types.ts` (hunks aditivos pequeños).
+
+### PR5c-3a (identidad pseudónima del paciente) — riesgos (PR #37)
+- **BLOQUEANTE para cualquier piloto con datos clínicos reales (D1):** los pacientes deben quedar aislados mediante permisos adecuados por clínica o profesional. Hoy todos los clínicos verificados ven y modifican todos los pacientes y sesiones; la implementación actual solo está autorizada para datos sintéticos. Mejora: `clinicId`/`ownerUid` en pacientes y sesiones, y contador de alias por clínica (`clinicas/{id}/config/aliasPacientes`).
+- Riesgo de sesiones huérfanas al eliminar pacientes: `deletePatient` borra solo por `patientId == id`; las sesiones nuevas con `patientId == pid` quedarían con datos de salud sin propietario (protección de datos). Corregir en PR5c-3c.
+- Compatibilidad entre `patientId` antiguo (id de Firestore) y `pid` nuevo en historial (W1) y resultados (W2): integrar `construirMapaPidAPaciente` y `reescribirPatientId`; sin migrar ni reescribir documentos existentes.
+- Recuperación segura tras timeout de asignación: el resultado es desconocido (`resultadoDesconocido`) y se consulta primero la identidad existente; verificar el comportamiento también desde la interfaz (PR5c-3c).
+- Integridad del contador de alias: las reglas impiden saltos, retrocesos y reutilización, pero un borrado fuera del cliente (consola o Admin SDK) reiniciaría la numeración y generaría duplicados; protegerlo (permisos de consola/Admin, copias, auditoría).
+- Validar el comportamiento con múltiples clínicas (aislamiento, contadores independientes, administradores) antes de cualquier piloto.
+- El `pid` solo se valida por formato en las reglas; su aleatoriedad depende de WebCrypto en cliente.
+
+### Pruebas pendientes
+- Validar puntuación, HUD, controles e integración real en Meta Quest 3 física.
+- Validar errores de red y pérdida de conexión.
+
+---
+
 ## 📊 MÉTRICAS DEL PROYECTO
 
 **Issues totales:** 11
