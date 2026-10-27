@@ -10,6 +10,8 @@ rules_version = '2';
 //   - Clínico      = usuario NO anónimo, email verificado y con doc usuarios/{uid} con
 //                    rol 'fisioterapeuta' | 'admin' (doc escrito solo por Admin SDK/consola).
 //   - Un anónimo NUNCA es clínico, aunque exista usuarios/{uid} (lo bloquea el provider).
+//   - PR5c-3b-1: la sesión activa pasa a ciclo de vida persistente por sessionId (registro + buzón + resultado);
+//     ver el bloque 'CICLO DE VIDA DE SESION' dentro de match /dispositivos/{deviceUid}.
 //
 // Límite de accesos a documentos por petición (get/exists/getAfter): 10 en operaciones
 // simples y 20 en batch/transacción (cada evaluación sigue limitada a 10); los accesos
@@ -211,73 +213,164 @@ service cloud.firestore {
         && request.auth.uid == deviceUid
         && resource.data.estado == 'sin_vincular';
 
-      // ---------------------------------------------------------------- sesion_activa
+      // ================================================================ CICLO DE VIDA DE SESION (PR5c-3b-1)
+      // Tres documentos, cada uno con una unica responsabilidad:
+      //   dispositivos/{uid}/sesiones_registro/{sid}  FUENTE DE VERDAD del ciclo de vida (config inmutable + estado + trazas).
+      //   dispositivos/{uid}/sesion_activa/current    BUZON/PUNTERO de la Quest {sessionId, publicadaEn, venceEn}. Sin config.
+      //   sesiones/{sid}                              RESULTADO clinico (create-only, id == sessionId).
+      // Estados del registro: pending, running, cancel_requested, completed, interrupted, cancelled, vencida.
+      //   - 'vencida' es DERIVADA (pending con now >= venceEn). La Quest NUNCA escribe 'vencida'; solo el propietario
+      //     deja la traza (al reemplazarla en el batch de publicacion o a mano). Una pending vencida no se puede INICIAR,
+      //     pero una sesion YA iniciada puede terminar aunque venceEn haya pasado.
+      //   - Nadie borra registro ni buzon. Las trazas (cancelacion, cierre forzado, resultado tardio) se escriben una vez
+      //     y no se modifican (los update son hasOnly y exigen un estado previo que ya no se repite).
+      // Plazos: iniciar < venceEn (el cliente usa 20 min; tope 1 h aqui); cierre normal hasta iniciadaEn+duration+30 min;
+      //   resultado tardio (tardio == true) hasta iniciadaEn+duration+24 h; cierre forzado por el propietario tras
+      //   duration+30 min (running) o 2 min (cancel_requested). Pasado el plazo NO se amplian permisos de escritura:
+      //   la recuperacion excepcional es un procedimiento administrativo fuera de las reglas (ver documento de diseño).
+      // Sin backend: ninguna regla se ejecuta sola; los plazos se aplican cuando alguien escribe (request.time = servidor).
+      // Limite de accesos (10 por evaluacion, 20 por batch; los repetidos al mismo doc se cachean). Distintos por operacion:
+      //   publicar (3 escrituras) 7; iniciar 2; cancelar/solicitar/forzar 2-3; cierre+resultado 4 por escritura.
+      function propietario() {
+        return esClinico() && disp(deviceUid).ownerUid == request.auth.uid;
+      }
+      function propietarioVinculado() {
+        return propietario() && disp(deviceUid).estado == 'vinculado';
+      }
+      // Quest vinculada y propietaria de ESTE path (la Quest solo calcula rutas bajo su propio uid).
+      function esQ() {
+        return esGafa() && request.auth.uid == deviceUid && disp(deviceUid).estado == 'vinculado';
+      }
+      function regRuta(sid) {
+        return /databases/$(database)/documents/dispositivos/$(deviceUid)/sesiones_registro/$(sid);
+      }
+      function curRuta() {
+        return /databases/$(database)/documents/dispositivos/$(deviceUid)/sesion_activa/current;
+      }
+      function resRuta(sid) {
+        return /databases/$(database)/documents/sesiones/$(sid);
+      }
+      function sidOk(v) { return v is string && v.matches('^[A-Za-z0-9_-]{22}$'); }
+      function esTerminal(s) { return s in ['completed', 'interrupted', 'cancelled', 'vencida']; }
+
+      // ---------------------------------------------------------------- sesion_activa/current = BUZON (puntero)
       match /sesion_activa/{docId} {
-        function propietario() {
-          return esClinico() && disp(deviceUid).ownerUid == request.auth.uid;
+        function punteroOk(d) {
+          return d.keys().hasOnly(['sessionId', 'publicadaEn', 'venceEn'])
+            && d.keys().hasAll(['sessionId', 'publicadaEn', 'venceEn'])
+            && sidOk(d.sessionId)
+            && d.publicadaEn == request.time
+            && getAfter(regRuta(d.sessionId)).data.status == 'pending'
+            && getAfter(regRuta(d.sessionId)).data.publicadaEn == d.publicadaEn
+            && getAfter(regRuta(d.sessionId)).data.venceEn == d.venceEn;
         }
-
-        function propietarioVinculado() {
-          return propietario() && disp(deviceUid).estado == 'vinculado';
+        // La sesion anterior (apuntada por el buzon) esta terminal o es una pending vencida que este mismo
+        // batch pasa a 'vencida' (D11: nunca se pisa una sesion viva).
+        function anteriorLibre(sidViejo) {
+          return esTerminal(getAfter(regRuta(sidViejo)).data.status)
+            && (esTerminal(get(regRuta(sidViejo)).data.status)
+                || (get(regRuta(sidViejo)).data.status == 'pending' && request.time >= get(regRuta(sidViejo)).data.venceEn));
         }
+        // Lectura: la Quest vinculada propietaria del path y el clinico propietario. Nunca list.
+        // La lectura NO se deniega por vencimiento (un 403 por vencida se confundiria con el de revocacion).
+        allow get: if docId == 'current' && (esQ() || propietario());
+        allow list: if false;
+        allow create: if docId == 'current' && propietarioVinculado() && punteroOk(request.resource.data);
+        allow update: if docId == 'current' && propietarioVinculado() && punteroOk(request.resource.data)
+          && anteriorLibre(resource.data.sessionId);
+        allow delete: if false;
+      }
 
-        function sesionActivaValida(d) {
-          return d.keys().hasOnly(['sessionId', 'patientId', 'patientAlias', 'gameId', 'duration',
-                                   'difficulty', 'therapySide', 'sessionType', 'status', 'publicadaEn', 'venceEn'])
-            && d.keys().hasAll(['sessionId', 'patientId', 'patientAlias', 'gameId', 'duration',
-                                'difficulty', 'therapySide', 'sessionType', 'status', 'publicadaEn', 'venceEn'])
-            && idOpaco(d.sessionId)
-            && idOpaco(d.patientId)
-            && d.patientAlias is string && d.patientAlias.size() >= 1 && d.patientAlias.size() <= 30
+      // ---------------------------------------------------------------- sesiones_registro/{sessionId}
+      match /sesiones_registro/{sid} {
+        // Alta: el registro nace 'pending' y solo si el buzon apunta a el EN EL MISMO COMMIT (publicacion atomica).
+        function regNuevoOk(d) {
+          return d.keys().hasOnly(['sessionId', 'patientId', 'patientAlias', 'gameId', 'duration', 'difficulty',
+                                   'therapySide', 'sessionType', 'deviceUid', 'ownerUid', 'publicadaEn', 'venceEn', 'status'])
+            && d.keys().hasAll(['sessionId', 'patientId', 'patientAlias', 'gameId', 'duration', 'difficulty',
+                                'therapySide', 'sessionType', 'deviceUid', 'ownerUid', 'publicadaEn', 'venceEn', 'status'])
+            && sidOk(sid) && d.sessionId == sid
+            && pidOk(d.patientId) && aliasPOk(d.patientAlias)
             && d.gameId in ['gems', 'vault_escape', 'urban_attention_quest', 'luggage_handler']
+            // duration = duracion CONFIGURADA en segundos (inmutable). No es el tiempo realmente jugado (ese va en el resultado).
             && d.duration is int && d.duration >= 1 && d.duration <= 7200
             && d.difficulty is string && d.difficulty.size() >= 1 && d.difficulty.size() <= 20
             && d.therapySide is string && d.therapySide.size() >= 1 && d.therapySide.size() <= 20
             && d.sessionType is string && d.sessionType.size() >= 1 && d.sessionType.size() <= 30
+            && d.deviceUid == deviceUid && d.ownerUid == request.auth.uid
             && d.status == 'pending'
             && d.publicadaEn == request.time
-            && d.venceEn is timestamp
-            && d.venceEn > request.time
-            && d.venceEn <= request.time + duration.value(24, 'h');
+            && d.venceEn is timestamp && d.venceEn > request.time
+            && d.venceEn <= request.time + duration.value(1, 'h')
+            && getAfter(curRuta()).data.sessionId == sid;
         }
+        function dif() { return request.resource.data.diff(resource.data).affectedKeys(); }
+        function nSt() { return request.resource.data.status; }
 
-        // Lectura: la gafa VINCULADA propietaria del path y el clínico propietario. Nunca list.
-        // DECISIÓN: la lectura NO se deniega por vencimiento. Un 403 por vencida se confundiría con el 403
-        // de revocación/no vinculada (el cliente lo trata como fallo de polling). El vencimiento se aplica
-        // donde importa (create de resultado y PATCH de status); el cliente debe ignorar venceEn <= ahora.
-        allow get: if docId == 'current'
-          && ((esGafa() && request.auth.uid == deviceUid && disp(deviceUid).estado == 'vinculado')
-              || propietario());
-        allow list: if false;
+        allow get: if esQ() || propietario();
+        allow list: if propietario();
+        allow create: if propietarioVinculado() && regNuevoOk(request.resource.data);
+        allow delete: if false;
 
-        allow create: if docId == 'current'
-          && propietarioVinculado()
-          && sesionActivaValida(request.resource.data);
-
-        allow update: if docId == 'current'
-          && (
-            // el propietario republica la sesión completa (siempre 'pending')
-            (propietarioVinculado() && sesionActivaValida(request.resource.data))
-            // la gafa vinculada solo marca pending -> completed
-            || (esGafa()
-                && request.auth.uid == deviceUid
-                && disp(deviceUid).estado == 'vinculado'
-                // sesión vencida: ya no se puede cerrar (evita usar una sesión caducada)
-                && request.time < resource.data.venceEn
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-                && resource.data.status == 'pending'
-                && request.resource.data.status == 'completed')
-          );
-
-        // El propietario puede limpiar aunque el dispositivo haya sido revocado.
-        allow delete: if docId == 'current' && propietario();
+        allow update: if
+          // Quest: pending -> running (solo si es la sesion vigente del buzon y no ha vencido)
+          (esQ() && resource.data.status == 'pending' && nSt() == 'running'
+              && request.time < resource.data.venceEn
+              && dif().hasOnly(['status', 'iniciadaEn']) && request.resource.data.iniciadaEn == request.time
+              && get(curRuta()).data.sessionId == sid)
+          // propietario: marca como 'vencida' una pending caducada (traza perezosa; la Quest no la escribe)
+          || (propietario() && resource.data.status == 'pending' && nSt() == 'vencida'
+              && request.time >= resource.data.venceEn
+              && dif().hasOnly(['status', 'finalizadaEn', 'motivo'])
+              && request.resource.data.motivo == 'vencida' && request.resource.data.finalizadaEn == request.time)
+          // propietario: cancela una pending
+          || (propietario() && resource.data.status == 'pending' && nSt() == 'cancelled'
+              && dif().hasOnly(['status', 'finalizadaEn', 'motivo', 'cierrePor'])
+              && request.resource.data.motivo == 'cancelada_por_web' && request.resource.data.cierrePor == request.auth.uid
+              && request.resource.data.finalizadaEn == request.time)
+          // propietario: solicita cancelar una running
+          || (propietario() && resource.data.status == 'running' && nSt() == 'cancel_requested'
+              && dif().hasOnly(['status', 'cancelSolicitadaEn', 'cancelSolicitadaPor'])
+              && request.resource.data.cancelSolicitadaEn == request.time
+              && request.resource.data.cancelSolicitadaPor == request.auth.uid)
+          // Quest: cierre (normal o tardio dentro de 24 h) con resultado atomico (existsAfter) cuando 'resultadoEn' esta
+          || (esQ() && resource.data.status in ['running', 'cancel_requested'] && nSt() in ['completed', 'interrupted']
+              && dif().hasOnly(['status', 'finalizadaEn', 'motivo', 'resultadoEn', 'tardio'])
+              && request.resource.data.finalizadaEn == request.time
+              && request.time < resource.data.iniciadaEn + duration.value(resource.data.duration + 86400, 's')
+              && request.resource.data.tardio == (request.time > resource.data.iniciadaEn + duration.value(resource.data.duration + 1800, 's'))
+              && (nSt() == 'completed'
+                    ? (!('motivo' in request.resource.data) && request.resource.data.resultadoEn == request.time)
+                    : request.resource.data.motivo in ['cancelada_por_web', 'abandono', 'reinicio', 'error'])
+              && (('resultadoEn' in request.resource.data) == existsAfter(resRuta(sid)))
+              && (!('resultadoEn' in request.resource.data) || request.resource.data.resultadoEn == request.time))
+          // propietario: cierre forzado (D10) con motivo; la traza vive en el propio registro (inmutable, no borrable)
+          || (propietario() && nSt() == 'interrupted'
+              && dif().hasOnly(['status', 'finalizadaEn', 'motivo', 'cierrePor', 'forzadoPor', 'forzadoEn', 'forzadoMotivo'])
+              && request.resource.data.motivo == 'sin_respuesta'
+              && request.resource.data.finalizadaEn == request.time && request.resource.data.forzadoEn == request.time
+              && request.resource.data.cierrePor == request.auth.uid && request.resource.data.forzadoPor == request.auth.uid
+              && request.resource.data.forzadoMotivo is string
+              && request.resource.data.forzadoMotivo.size() >= 5 && request.resource.data.forzadoMotivo.size() <= 200
+              && ((resource.data.status == 'running'
+                     && request.time > resource.data.iniciadaEn + duration.value(resource.data.duration + 1800, 's'))
+                  || (resource.data.status == 'cancel_requested'
+                     && request.time > resource.data.cancelSolicitadaEn + duration.value(2, 'm'))))
+          // Quest: resultado TARDIO sobre un registro ya cerrado a la fuerza (sin_respuesta). No cambia status ni la traza
+          // forzada; una sola vez; independiente de 'current' (que puede apuntar ya a otra sesion).
+          || (esQ() && resource.data.status == 'interrupted' && resource.data.motivo == 'sin_respuesta'
+              && !('resultadoEn' in resource.data)
+              && dif().hasOnly(['resultadoEn', 'tardio'])
+              && request.resource.data.resultadoEn == request.time && request.resource.data.tardio == true
+              && request.time < resource.data.iniciadaEn + duration.value(resource.data.duration + 86400, 's')
+              && existsAfter(resRuta(sid)));
       }
     }
 
     // ------------------------------------------------------------------ sesiones (resultados)
     function clavesComunesResultado() {
       return ['patientId', 'sessionId', 'deviceUid', 'gameId', 'game', 'date', 'duration', 'score',
-              'side', 'difficulty', 'sessionType', 'fromVR', 'notes', 'createdAt'];
+              'side', 'difficulty', 'sessionType', 'fromVR', 'notes', 'createdAt', 'status', 'durationUnit', 'patientAlias'];
     }
 
     function clavesGems() {
@@ -370,12 +463,18 @@ service cloud.firestore {
     }
 
     function resultadoComunOk(d, sessionIdPath) {
-      return d.keys().hasAll(['patientId', 'sessionId', 'deviceUid', 'gameId', 'duration', 'score'])
+      return d.keys().hasAll(['patientId', 'sessionId', 'deviceUid', 'gameId', 'duration', 'score', 'status', 'durationUnit', 'patientAlias'])
         && idOpaco(d.patientId)
         && idOpaco(d.sessionId)
         && d.sessionId == sessionIdPath
         && d.deviceUid == request.auth.uid
         && d.gameId in ['gems', 'vault_escape', 'urban_attention_quest', 'luggage_handler']
+        // duration = tiempo REALMENTE jugado, en segundos (durationUnit). No se compara con la duracion configurada del
+        // registro (otro campo, otra semantica). Unidades de las metricas: *_percentage/accuracy/*_score/completion en
+        // 0..100; avgTimePerGem, avg_time_per_panel, avg_reaction_time en segundos; vertical_range_meters en metros;
+        // cervical_rom_* en grados; time_under_load en segundos; pesos en kg; contadores sin unidad.
+        && d.durationUnit == 's'
+        && d.status in ['completed', 'interrupted']
         && d.duration is int && d.duration >= 0 && d.duration <= 86400
         && d.score is int && d.score >= 0 && d.score <= 1000000
         && strOpt(d, 'game', 60) && strOpt(d, 'date', 40) && strOpt(d, 'side', 20)
@@ -393,16 +492,27 @@ service cloud.firestore {
         || (d.gameId == 'luggage_handler' && d.keys().hasOnly(clavesComunesResultado().concat(clavesLuggage())) && luggageOk(d));
     }
 
-    // La gafa está vinculada y hay una sesión activa pendiente, vigente y del mismo paciente.
-    function sesionActivaVigente(d) {
-      // let: una sola evaluación de la ruta (el límite de reglas es 1000 expresiones por evaluación).
-      let a = get(/databases/$(database)/documents/dispositivos/$(request.auth.uid)/sesion_activa/current).data;
+    // El resultado se ata al REGISTRO por sessionId (no a 'current'): la Quest solo accede a SU subcoleccion.
+    // r = registro ANTES del commit; a = registro DESPUES (mismo batch). El batch debe dejar resultadoEn == request.time.
+    //   - ordinario/tardio-en-curso: registro running|cancel_requested -> a.status == d.status (completed|interrupted).
+    //   - recuperacion tardia tras cierre forzado: registro interrupted/sin_respuesta, a.tardio == true; el resultado
+    //     puede declarar 'completed' o 'interrupted' (lo que la Quest declara); el registro CONSERVA interrupted/sin_respuesta
+    //     y la traza forzado*, y solo gana resultadoEn/tardio (una vez).
+    // Semantica de las tres magnitudes (sin campos nuevos):
+    //   (1) finalizacion REAL declarada por la Quest = sesiones/{sid}.status (completed|interrupted), inmutable (create-only).
+    //   (2) recepcion tardia = registro.tardio, calculado contra request.time (> iniciadaEn+duration+30 min).
+    //   (3) fecha de sincronizacion = registro.resultadoEn == request.time (servidor).
+    //   Cierre normal (no forzado): registro.status == resultado.status. Tras forzado: pueden diferir; manda (1) para la
+    //   clinica y el registro conserva la historia administrativa.
+    function sesionActivaVigente(d, sid) {
+      let r = get(/databases/$(database)/documents/dispositivos/$(request.auth.uid)/sesiones_registro/$(sid)).data;
+      let a = getAfter(/databases/$(database)/documents/dispositivos/$(request.auth.uid)/sesiones_registro/$(sid)).data;
       return disp(request.auth.uid).estado == 'vinculado'
-        && a.sessionId == d.sessionId
-        && a.gameId == d.gameId
-        && a.status == 'pending'
-        && request.time < a.venceEn
-        && a.patientId == d.patientId;
+        && r.patientId == d.patientId && r.patientAlias == d.patientAlias && r.gameId == d.gameId
+        && a.resultadoEn == request.time
+        && request.time < r.iniciadaEn + duration.value(r.duration + 86400, 's')
+        && ((r.status in ['running', 'cancel_requested'] && a.status == d.status)
+            || (r.status == 'interrupted' && r.motivo == 'sin_respuesta' && a.status == 'interrupted' && a.tardio == true));
     }
 
     match /sesiones/{sessionId} {
@@ -410,7 +520,7 @@ service cloud.firestore {
       allow create: if esGafa()
         && resultadoComunOk(request.resource.data, sessionId)
         && resultadoPorJuegoOk(request.resource.data)
-        && sesionActivaVigente(request.resource.data);
+        && sesionActivaVigente(request.resource.data, sessionId);
 
       // La gafa lee sus propios resultados solo mientras siga vinculada (una gafa revocada pierde todo acceso a datos).
       allow get: if esClinico()
@@ -424,7 +534,9 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['updatedAt'])
             || request.resource.data.updatedAt == request.time);
 
-      allow delete: if esClinico();
+      // Los resultados clinicos NO se borran desde el cliente (D7). La supresion RGPD o la rectificacion se hacen con un
+      // procedimiento administrativo (Admin SDK) y no por reglas. Dependencia: db.ts deletePatient borra en cascada.
+      allow delete: if false;
     }
 
     // ------------------------------------------------------------------ pacientes
@@ -463,6 +575,7 @@ service cloud.firestore {
     // Contador monótono config/aliasPacientes {ultimo, ultimoPacienteId, actualizadoEn}: solo sube +1 y solo en el
     // MISMO commit en que un paciente sin identidad recibe alias/aliasNum/pid. Nunca se borra ni retrocede, así
     // que borrar un paciente NO libera su número (hueco permitido). Probado con string() en el emulador (D5).
+    function aliasPOk(v) { return v is string && v.matches('^P-[0-9]{3,6}$'); }
     function pidOk(v) {
       return v is string && v.matches('^[A-Za-z0-9_-]{22}$');
     }
