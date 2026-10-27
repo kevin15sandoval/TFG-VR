@@ -307,6 +307,14 @@ Estado: *pendiente* salvo indicación. Origen: PR #29 (Vault), #30 (Gemas), #31 
 - Validar el comportamiento con múltiples clínicas (aislamiento, contadores independientes, administradores) antes de cualquier piloto.
 - El `pid` solo se valida por formato en las reglas; su aleatoriedad depende de WebCrypto en cliente.
 
+### PR5c-3b-1 (reglas del ciclo de vida de sesión) — hallazgos y deuda (PR #38)
+- **PR5c-3b-1 no es fusionable por separado:** `devices.ts` sigue escribiendo el modelo antiguo de `sesion_activa`. PR5c-3b-2 es obligatorio antes de cualquier integración y debe reactivar los 8 tests omitidos (`SKIP_3B2` en `tests/emulator/devices.test.mjs` y `patient-identity.test.mjs`).
+- **Contención transitoria (hallazgo en emulador):** una escritura concurrente sobre `current`, aunque se deniegue, hace que la regla de inicio devuelva permiso denegado de forma transitoria. En PR6, Godot debe releer `current` y el registro antes de cualquier reintento de inicio, comprobando que sigue siendo la misma sesión pendiente. Sin reintentos ciegos. Por confirmar si ocurre en producción.
+- **Límite de 1000 expresiones** en la regla de creación de `sesiones`: márgenes aproximados gemas 320, Vault 405, City 250, Luggage 320. Repetir la sonda de márgenes ante cualquier añadido a esa regla.
+- **Archivado lógico de pacientes (PR5c-3c):** con `sesiones delete:false`, `deletePatient` y los borrados de `db.ts` (líneas 119 y 188) fallarían. Modelo propuesto: `estado: 'archivado'` con `archivadoEn` y `archivadoPor`, `delete` de pacientes en `false`, interfaz «Archivar». La supresión o anonimización RGPD será un procedimiento administrativo independiente y autorizado.
+- **Recuperación pasadas 24 h:** sin ampliar permisos de escritura ordinarios; procedimiento administrativo autorizado (Admin SDK, motivo, `auditoria_sesiones`) diseñado, no implementado (PR5c-3b-3).
+- «Vencida» y el cierre forzado dependen de que alguien escriba (no hay backend); las reglas solo validan la forma de `pid`, `sessionId`, métricas y `tardio`.
+
 ### Pruebas pendientes
 - Validar puntuación, HUD, controles e integración real en Meta Quest 3 física.
 - Validar errores de red y pérdida de conexión.
