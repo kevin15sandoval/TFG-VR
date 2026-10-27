@@ -18,7 +18,6 @@ import { initializeApp as adminInit, deleteApp as adminDelete } from 'firebase-a
 import { getAuth as adminAuth } from 'firebase-admin/auth';
 import { getFirestore as adminFirestore, Timestamp as AdminTs } from 'firebase-admin/firestore';
 
-const SKIP_3B2 = 'PR5c-3b-2: devices.ts aún publica el modelo antiguo de sesion_activa (config completa, delete, sessionId corto); se reactiva al migrar publicarSesionEnDispositivo/limpiarSesion/cancelarSesion al batch registro+buzón';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PROJECT_ID = 'demo-tfg-vr';
 const FS = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
@@ -28,6 +27,8 @@ const [FS_HOST, FS_PORT] = FS.split(':');
 const ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 const D = await import(pathToFileURL(join(root, 'app', 'devices.ts')).href);
+const { generarPid, identificadorParaQuest } = await import(pathToFileURL(join(root, 'app', 'patientIdentity.ts')).href);
+const generarSessionId = D.generarSessionId;
 
 const apps = [];
 let adminApp, aAuth, aDb;
@@ -68,17 +69,42 @@ async function crearQuest() {
   return { ...c, uid: user.uid, codigo };
 }
 
+// Configuración que publica el fisio (SIN sessionId: lo genera el servicio). patientId = pid sintético de 22 caracteres.
 const sesionOk = (extra = {}) => ({
-  sessionId: `ses${codigoAleatorio()}`, patientId: 'pac-opaco-1', patientAlias: 'P-001', gameId: 'gems',
+  patientId: generarPid(), patientAlias: 'P-001', gameId: 'gems',
   duration: 300, difficulty: 'Fácil', therapySide: 'Derecho', sessionType: 'Rehabilitación', ...extra,
 });
 
-const gemsResultado = (deviceUid, sessionId, patientId) => ({
+// Resultado clínico tal como lo escribe la Quest bajo el contrato de rules.next (id == sessionId, status, durationUnit...).
+const resultadoQ = (deviceUid, sessionId, patientId) => ({
   patientId, sessionId, deviceUid, gameId: 'gems', duration: 120, score: 10, fromVR: true, notes: '',
+  status: 'completed', durationUnit: 's', patientAlias: 'P-001',
   accuracy: 80, gemsNormal: 5, gemsGolden: 1, gemsGreen: 0, gemsPurple: 0, gemsRed: 0, gemsRedAvoided: 0,
   totalGems: 6, avgTimePerGem: 2, totalMovements: 6, movementsSummary: [],
   zonesWorked: { Alto: 1, Medio: 2, Lateral: 2, Bajo: 1 },
 });
+
+// La Quest simulada inicia (pending -> running) y cierra (resultado + registro en UN batch), como hará PR6.
+const iniciaQuest = (q, sid) => updateDoc(doc(q.db, 'dispositivos', q.uid, 'sesiones_registro', sid), { status: 'running', iniciadaEn: serverTimestamp() });
+const cierraQuest = (q, sid, pid) => {
+  const b = writeBatch(q.db);
+  b.set(doc(q.db, 'sesiones', sid), { ...resultadoQ(q.uid, sid, pid), createdAt: serverTimestamp() });
+  b.update(doc(q.db, 'dispositivos', q.uid, 'sesiones_registro', sid), { status: 'completed', finalizadaEn: serverTimestamp(), tardio: false, resultadoEn: serverTimestamp() });
+  return b.commit();
+};
+
+// Escritura CRUDA de una publicación (sin pasar por devices.ts) para comprobar que las REGLAS rechazan lo que el cliente ya filtra.
+const publicaCrudo = (owner, q, over = {}, sid = generarSessionId()) => {
+  const venceEn = over.venceEn ?? Timestamp.fromMillis(Date.now() + 20 * 60_000);
+  const b = writeBatch(owner.db);
+  b.set(doc(owner.db, 'dispositivos', q.uid, 'sesiones_registro', sid), {
+    sessionId: sid, patientId: generarPid(), patientAlias: 'P-001', gameId: 'gems', duration: 300, difficulty: 'Fácil',
+    therapySide: 'Derecho', sessionType: 'Rehabilitación', deviceUid: q.uid, ownerUid: owner.auth.currentUser.uid,
+    publicadaEn: serverTimestamp(), venceEn, status: 'pending', ...over,
+  });
+  b.set(doc(owner.db, 'dispositivos', q.uid, 'sesion_activa', 'current'), { sessionId: sid, publicadaEn: over.publicadaEn ?? serverTimestamp(), venceEn });
+  return b.commit();
+};
 
 async function rutas() {
   const out = [];
@@ -170,49 +196,54 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
     assert.equal((await aDb.doc(`dispositivos/${q.uid}`).get()).exists, true);
   });
 
-  it('camino feliz (publicación del modelo antiguo): publicar, limpiar, cancelar', { skip: SKIP_3B2 }, async () => {
-    const q = await crearQuest();
-    const antes = await rutas();
-    // código tecleado con guion y minúsculas
-    const r = await A.svc.confirmarVinculo(`${q.codigo.slice(0, 4)}-${q.codigo.slice(4)}`.toLowerCase(), 'Quest consulta 1');
-    assert.deepEqual(r, { deviceUid: q.uid, alias: 'Quest consulta 1' });
-    assert.deepEqual(await rutas(), antes, 'confirmar no crea ni borra documentos');
-    const dd = (await aDb.doc(`dispositivos/${q.uid}`).get()).data();
-    assert.equal(dd.estado, 'vinculado'); assert.equal(dd.ownerUid, 'pr5c-fisio-a'); assert.equal(dd.alias, 'Quest consulta 1');
-    const vv = (await aDb.doc(`vinculos/${q.codigo}`).get()).data();
-    assert.equal(vv.estado, 'vinculado'); assert.equal(vv.usado, true); assert.equal(vv.confirmadoPor, 'pr5c-fisio-a');
-    assert.ok(vv.confirmadoEn && vv.confirmadoEn.toMillis() > 0);
-
-    const lista = await A.svc.listarMisDispositivosUnaVez();
-    const mia = lista.find((x) => x.uid === q.uid);
-    assert.equal(mia.estado, 'vinculado'); assert.equal(mia.alias, 'Quest consulta 1'); assert.ok(mia.vinculadoEn > 0);
-    assert.ok(!('enLinea' in mia) && !('online' in mia), 'sin presencia');
-
-    await A.svc.renombrarDispositivo(q.uid, 'Quest sala 2');
-    assert.equal((await aDb.doc(`dispositivos/${q.uid}`).get()).data().alias, 'Quest sala 2');
-
-    const pub = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
-    assert.ok(pub.venceEn > Date.now());
-    const sa = (await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).data();
-    assert.equal(sa.status, 'pending'); assert.ok(sa.venceEn instanceof AdminTs); assert.ok(sa.publicadaEn instanceof AdminTs);
-    assert.equal(sa.patientAlias, 'P-001');
-    // republicar (update del propietario)
-    await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ gameId: 'luggage_handler' }));
-
-    await A.svc.limpiarSesion(q.uid);
-    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, false);
-    await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
-    await A.svc.cancelarSesion(q.uid);
-    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, false);
-
-    await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
-    await A.svc.revocarDispositivo(q.uid);
-    const rv = (await aDb.doc(`dispositivos/${q.uid}`).get()).data();
-    assert.equal(rv.estado, 'revocado'); assert.ok(rv.revocadoEn);
-    assert.equal((await A.svc.listarMisDispositivosUnaVez()).find((x) => x.uid === q.uid).estado, 'revocado');
-    // el propietario aún puede limpiar tras revocar; el historial no se borra
-    await A.svc.limpiarSesion(q.uid);
-    assert.equal((await aDb.doc(`dispositivos/${q.uid}`).get()).exists, true);
+  it('camino feliz de la publicación: publicar (registro + buzón), no pisar la pendiente, cancelar, republicar, en curso', async () => {
+    const q = await questVinculada(A, 'Quest consulta 1');
+    const pid = generarPid();
+    const t0 = Date.now();
+    const pub = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientId: pid }));
+    assert.match(pub.sessionId, /^[A-Za-z0-9_-]{22}$/);
+    assert.ok(pub.venceEn > t0 + 19 * 60_000 && pub.venceEn < t0 + 21 * 60_000, '20 min por defecto');
+    assert.equal(pub.vencidaAnterior, null);
+    // documentos EXACTOS
+    const rg = (await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${pub.sessionId}`).get()).data();
+    assert.deepEqual(Object.keys(rg).sort(), ['deviceUid', 'difficulty', 'duration', 'gameId', 'ownerUid', 'patientAlias', 'patientId',
+      'publicadaEn', 'sessionId', 'sessionType', 'status', 'therapySide', 'venceEn']);
+    assert.equal(rg.status, 'pending'); assert.equal(rg.sessionId, pub.sessionId); assert.equal(rg.patientId, pid);
+    assert.equal(rg.patientAlias, 'P-001'); assert.equal(rg.deviceUid, q.uid); assert.equal(rg.ownerUid, 'pr5c-fisio-a');
+    assert.ok(rg.venceEn instanceof AdminTs && rg.publicadaEn instanceof AdminTs);
+    const cur = (await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).data();
+    assert.deepEqual(Object.keys(cur).sort(), ['publicadaEn', 'sessionId', 'venceEn'], 'el buzón es solo un puntero');
+    assert.equal(cur.sessionId, pub.sessionId);
+    assert.ok(cur.publicadaEn.isEqual(rg.publicadaEn) && cur.venceEn.isEqual(rg.venceEn), 'buzón y registro coinciden');
+    // vista sin presencia
+    const vig = await A.svc.leerSesionVigente(q.uid);
+    assert.equal(vig.sessionId, pub.sessionId);
+    assert.equal(D.estadoVista(vig, Date.now()), 'pendiente');
+    assert.ok(!('enLinea' in vig) && !('online' in vig));
+    // no se puede pisar una pendiente viva
+    await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk()), 'sesion_pendiente_viva');
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).data().sessionId, pub.sessionId, 'el buzón no cambió');
+    // cancelar (pending -> cancelled) y republicar
+    await A.svc.cancelarSesion(q.uid, pub.sessionId);
+    const canc = (await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${pub.sessionId}`).get()).data();
+    assert.equal(canc.status, 'cancelled'); assert.equal(canc.motivo, 'cancelada_por_web'); assert.equal(canc.cierrePor, 'pr5c-fisio-a');
+    assert.ok(canc.finalizadaEn instanceof AdminTs);
+    assert.equal(D.estadoVista(await A.svc.leerRegistro(q.uid, pub.sessionId), Date.now()), 'cancelada');
+    await assertCodigo(A.svc.cancelarSesion(q.uid, pub.sessionId), 'sesion_no_cancelable');
+    const pub2 = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientId: pid, gameId: 'luggage_handler' }));
+    assert.notEqual(pub2.sessionId, pub.sessionId);
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).data().sessionId, pub2.sessionId);
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${pub.sessionId}`).get()).data().status, 'cancelled', 'el registro anterior se conserva');
+    // la Quest inicia: ya no se puede cancelar a secas ni publicar encima
+    await iniciaQuest(q, pub2.sessionId);
+    await assertCodigo(A.svc.cancelarSesion(q.uid, pub2.sessionId), 'sesion_no_cancelable');
+    await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk()), 'sesion_en_curso');
+    await A.svc.solicitarCancelacion(q.uid, pub2.sessionId);
+    const sol = (await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${pub2.sessionId}`).get()).data();
+    assert.equal(sol.status, 'cancel_requested'); assert.equal(sol.cancelSolicitadaPor, 'pr5c-fisio-a'); assert.ok(sol.cancelSolicitadaEn instanceof AdminTs);
+    assert.equal(D.estadoVista(await A.svc.leerRegistro(q.uid, pub2.sessionId), Date.now()), 'cancelacion_solicitada');
+    await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk()), 'sesion_en_curso');
+    assert.equal('limpiarSesion' in A.svc, false, 'limpiarSesion (DELETE) ya no existe');
   });
 
   it('listarMisDispositivos (suscripción) entrega solo los propios', async () => {
@@ -297,9 +328,10 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
   });
 
   // ------------------------------------------------------------------ aislamiento entre fisios
-  it('B no puede listar, renombrar, revocar, publicar ni limpiar en dispositivos de A', { skip: SKIP_3B2 }, async () => {
+  it('B no puede listar, renombrar, revocar, publicar, cancelar, solicitar ni forzar en dispositivos de A', async () => {
     const q = await questVinculada(A, 'Solo A');
-    await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
+    const pub = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
+    const sid = pub.sessionId;
     assert.equal((await B.svc.listarMisDispositivosUnaVez()).some((x) => x.uid === q.uid), false);
     // list sin filtro por owner, o filtrando por el owner de A: denegado por reglas
     await assertDenegado(getDocs(collection(B.db, 'dispositivos')), 'list sin filtro');
@@ -307,18 +339,33 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
     await assertDenegado(B.svc.renombrarDispositivo(q.uid, 'hack'));
     await assertDenegado(B.svc.revocarDispositivo(q.uid));
     await assertCodigo(B.svc.publicarSesionEnDispositivo(q.uid, sesionOk()), 'dispositivo_no_propio');
-    await assertDenegado(setDoc(doc(B.db, 'dispositivos', q.uid, 'sesion_activa', 'current'), { ...sesionOk(), status: 'pending', publicadaEn: serverTimestamp(), venceEn: Timestamp.fromMillis(Date.now() + 3600_000) }), 'reglas: escritura cruda');
-    await assertDenegado(B.svc.limpiarSesion(q.uid));
-    await assertDenegado(getDoc(doc(B.db, 'dispositivos', q.uid, 'sesion_activa', 'current')), 'B no lee la sesión de A');
+    // B ni siquiera puede leer el registro de A: todas las operaciones sobre él son permiso_denegado
+    await assertDenegado(B.svc.cancelarSesion(q.uid, sid), 'cancelar ajeno');
+    await assertDenegado(B.svc.solicitarCancelacion(q.uid, sid), 'solicitar ajeno');
+    await assertDenegado(B.svc.forzarCierre(q.uid, sid, 'motivo suficiente de B'), 'forzar ajeno');
+    await assertDenegado(B.svc.marcarVencida(q.uid, sid), 'vencer ajeno');
+    await assertDenegado(B.svc.leerRegistro(q.uid, sid), 'leer ajeno');
+    await assertDenegado(B.svc.leerSesionVigente(q.uid), 'leer vigente ajeno');
+    // escrituras crudas de B (defensa en profundidad)
+    await assertDenegado(publicaCrudo(B, q, {}), 'reglas: batch crudo de B');
+    await assertDenegado(updateDoc(doc(B.db, 'dispositivos', q.uid, 'sesiones_registro', sid), { status: 'cancelled', finalizadaEn: serverTimestamp(), motivo: 'cancelada_por_web', cierrePor: 'pr5c-fisio-b' }), 'reglas: cancelar crudo de B');
+    await assertDenegado(getDoc(doc(B.db, 'dispositivos', q.uid, 'sesion_activa', 'current')), 'B no lee el buzón de A');
+    await assertDenegado(getDoc(doc(B.db, 'dispositivos', q.uid, 'sesiones_registro', sid)), 'B no lee el registro de A');
+    // nadie borra: ni B ni A
+    await assertDenegado(deleteDoc(doc(B.db, 'dispositivos', q.uid, 'sesiones_registro', sid)), 'B no borra el registro');
+    await assertDenegado(deleteDoc(doc(A.db, 'dispositivos', q.uid, 'sesiones_registro', sid)), 'A tampoco borra el registro');
+    await assertDenegado(deleteDoc(doc(A.db, 'dispositivos', q.uid, 'sesion_activa', 'current')), 'A tampoco borra el buzón');
     const dd = (await aDb.doc(`dispositivos/${q.uid}`).get()).data();
     assert.equal(dd.estado, 'vinculado'); assert.equal(dd.alias, 'Solo A');
-    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, true, 'la sesión de A sigue');
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, true, 'el buzón de A sigue');
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${sid}`).get()).data().status, 'pending', 'el registro de A sigue pendiente');
   });
 
   // ------------------------------------------------------------------ actores sin acceso
   it('sin rol, no verificado y anónimo: denegado en todas las funciones; no se escribe nada', async () => {
     const q = await crearQuest();
     const qv = await questVinculada(A, 'Para ajenos');
+    const sidFalso = generarSessionId();
     const antes = await rutas();
     for (const [nombre, X] of [['sin rol', SINROL], ['no verificado', NOVERIF]]) {
       await assertDenegado(X.svc.confirmarVinculo(q.codigo, 'x'), `${nombre}: confirmar`);
@@ -326,20 +373,26 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
       await assertDenegado(X.svc.renombrarDispositivo(qv.uid, 'x'), `${nombre}: renombrar`);
       await assertDenegado(X.svc.revocarDispositivo(qv.uid), `${nombre}: revocar`);
       await assertDenegado(X.svc.publicarSesionEnDispositivo(qv.uid, sesionOk()), `${nombre}: publicar`);
-      await assertDenegado(X.svc.limpiarSesion(qv.uid), `${nombre}: limpiar`);
+      await assertDenegado(X.svc.cancelarSesion(qv.uid, sidFalso), `${nombre}: cancelar`);
+      await assertDenegado(X.svc.solicitarCancelacion(qv.uid, sidFalso), `${nombre}: solicitar`);
+      await assertDenegado(X.svc.forzarCierre(qv.uid, sidFalso, 'motivo suficiente'), `${nombre}: forzar`);
+      await assertDenegado(X.svc.leerSesionVigente(qv.uid), `${nombre}: leer vigente`);
     }
     // Anónimo (la gafa) usando la capa de clínico: rechazo en cliente...
     for (const f of [
       () => qv.svc.confirmarVinculo(q.codigo, 'x'), () => qv.svc.listarMisDispositivosUnaVez(),
       () => qv.svc.renombrarDispositivo(qv.uid, 'x'), () => qv.svc.revocarDispositivo(qv.uid),
-      () => qv.svc.publicarSesionEnDispositivo(qv.uid, sesionOk()), () => qv.svc.limpiarSesion(qv.uid),
+      () => qv.svc.publicarSesionEnDispositivo(qv.uid, sesionOk()), () => qv.svc.cancelarSesion(qv.uid, sidFalso),
+      () => qv.svc.solicitarCancelacion(qv.uid, sidFalso), () => qv.svc.forzarCierre(qv.uid, sidFalso, 'motivo suficiente'),
+      () => qv.svc.marcarVencida(qv.uid, sidFalso), () => qv.svc.leerRegistro(qv.uid, sidFalso),
     ]) await assertCodigo(f(), 'sin_permiso');
     // ...y rechazo por las REGLAS con escrituras crudas del anónimo (defensa en profundidad)
     await assertDenegado(getDoc(doc(qv.db, 'vinculos', q.codigo)), 'anónimo no lee vínculos');
     await assertDenegado(getDocs(query(collection(qv.db, 'dispositivos'), where('ownerUid', '==', 'pr5c-fisio-a'))), 'anónimo no lista');
     await assertDenegado(updateDoc(doc(qv.db, 'dispositivos', qv.uid), { alias: 'mio' }), 'anónimo no renombra');
     await assertDenegado(updateDoc(doc(qv.db, 'dispositivos', qv.uid), { estado: 'revocado', revocadoEn: serverTimestamp() }), 'anónimo no revoca');
-    await assertDenegado(setDoc(doc(qv.db, 'dispositivos', qv.uid, 'sesion_activa', 'current'), { ...sesionOk(), status: 'pending', publicadaEn: serverTimestamp(), venceEn: Timestamp.fromMillis(Date.now() + 3600_000) }), 'anónimo no publica');
+    await assertDenegado(publicaCrudo(qv, qv, {}), 'anónimo no publica (batch crudo registro + buzón)');
+    await assertDenegado(setDoc(doc(qv.db, 'dispositivos', qv.uid, 'sesion_activa', 'current'), { sessionId: sidFalso, publicadaEn: serverTimestamp(), venceEn: Timestamp.fromMillis(Date.now() + 1800_000) }), 'anónimo no escribe el buzón');
     // Sin sesión en absoluto
     const anon = cliente();
     anon.svc = D.crearServicioDispositivos({ db: anon.db, auth: anon.auth });
@@ -355,20 +408,28 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
   });
 
   // ------------------------------------------------------------------ Quest revocada / otras
-  it('Quest vinculada lee su sesión, no la de otras, no hace list y el documento no lleva nombre real', { skip: SKIP_3B2 }, async () => {
+  it('Quest vinculada lee su buzón y su registro, no los de otras, no hace list y los documentos no llevan nombre real', async () => {
     const qa = await questVinculada(A, 'QA');
     const qb = await questVinculada(B, 'QB');
-    await A.svc.publicarSesionEnDispositivo(qa.uid, sesionOk());
-    await B.svc.publicarSesionEnDispositivo(qb.uid, sesionOk({ patientId: 'pac-opaco-2', patientAlias: 'P-002' }));
-    const propia = await getDoc(doc(qa.db, 'dispositivos', qa.uid, 'sesion_activa', 'current'));
-    assert.equal(propia.exists(), true);
-    const claves = Object.keys(propia.data()).sort();
-    assert.deepEqual(claves, ['difficulty', 'duration', 'gameId', 'patientAlias', 'patientId', 'publicadaEn', 'sessionId', 'sessionType', 'status', 'therapySide', 'venceEn']);
-    const texto = JSON.stringify(propia.data(), (k, v) => (v instanceof Timestamp ? v.toMillis() : v));
-    assert.doesNotMatch(texto, /SINTETICO|name|dni|nombre/i, 'sin nombre ni DNI en el payload visible por la Quest');
+    const pa = await A.svc.publicarSesionEnDispositivo(qa.uid, sesionOk());
+    const pb = await B.svc.publicarSesionEnDispositivo(qb.uid, sesionOk({ patientAlias: 'P-002' }));
+    const buzon = await getDoc(doc(qa.db, 'dispositivos', qa.uid, 'sesion_activa', 'current'));
+    assert.equal(buzon.exists(), true);
+    assert.deepEqual(Object.keys(buzon.data()).sort(), ['publicadaEn', 'sessionId', 'venceEn'], 'el buzón es solo un puntero');
+    assert.equal(buzon.data().sessionId, pa.sessionId);
+    const registro = await getDoc(doc(qa.db, 'dispositivos', qa.uid, 'sesiones_registro', pa.sessionId));
+    assert.equal(registro.exists(), true);
+    assert.deepEqual(Object.keys(registro.data()).sort(), ['deviceUid', 'difficulty', 'duration', 'gameId', 'ownerUid', 'patientAlias', 'patientId',
+      'publicadaEn', 'sessionId', 'sessionType', 'status', 'therapySide', 'venceEn']);
+    const texto = JSON.stringify([buzon.data(), registro.data()], (k, v) => (v instanceof Timestamp ? v.toMillis() : v));
+    assert.doesNotMatch(texto, /SINTETICO|name|dni|nombre/i, 'sin nombre ni DNI en lo que ve la Quest');
+    assert.match(registro.data().patientId, /^[A-Za-z0-9_-]{22}$/);
     // otras gafas / listados / datos de paciente
-    await assertDenegado(getDoc(doc(qa.db, 'dispositivos', qb.uid, 'sesion_activa', 'current')), 'Quest A no lee la sesión de Quest B');
+    await assertDenegado(getDoc(doc(qa.db, 'dispositivos', qb.uid, 'sesion_activa', 'current')), 'Quest A no lee el buzón de Quest B');
+    await assertDenegado(getDoc(doc(qa.db, 'dispositivos', qb.uid, 'sesiones_registro', pb.sessionId)), 'Quest A no lee el registro de B');
+    assert.equal((await getDoc(doc(qa.db, 'dispositivos', qa.uid, 'sesiones_registro', pb.sessionId))).exists(), false, 'bajo su propio uid el registro ajeno simplemente no existe');
     await assertDenegado(getDocs(collection(qa.db, 'dispositivos', qa.uid, 'sesion_activa')), 'list sesion_activa');
+    await assertDenegado(getDocs(collection(qa.db, 'dispositivos', qa.uid, 'sesiones_registro')), 'list sesiones_registro');
     await assertDenegado(getDocs(collection(qa.db, 'dispositivos')), 'list dispositivos');
     await assertDenegado(getDoc(doc(qa.db, 'dispositivos', qb.uid)), 'Quest A no lee el dispositivo de B');
     await assertDenegado(getDoc(doc(qa.db, 'pacientes', 'pac-opaco-1')), 'Quest no lee pacientes');
@@ -376,51 +437,74 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
     await assertDenegado(getDoc(doc(qa.db, 'sesion_activa', 'current')), 'raíz global denegada');
   });
 
-  it('Quest revocada: no lee la sesión activa ni crea resultados; publicar sobre revocada falla (cliente y reglas)', { skip: SKIP_3B2 }, async () => {
+  it('Quest revocada: no lee buzón ni registro ni crea resultados; publicar sobre revocada falla (cliente y reglas)', async () => {
     const q = await questVinculada(A, 'Se revoca');
-    const s = sesionOk();
-    await A.svc.publicarSesionEnDispositivo(q.uid, s);
-    // antes de revocar la gafa sí puede crear el resultado de su sesión
-    const idOk = s.sessionId;
-    await setDoc(doc(q.db, 'sesiones', idOk), gemsResultado(q.uid, idOk, s.patientId));
-    await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
-    const s2 = (await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).data();
+    const pid = generarPid();
+    const s1 = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientId: pid }));
+    // antes de revocar la gafa sí puede iniciar la sesión y crear su resultado
+    await iniciaQuest(q, s1.sessionId);
+    await cierraQuest(q, s1.sessionId, pid);
+    const s2 = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientId: pid }));
     await A.svc.revocarDispositivo(q.uid);
-    await assertDenegado(getDoc(doc(q.db, 'dispositivos', q.uid, 'sesion_activa', 'current')), 'revocada no lee sesión');
-    await assertDenegado(setDoc(doc(q.db, 'sesiones', s2.sessionId), gemsResultado(q.uid, s2.sessionId, s2.patientId)), 'revocada no crea resultados');
-    await assertDenegado(getDoc(doc(q.db, 'sesiones', idOk)), 'revocada no lee sus resultados');
-    await assertDenegado(updateDoc(doc(q.db, 'dispositivos', q.uid, 'sesion_activa', 'current'), { status: 'completed' }), 'revocada no cierra sesión');
+    const reg2 = ['dispositivos', q.uid, 'sesiones_registro', s2.sessionId];
+    await assertDenegado(getDoc(doc(q.db, 'dispositivos', q.uid, 'sesion_activa', 'current')), 'revocada no lee el buzón');
+    await assertDenegado(getDoc(doc(q.db, ...reg2)), 'revocada no lee el registro');
+    await assertDenegado(updateDoc(doc(q.db, ...reg2), { status: 'running', iniciadaEn: serverTimestamp() }), 'revocada no inicia');
+    await assertDenegado(getDoc(doc(q.db, 'sesiones', s1.sessionId)), 'revocada no lee sus resultados');
     // la gafa sí puede leer su propio dispositivo (para saber que fue revocada)
     assert.equal((await getDoc(doc(q.db, 'dispositivos', q.uid))).data().estado, 'revocado');
+    // el propietario conserva la lectura del historial aunque revoque
+    assert.equal((await A.svc.leerRegistro(q.uid, s2.sessionId)).status, 'pending');
     // publicar sobre revocada: cliente
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk()), 'dispositivo_no_vinculado');
-    // y reglas (escritura cruda del propietario)
-    await assertDenegado(setDoc(doc(A.db, 'dispositivos', q.uid, 'sesion_activa', 'current'), { ...sesionOk(), status: 'pending', publicadaEn: serverTimestamp(), venceEn: Timestamp.fromMillis(Date.now() + 3600_000) }), 'reglas: propietario no publica en revocada');
+    // y reglas (batch crudo del propietario)
+    await assertDenegado(publicaCrudo(A, q, {}), 'reglas: propietario no publica en revocada');
     // terminal: no se puede volver a vincular ni reactivar
     await assertDenegado(updateDoc(doc(A.db, 'dispositivos', q.uid), { estado: 'vinculado' }), 'revocado es terminal');
     await assertDenegado(updateDoc(doc(q.db, 'dispositivos', q.uid), { codigoActual: codigoAleatorio() }), 'la gafa revocada no rota código');
     await assertDenegado(deleteDoc(doc(q.db, 'dispositivos', q.uid)), 'la gafa revocada no se borra');
+    // el propietario aún puede cancelar la pendiente de una gafa revocada (es traza, no borrado)
+    await A.svc.cancelarSesion(q.uid, s2.sessionId);
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${s2.sessionId}`).get()).data().status, 'cancelled');
   });
 
   // ------------------------------------------------------------------ venceEn
-  it('venceEn: aceptado si válido; rechazado en el pasado o > 24 h (reglas) y por el cliente', { skip: SKIP_3B2 }, async () => {
-    const q = await questVinculada(A, 'TTL');
-    const ref = (c) => doc(c.db, 'dispositivos', q.uid, 'sesion_activa', 'current');
-    const base = () => ({ ...sesionOk(), status: 'pending', publicadaEn: serverTimestamp() });
-    await setDoc(ref(A), { ...base(), venceEn: Timestamp.fromMillis(Date.now() + 23 * 3600_000) });
-    await A.svc.limpiarSesion(q.uid);
-    await assertDenegado(setDoc(ref(A), { ...base(), venceEn: Timestamp.fromMillis(Date.now() + 25 * 3600_000) }), '25 h');
-    await assertDenegado(setDoc(ref(A), { ...base(), venceEn: Timestamp.fromMillis(Date.now() - 1000) }), 'pasado');
-    await assertDenegado(setDoc(ref(A), { ...base(), venceEn: serverTimestamp() }), 'venceEn == request.time no es > request.time');
-    await assertDenegado(setDoc(ref(A), { ...base(), venceEn: Date.now() + 3600_000 }), 'número en lugar de timestamp');
-    await assertDenegado(setDoc(ref(A), { ...base(), publicadaEn: Timestamp.fromMillis(Date.now() - 5000), venceEn: Timestamp.fromMillis(Date.now() + 3600_000) }), 'publicadaEn debe ser request.time');
+  it('venceEn: TTL 20 min por defecto, tope 55 min en el cliente; reglas rechazan pasado, = request.time, > 1 h y no-Timestamp', async () => {
+    const mas = (ms) => Timestamp.fromMillis(Date.now() + ms);
+    // Control: el batch crudo correcto pasa (así los rechazos de abajo lo son por venceEn/publicadaEn y no por otra causa)
+    const qOk = await questVinculada(A, 'TTL ok');
+    await publicaCrudo(A, qOk, { venceEn: mas(30 * 60_000) });
+    // Cada caso en una Quest nueva (en la misma, la sesión pendiente anterior bloquearía por otra regla)
+    const casos = [
+      ['1 h + 5 min', { venceEn: mas(65 * 60_000) }],
+      ['25 h', { venceEn: mas(25 * 3600_000) }],
+      ['pasado', { venceEn: mas(-1000) }],
+      ['venceEn == request.time no es > request.time', { venceEn: serverTimestamp() }],
+      ['número en lugar de timestamp', { venceEn: Date.now() + 1800_000 }],
+      ['publicadaEn debe ser request.time', { publicadaEn: mas(-5000), venceEn: mas(1800_000) }],
+    ];
+    for (const [nombre, over] of casos) {
+      const q = await questVinculada(A, 'TTL neg');
+      await assertDenegado(publicaCrudo(A, q, over), nombre);
+      assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, false, `${nombre}: atómico, no queda buzón`);
+    }
     // cliente
+    const q = await questVinculada(A, 'TTL');
+    await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: 56 * 60_000 }), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: 25 * 3600_000 }), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: -1 }), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: 0 }), 'sesion_invalida');
-    const ok = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: 2 * 3600_000 });
-    assert.ok(ok.venceEn > Date.now() + 3600_000);
-    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, true);
+    await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: NaN }), 'sesion_invalida');
+    assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, false, 'nada escrito tras los rechazos');
+    const t0 = Date.now();
+    const def = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
+    assert.ok(Math.abs(def.venceEn - (t0 + 20 * 60_000)) < 5_000, 'por defecto 20 min');
+    const rg = (await aDb.doc(`dispositivos/${q.uid}/sesiones_registro/${def.sessionId}`).get()).data();
+    assert.ok(rg.venceEn instanceof AdminTs && rg.publicadaEn instanceof AdminTs, 'venceEn y publicadaEn son Timestamps reales');
+    assert.equal(rg.venceEn.toMillis(), def.venceEn);
+    await A.svc.cancelarSesion(q.uid, def.sessionId);
+    const max = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk(), { ttlMs: 55 * 60_000 });
+    assert.ok(max.venceEn > Date.now() + 54 * 60_000 && max.venceEn < Date.now() + 56 * 60_000);
   });
 
   it('publicar: datos personales y campos fuera de contrato rechazados (lista blanca)', async () => {
@@ -428,12 +512,19 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientName: 'PACIENTE-SINTETICO-1' })), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientAlias: 'PACIENTE-SINTETICO-1' })), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientId: 'a b' })), 'sesion_invalida');
+    for (const id of ['pac-opaco-1', 'AbCdEfGhIjKlMnOpQrSt', 'PACIENTE-SINTETICO-1', `${generarPid()}x`]) {
+      await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ patientId: id })), 'sesion_invalida');
+    }
+    await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ sessionId: generarSessionId() })), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ gameId: 'otro' })), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ duration: 0 })), 'sesion_invalida');
     await assertCodigo(A.svc.publicarSesionEnDispositivo(q.uid, sesionOk({ duration: 1.5 })), 'sesion_invalida');
     assert.equal((await aDb.doc(`dispositivos/${q.uid}/sesion_activa/current`).get()).exists, false);
-    // reglas: clave extra con escritura cruda
-    await assertDenegado(setDoc(doc(A.db, 'dispositivos', q.uid, 'sesion_activa', 'current'), { ...sesionOk(), patientName: 'X', status: 'pending', publicadaEn: serverTimestamp(), venceEn: Timestamp.fromMillis(Date.now() + 3600_000) }));
+    // reglas: clave extra / patientId que no es pid con escritura cruda (control: el batch crudo correcto pasa en otra Quest)
+    await assertDenegado(publicaCrudo(A, q, { patientName: 'X' }), 'clave patientName');
+    await assertDenegado(publicaCrudo(A, q, { patientId: 'pac-opaco-1' }), 'patientId no pid');
+    await assertDenegado(publicaCrudo(A, q, { patientAlias: 'PACIENTE-SINTETICO-1' }), 'alias no válido');
+    await publicaCrudo(A, await questVinculada(A, 'control crudo'), {});
   });
 
   it('renombrar: alias inválido (cliente y reglas) y no se puede alterar otra clave', async () => {
@@ -447,22 +538,28 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
   });
 
   // ------------------------------------------------------------------ aislamiento de paciente
-  it('un patientId solo es escribible como resultado por la gafa vinculada con sesión activa de ese paciente', { skip: SKIP_3B2 }, async () => {
+  it('un patientId solo es escribible como resultado por la gafa vinculada con sesión en curso de ese paciente', async () => {
     const qa = await questVinculada(A, 'P1');
     const qb = await questVinculada(B, 'P2');
-    const sa = sesionOk({ patientId: 'pac-opaco-1', patientAlias: 'P-001' });
-    const sb = sesionOk({ patientId: 'pac-opaco-2', patientAlias: 'P-002' });
-    await A.svc.publicarSesionEnDispositivo(qa.uid, sa);
-    await B.svc.publicarSesionEnDispositivo(qb.uid, sb);
+    const pidA = generarPid(), pidB = generarPid();
+    const sa = await A.svc.publicarSesionEnDispositivo(qa.uid, sesionOk({ patientId: pidA, patientAlias: 'P-001' }));
+    const sb = await B.svc.publicarSesionEnDispositivo(qb.uid, sesionOk({ patientId: pidB, patientAlias: 'P-002' }));
+    await iniciaQuest(qa, sa.sessionId);
+    await iniciaQuest(qb, sb.sessionId);
     // Quest A con el paciente de la sesión de B / con un sessionId ajeno: denegado
-    await assertDenegado(setDoc(doc(qa.db, 'sesiones', sa.sessionId), gemsResultado(qa.uid, sa.sessionId, 'pac-opaco-2')), 'paciente ajeno');
-    await assertDenegado(setDoc(doc(qa.db, 'sesiones', sb.sessionId), gemsResultado(qa.uid, sb.sessionId, 'pac-opaco-2')), 'sesión ajena');
-    await assertDenegado(setDoc(doc(qb.db, 'sesiones', sa.sessionId), gemsResultado(qb.uid, sa.sessionId, 'pac-opaco-1')), 'Quest B no escribe la sesión de A');
-    // Quest sin sesión activa
+    await assertDenegado(cierraQuest(qa, sa.sessionId, pidB), 'paciente ajeno');
+    await assertDenegado(cierraQuest(qa, sb.sessionId, pidB), 'sesión ajena (su registro no existe bajo la Quest A)');
+    await assertDenegado(cierraQuest(qb, sa.sessionId, pidA), 'Quest B no escribe la sesión de A');
+    // Quest sin sesión: ni siquiera con un registro inexistente
     const qc = await questVinculada(A, 'Sin sesion');
-    await assertDenegado(setDoc(doc(qc.db, 'sesiones', 'sinsesion1'), gemsResultado(qc.uid, 'sinsesion1', 'pac-opaco-1')), 'sin sesión activa');
+    await assertDenegado(cierraQuest(qc, generarSessionId(), pidA), 'sin sesión');
+    // el resultado suelto (sin registro en el mismo batch) tampoco se admite
+    await assertDenegado(setDoc(doc(qa.db, 'sesiones', sa.sessionId), { ...resultadoQ(qa.uid, sa.sessionId, pidA), createdAt: serverTimestamp() }), 'resultado sin cierre del registro');
+    assert.equal((await aDb.doc(`sesiones/${sa.sessionId}`).get()).exists, false, 'ningún intento fallido dejó resultado');
     // Positivo: la correcta
-    await setDoc(doc(qa.db, 'sesiones', sa.sessionId), gemsResultado(qa.uid, sa.sessionId, 'pac-opaco-1'));
+    await cierraQuest(qa, sa.sessionId, pidA);
+    assert.equal((await aDb.doc(`sesiones/${sa.sessionId}`).get()).data().patientId, pidA);
+    assert.equal((await aDb.doc(`dispositivos/${qa.uid}/sesiones_registro/${sa.sessionId}`).get()).data().status, 'completed');
     // la gafa no puede leer pacientes ni resultados de otra gafa
     await assertDenegado(getDoc(doc(qa.db, 'pacientes', 'pac-opaco-1')));
     await assertDenegado(getDoc(doc(qb.db, 'sesiones', sa.sessionId)), 'Quest B no lee el resultado de A');
@@ -470,20 +567,22 @@ describe('PR5c-1 dispositivos contra rules.next', () => {
   });
 
   // ------------------------------------------------------------------ rutas
-  it('solo se escriben las rutas esperadas (comparación de documentos antes/después)', { skip: SKIP_3B2 }, async () => {
+  it('solo se escriben las rutas esperadas (comparación de documentos antes/después)', async () => {
     const q = await crearQuest();
     const t0 = await rutas();
     await A.svc.confirmarVinculo(q.codigo, 'Rutas');
     assert.deepEqual(await rutas(), t0);
     await A.svc.renombrarDispositivo(q.uid, 'Rutas 2');
     assert.deepEqual(await rutas(), t0);
-    await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
-    assert.deepEqual(await rutas(), [...t0, `dispositivos/${q.uid}/sesion_activa/current`].sort());
+    const pub = await A.svc.publicarSesionEnDispositivo(q.uid, sesionOk());
+    assert.deepEqual(await rutas(), [...t0, `dispositivos/${q.uid}/sesion_activa/current`, `dispositivos/${q.uid}/sesiones_registro/${pub.sessionId}`].sort());
     assert.equal((await aDb.doc('sesion_activa/current').get()).exists, false, 'la sesión global de la raíz no se toca');
-    await A.svc.limpiarSesion(q.uid);
-    assert.deepEqual(await rutas(), t0);
+    assert.equal((await aDb.doc(`sesiones/${pub.sessionId}`).get()).exists, false, "publicar no crea resultados");
+    const t1 = await rutas();
+    await A.svc.cancelarSesion(q.uid, pub.sessionId);
+    assert.deepEqual(await rutas(), t1, 'cancelar no crea ni borra documentos (ya no hay DELETE)');
     await A.svc.revocarDispositivo(q.uid);
-    assert.deepEqual(await rutas(), t0, 'revocar no borra nada');
+    assert.deepEqual(await rutas(), t1, 'revocar no borra nada');
   });
 
   // ------------------------------------------------------------------ alias de paciente (puro)

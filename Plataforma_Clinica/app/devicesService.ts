@@ -5,6 +5,7 @@ import { crearServicioDispositivos } from "./devices";
 
 export const dispositivos = crearServicioDispositivos({ db, auth });
 export {
-  ErrorDispositivo, siguienteAliasPaciente, normalizarCodigo,
-  type DispositivoVista, type SesionParaDispositivo,
+  ErrorDispositivo, siguienteAliasPaciente, normalizarCodigo, estadoVista, generarSessionId,
+  type DispositivoVista, type SesionParaDispositivo, type RegistroVista, type EstadoVistaSesion,
+  type EstadoRegistro, type CodigoErrorDispositivo, type OpcionesPublicacion,
 } from "./devices";

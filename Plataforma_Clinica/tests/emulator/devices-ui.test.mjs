@@ -36,8 +36,8 @@ describe('PR5c-2 view-model: errores', () => {
   const bloque = /export type CodigoErrorDispositivo =([\s\S]*?);/.exec(fuente)[1];
   const todos = [...bloque.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
 
-  it('el test detecta los 18 códigos de PR5c-1 y el mapa los cubre TODOS (y solo ésos)', () => {
-    assert.equal(todos.length, 18);
+  it('el test detecta los 25 códigos (18 de PR5c-1 + 7 de PR5c-3b-2) y el mapa los cubre TODOS (y solo ésos)', () => {
+    assert.equal(todos.length, 25);
     assert.deepEqual([...VM.CODIGOS_ERROR].sort(), [...todos].sort());
   });
 

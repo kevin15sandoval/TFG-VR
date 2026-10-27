@@ -233,6 +233,13 @@ const MAPA_ERRORES: Record<CodigoErrorDispositivo, EntradaMapa> = {
   dispositivo_no_propio: { mensaje: "Esa Quest no está vinculada a tu cuenta.", reintentable: false, sinPermisos: false },
   dispositivo_no_vinculado: { mensaje: "Esa Quest no está vinculada ahora mismo, así que no se puede hacer esta acción.", reintentable: false, sinPermisos: false },
   sesion_invalida: { mensaje: "No se pudo completar la operación por un problema interno. Inténtalo de nuevo más tarde.", reintentable: false, sinPermisos: false },
+  sesion_en_curso: { mensaje: "Esa Quest tiene una sesión en curso. Espera a que termine o pide su cancelación antes de enviar otra.", reintentable: false, sinPermisos: false },
+  sesion_pendiente_viva: { mensaje: "Esa Quest ya tiene una sesión pendiente de iniciar. Cancélala antes de enviar otra.", reintentable: false, sinPermisos: false },
+  sesion_inexistente: { mensaje: "No se ha encontrado esa sesión. Actualiza la pantalla.", reintentable: false, sinPermisos: false },
+  sesion_no_cancelable: { mensaje: "La sesión ya ha cambiado de estado y esta acción no es posible. Actualiza la pantalla para ver cómo está.", reintentable: false, sinPermisos: false },
+  plazo_no_cumplido: { mensaje: "Todavía no ha pasado el tiempo de espera necesario para forzar el cierre de esta sesión.", reintentable: false, sinPermisos: false },
+  motivo_invalido: { mensaje: "Escribe un motivo de entre 5 y 200 caracteres.", reintentable: false, sinPermisos: false },
+  resultado_desconocido: { mensaje: "No se pudo confirmar si la acción se guardó por un fallo de conexión. Comprueba el estado de la sesión antes de repetirla.", reintentable: false, sinPermisos: false },
   red: { mensaje: (op) => `No hay conexión con el servidor y no se pudo ${OPERACION_VERBO[op]}. Comprueba tu conexión e inténtalo de nuevo.`, reintentable: true, sinPermisos: false },
   desconocido: { mensaje: (op) => `Algo ha fallado y no se pudo ${OPERACION_VERBO[op]}. Inténtalo de nuevo; si sigue ocurriendo, avisa al administrador.`, reintentable: true, sinPermisos: false },
 };
