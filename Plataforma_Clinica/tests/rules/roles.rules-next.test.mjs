@@ -86,11 +86,19 @@ const seedLinkedDevice = (uid, owner = CLIN1, extra = {}) => seedDevice(uid, {
 const seedVinculo = (code, deviceUid, extra = {}) => seed((db) => setDoc(doc(db, `vinculos/${code}`), {
   deviceUid, estado: 'pendiente', usado: false, creadoEn: Timestamp.now(), expira: inMin(5), ...extra,
 }));
-const seedActiva = (deviceUid, extra = {}) => seed((db) => setDoc(doc(db, `dispositivos/${deviceUid}/sesion_activa/current`), {
-  sessionId: 'sess-1', patientId: 'pac-1', patientAlias: 'Paciente S.', gameId: 'gems', duration: 300,
-  difficulty: 'Media', therapySide: 'Izquierdo', sessionType: 'Alcance', status: 'pending',
-  publicadaEn: Timestamp.now(), venceEn: inMin(60), ...extra,
-}));
+// PR5c-3b-1: la "sesión activa" sembrada es ahora un REGISTRO (fuente de verdad) + el buzón `current` que lo apunta.
+// Por defecto el registro está 'running' (iniciado hace 3 min) para poder probar el cierre con resultado atómico.
+// extra.status === 'pending' siembra una pendiente sin iniciar.
+const seedActiva = (deviceUid, extra = {}) => seed(async (db) => {
+  const reg = {
+    sessionId: 'sess-1', patientId: 'pac-1', patientAlias: 'P-001', gameId: 'gems', duration: 300,
+    difficulty: 'Media', therapySide: 'Izquierdo', sessionType: 'Alcance', status: 'running',
+    deviceUid, ownerUid: CLIN1, publicadaEn: inMin(-5), venceEn: inMin(15), iniciadaEn: inMin(-3), ...extra,
+  };
+  if (reg.status === 'pending') delete reg.iniciadaEn;
+  await setDoc(doc(db, `dispositivos/${deviceUid}/sesiones_registro/${reg.sessionId}`), reg);
+  await setDoc(doc(db, `dispositivos/${deviceUid}/sesion_activa/current`), { sessionId: reg.sessionId, publicadaEn: reg.publicadaEn, venceEn: reg.venceEn });
+});
 const seedPaciente = (id = 'pac-1') => seed((db) => setDoc(doc(db, `pacientes/${id}`), validPaciente()));
 
 /** Gafa A vinculada a CLIN1 con sesión activa vigente. */
@@ -106,15 +114,29 @@ const validPaciente = (over = {}) => ({
 });
 const newPaciente = (over = {}) => ({ ...validPaciente(over), createdAt: serverTimestamp() });
 
-const validActiva = (over = {}) => ({
-  sessionId: 'sess-1', patientId: 'pac-1', patientAlias: 'Paciente S.', gameId: 'gems', duration: 300,
-  difficulty: 'Media', therapySide: 'Izquierdo', sessionType: 'Alcance', status: 'pending',
-  publicadaEn: serverTimestamp(), venceEn: inMin(60), ...over,
+const PID1 = 'pidxxxxxxxxxxxxxxxxxxx'; // 22 caracteres base64url sintéticos
+const SID1 = 'sidAAAAAAAAAAAAAAAAAAA';
+const SID2 = 'sidBBBBBBBBBBBBBBBBBBB';
+// Registro NUEVO (publicación). Se publica siempre junto al puntero (ver `publica`).
+const validRegistro = (over = {}) => ({
+  sessionId: SID1, patientId: PID1, patientAlias: 'P-001', gameId: 'gems', duration: 300,
+  difficulty: 'Media', therapySide: 'Izquierdo', sessionType: 'Alcance', deviceUid: GAFA_A, ownerUid: CLIN1, status: 'pending',
+  publicadaEn: serverTimestamp(), venceEn: inMin(20), ...over,
 });
+/** Publicación atómica registro + puntero en un batch. `prev` = registro anterior a pasar a 'vencida'. */
+const publica = (db, { dev = GAFA_A, reg = {}, cur = {}, prev = null } = {}) => {
+  const r = validRegistro({ deviceUid: dev, ...reg });
+  const b = writeBatch(db);
+  if (prev) b.update(doc(db, `dispositivos/${dev}/sesiones_registro/${prev}`), { status: 'vencida', finalizadaEn: serverTimestamp(), motivo: 'vencida' });
+  b.set(doc(db, `dispositivos/${dev}/sesiones_registro/${r.sessionId}`), r);
+  b.set(doc(db, `dispositivos/${dev}/sesion_activa/current`), { sessionId: r.sessionId, publicadaEn: serverTimestamp(), venceEn: r.venceEn, ...cur });
+  return b.commit();
+};
 
 const common = (gameId, over = {}) => ({
   patientId: 'pac-1', sessionId: 'sess-1', deviceUid: GAFA_A, gameId, game: 'Juego', date: '2026-10-01',
-  duration: 300, score: 100, side: 'Izquierdo', difficulty: 'Media', sessionType: 'Alcance', fromVR: true, notes: '', ...over,
+  duration: 300, score: 100, side: 'Izquierdo', difficulty: 'Media', sessionType: 'Alcance', fromVR: true, notes: '',
+  status: 'completed', durationUnit: 's', patientAlias: 'P-001', ...over,
 });
 const gems = (over = {}) => ({
   ...common('gems'), accuracy: 80, gemsNormal: 5, gemsGolden: 1, gemsGreen: 1, gemsPurple: 0, gemsRed: 1,
@@ -140,6 +162,17 @@ const luggage = (over = {}) => ({
   trunk_rotations_right: 6, trunk_asymmetry: 3.2, strength_score: 70, endurance_score: 60, trunk_mobility_score: 65,
   coordination_score: 55, ...over,
 });
+
+// El resultado se crea SIEMPRE junto con el cierre del registro (batch atómico; existsAfter/getAfter en las reglas).
+const crea = (data, id = data.sessionId ?? 'sess-1', db = gA(), dev = GAFA_A) => {
+  const b = writeBatch(db);
+  b.set(doc(db, `sesiones/${id}`), data);
+  b.update(doc(db, `dispositivos/${dev}/sesiones_registro/${id}`), {
+    status: data.status ?? 'completed', finalizadaEn: serverTimestamp(), tardio: false, resultadoEn: serverTimestamp(),
+    ...(data.status === 'interrupted' ? { motivo: 'abandono' } : {}),
+  });
+  return b.commit();
+};
 
 // Operaciones de dominio (batches)
 const gafaSolicita = (db, uid = GAFA_A, code = CODE, over = {}, devOver = {}) => {
@@ -412,13 +445,15 @@ describe('dispositivos: revocación', () => {
     await ok(getDoc(doc(gA(), `dispositivos/${GAFA_A}/sesion_activa/current`)));
     await ok(revoca(c1()));
     await ko(getDoc(doc(gA(), `dispositivos/${GAFA_A}/sesion_activa/current`)));
-    await ko(setDoc(doc(gA(), 'sesiones/sess-1'), gems()));
-    await ko(updateDoc(doc(gA(), `dispositivos/${GAFA_A}/sesion_activa/current`), { status: 'completed' }));
+    await ko(crea(gems()));
+    await ko(updateDoc(doc(gA(), `dispositivos/${GAFA_A}/sesiones_registro/sess-1`), { status: 'completed', finalizadaEn: serverTimestamp(), tardio: false, resultadoEn: serverTimestamp() }));
   });
-  it('tras revocar, el propietario ya no publica sesiones pero sí puede limpiar', async () => {
+  it('tras revocar, el propietario ya no publica sesiones; ni él ni nadie borra buzón ni registro (D7)', async () => {
     await ok(revoca(c1()));
-    await ko(setDoc(doc(c1(), `dispositivos/${GAFA_A}/sesion_activa/current`), validActiva()));
-    await ok(deleteDoc(doc(c1(), `dispositivos/${GAFA_A}/sesion_activa/current`)));
+    await ko(publica(c1(), { reg: { sessionId: SID2 }, prev: 'sess-1' }));
+    await ko(deleteDoc(doc(c1(), `dispositivos/${GAFA_A}/sesion_activa/current`)));
+    await ko(deleteDoc(doc(c1(), `dispositivos/${GAFA_A}/sesiones_registro/sess-1`)));
+    await ok(getDoc(doc(c1(), `dispositivos/${GAFA_A}/sesiones_registro/sess-1`))); // el propietario conserva la traza
   });
 });
 
@@ -471,16 +506,16 @@ describe('aislamiento entre gafas', () => {
     await ok(getDoc(doc(gB(), 'sesiones/sb')));
   });
   it('gafa A no escribe en la sesion_activa de B ni crea resultados con deviceUid de B', async () => {
-    await ko(updateDoc(doc(gA(), `dispositivos/${GAFA_B}/sesion_activa/current`), { status: 'completed' }));
-    await ko(setDoc(doc(gA(), 'sesiones/sa'), gems({ sessionId: 'sa', deviceUid: GAFA_B })));
+    await ko(updateDoc(doc(gA(), `dispositivos/${GAFA_B}/sesiones_registro/sb`), { status: 'completed', finalizadaEn: serverTimestamp(), tardio: false, resultadoEn: serverTimestamp() }));
+    await ko(crea(gems({ sessionId: 'sa', deviceUid: GAFA_B })));
   });
   it('el clínico propietario de B no lee/publica en la sesion_activa de A', async () => {
     await ko(getDoc(doc(c2(), `dispositivos/${GAFA_A}/sesion_activa/current`)));
-    await ko(setDoc(doc(c2(), `dispositivos/${GAFA_A}/sesion_activa/current`), validActiva()));
+    await ko(publica(c2(), { reg: { ownerUid: CLIN2 } }));
   });
   it('gafa sin vincular no lee su sesion_activa', async () => {
     await seedDevice('gafa-nueva');
-    await seed((db) => setDoc(doc(db, 'dispositivos/gafa-nueva/sesion_activa/current'), { sessionId: 'x', patientId: 'p', patientAlias: 'a', gameId: 'gems', duration: 1, difficulty: 'a', therapySide: 'a', sessionType: 'a', status: 'pending', publicadaEn: Timestamp.now(), venceEn: inMin(5) }));
+    await seed((db) => setDoc(doc(db, 'dispositivos/gafa-nueva/sesion_activa/current'), { sessionId: 'x', publicadaEn: Timestamp.now(), venceEn: inMin(5) }));
     await ko(getDoc(doc(gafaDb('gafa-nueva'), 'dispositivos/gafa-nueva/sesion_activa/current')));
   });
   it('sin token no se lee nada', async () => {
@@ -494,79 +529,76 @@ describe('aislamiento entre gafas', () => {
   });
 });
 
-// ======================================================================== SESIÓN ACTIVA
-describe('sesion_activa (dispositivos/{uid}/sesion_activa/current)', () => {
+// ======================================================================== BUZÓN + REGISTRO (publicación)
+// El ciclo de vida completo está en session-lifecycle.rules-next.test.mjs; aquí quedan las comprobaciones base que
+// antes cubría el bloque "sesion_activa" (publicación por el propietario, lectura, sin borrado).
+describe('sesion_activa (buzón) y publicación atómica', () => {
   const path = (d) => `dispositivos/${d}/sesion_activa/current`;
   beforeEach(async () => { await seedLinkedDevice(GAFA_A, CLIN1); });
 
-  it('el propietario publica una sesión válida (INV-F0-A: ya no la escribe cualquier autenticado)', async () => {
-    await ok(setDoc(doc(c1(), path(GAFA_A)), validActiva()));
+  it('el propietario publica una sesión válida (INV-F0-A): registro + buzón en un batch', async () => {
+    await ok(publica(c1()));
   });
-  it('republicar (update completo) por el propietario válido', async () => {
-    await seedActiva(GAFA_A);
-    await ok(setDoc(doc(c1(), path(GAFA_A)), validActiva({ sessionId: 'sess-2' })));
+  it('republicar tras una sesión terminal por el propietario', async () => {
+    await seedActiva(GAFA_A, { status: 'completed', finalizadaEn: inMin(-1) });
+    await ok(publica(c1(), { reg: { sessionId: SID2 } }));
   });
-  it('inválidas: status completed al crear, patientName, clave extra, enums y rangos', async () => {
-    const d = () => doc(c1(), path(GAFA_A));
-    await ko(setDoc(d(), validActiva({ status: 'completed' })));
-    await ko(setDoc(d(), validActiva({ patientName: 'Nombre Real' })));
-    await ko(setDoc(d(), validActiva({ extra: 1 })));
-    await ko(setDoc(d(), validActiva({ gameId: 'otro' })));
-    await ko(setDoc(d(), validActiva({ duration: 0 })));
-    await ko(setDoc(d(), validActiva({ duration: 99999 })));
-    await ko(setDoc(d(), validActiva({ duration: 30.5 })));
-    await ko(setDoc(d(), validActiva({ patientAlias: 'x'.repeat(31) })));
-    await ko(setDoc(d(), validActiva({ patientId: 'tiene espacios!' })));
-    await ko(setDoc(d(), validActiva({ venceEn: inMin(-5) })));
-    await ko(setDoc(d(), validActiva({ venceEn: inMin(60 * 25) })));
-    await ko(setDoc(d(), validActiva({ publicadaEn: Timestamp.fromMillis(1) })));
-    const { sessionType, ...incompleto } = validActiva();
-    await ko(setDoc(d(), incompleto));
+  it('inválidas: status distinto de pending, patientName, clave extra, enums y rangos', async () => {
+    await ko(publica(c1(), { reg: { status: 'completed' } }));
+    await ko(publica(c1(), { reg: { patientName: 'Nombre Real' } }));
+    await ko(publica(c1(), { reg: { extra: 1 } }));
+    await ko(publica(c1(), { reg: { gameId: 'otro' } }));
+    await ko(publica(c1(), { reg: { duration: 0 } }));
+    await ko(publica(c1(), { reg: { duration: 7201 } }));
+    await ko(publica(c1(), { reg: { duration: 30.5 } }));
+    await ko(publica(c1(), { reg: { patientAlias: 'Paciente S.' } }));
+    await ko(publica(c1(), { reg: { patientId: 'tiene espacios!' } }));
+    await ko(publica(c1(), { reg: { venceEn: inMin(-5) }, cur: { venceEn: inMin(-5) } }));
+    await ko(publica(c1(), { reg: { venceEn: inMin(61) }, cur: { venceEn: inMin(61) } }));
+    await ko(publica(c1(), { reg: { publicadaEn: Timestamp.fromMillis(1) } }));
+    const { sessionType, ...incompleto } = validRegistro();
+    const cdb = c1();
+    const b = writeBatch(cdb);
+    b.set(doc(cdb, `dispositivos/${GAFA_A}/sesiones_registro/${SID1}`), incompleto);
+    b.set(doc(cdb, path(GAFA_A)), { sessionId: SID1, publicadaEn: serverTimestamp(), venceEn: inMin(20) });
+    await ko(b.commit());
   });
   it('otro clínico, admin ajeno, anónimo y sin token NO publican', async () => {
-    await ko(setDoc(doc(c2(), path(GAFA_A)), validActiva()));
-    await ko(setDoc(doc(adm(), path(GAFA_A)), validActiva()));
-    await ko(setDoc(doc(gA(), path(GAFA_A)), validActiva()));
-    await ko(setDoc(doc(noAuthDb(), path(GAFA_A)), validActiva()));
+    await ko(publica(c2(), { reg: { ownerUid: CLIN2 } }));
+    await ko(publica(adm(), { reg: { ownerUid: ADMIN } }));
+    await ko(publica(gA(), { reg: { ownerUid: GAFA_A } }));
+    await ko(publica(noAuthDb()));
   });
   it('solo el doc "current": otro id denegado', async () => {
-    await ko(setDoc(doc(c1(), `dispositivos/${GAFA_A}/sesion_activa/otra`), validActiva()));
+    await ko(setDoc(doc(c1(), `dispositivos/${GAFA_A}/sesion_activa/otra`), { sessionId: SID1, publicadaEn: serverTimestamp(), venceEn: inMin(20) }));
   });
   it('lectura: la gafa vinculada y el propietario; otro clínico no; list nadie (INV-F0-A)', async () => {
-    await seedActiva(GAFA_A);
+    await seedActiva(GAFA_A, { status: 'pending' });
     await ok(getDoc(doc(gA(), path(GAFA_A))));
     await ok(getDoc(doc(c1(), path(GAFA_A))));
     await ko(getDoc(doc(c2(), path(GAFA_A))));
     await ko(getDocs(collection(c1(), `dispositivos/${GAFA_A}/sesion_activa`)));
     await ko(getDocs(collection(gA(), `dispositivos/${GAFA_A}/sesion_activa`)));
   });
-  it('la gafa solo PATCH status pending -> completed', async () => {
-    await seedActiva(GAFA_A);
-    await ok(updateDoc(doc(gA(), path(GAFA_A)), { status: 'completed' }));
-  });
-  it('la gafa NO vuelve a pending ni toca otros campos ni borra ni crea', async () => {
-    await seedActiva(GAFA_A, { status: 'completed' });
-    await ko(updateDoc(doc(gA(), path(GAFA_A)), { status: 'pending' }));
-    await seedActiva(GAFA_A);
-    await ko(updateDoc(doc(gA(), path(GAFA_A)), { patientId: 'otro' }));
-    await ko(updateDoc(doc(gA(), path(GAFA_A)), { status: 'completed', patientId: 'otro' }));
+  it('la gafa NO escribe el buzón (ni crea, ni actualiza, ni borra); inicia el REGISTRO, no el buzón', async () => {
+    await seedActiva(GAFA_A, { status: 'pending' });
+    await ko(updateDoc(doc(gA(), path(GAFA_A)), { status: 'completed' }));
     await ko(updateDoc(doc(gA(), path(GAFA_A)), { venceEn: inMin(1000) }));
-    await ko(updateDoc(doc(gA(), path(GAFA_A)), { status: 'cualquiera' }));
     await ko(deleteDoc(doc(gA(), path(GAFA_A))));
-    await seed((db) => deleteDoc(doc(db, path(GAFA_A))));
-    await ko(setDoc(doc(gA(), path(GAFA_A)), validActiva()));
+    await ko(setDoc(doc(gA(), path(GAFA_A)), { sessionId: SID2, publicadaEn: serverTimestamp(), venceEn: inMin(20) }));
+    await ok(updateDoc(doc(gA(), `dispositivos/${GAFA_A}/sesiones_registro/sess-1`), { status: 'running', iniciadaEn: serverTimestamp() }));
   });
-  it('el propietario borra la sesión activa; otro no', async () => {
+  it('nadie borra el buzón (propietario incluido, D7)', async () => {
     await seedActiva(GAFA_A);
     await ko(deleteDoc(doc(c2(), path(GAFA_A))));
-    await ok(deleteDoc(doc(c1(), path(GAFA_A))));
+    await ko(deleteDoc(doc(c1(), path(GAFA_A))));
+    await ko(deleteDoc(doc(adm(), path(GAFA_A))));
   });
 });
 
 // ======================================================================== RESULTADOS
 describe('resultados (sesiones)', () => {
   beforeEach(async () => { await setupVinculadaConSesion(); });
-  const crea = (data, id = data.sessionId ?? 'sess-1', db = gA()) => setDoc(doc(db, `sesiones/${id}`), data);
 
   it('válido para los 4 juegos (campos exactos de firebase_manager.gd)', async () => {
     await ok(crea(gems()));
@@ -599,15 +631,23 @@ describe('resultados (sesiones)', () => {
   it('deviceUid distinto del uid de la gafa', async () => {
     await ko(crea(gems({ deviceUid: GAFA_B })));
   });
-  it('sesión activa completed / vencida / sin sesión activa / sessionId distinto', async () => {
-    await seedActiva(GAFA_A, { status: 'completed' });
+  it('registro completed / pending sin iniciar / sin registro / sessionId distinto', async () => {
+    await seedActiva(GAFA_A, { status: 'completed', finalizadaEn: inMin(-1) });
     await ko(crea(gems()));
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() - 1000) });
+    await seedActiva(GAFA_A, { status: 'pending' });
     await ko(crea(gems()));
     await seedActiva(GAFA_A, { sessionId: 'otra' });
     await ko(crea(gems()));
-    await seed((db) => deleteDoc(doc(db, `dispositivos/${GAFA_A}/sesion_activa/current`)));
+    await seed((db) => deleteDoc(doc(db, `dispositivos/${GAFA_A}/sesiones_registro/sess-1`)));
     await ko(crea(gems()));
+  });
+  it('durationUnit debe ser "s", status completed|interrupted y patientAlias coherente con el registro', async () => {
+    await ko(crea(gems({ durationUnit: 'min' })));
+    await ko(crea(gems({ status: 'cancelled' })));
+    await ko(crea(gems({ patientAlias: 'P-002' })));
+    const { durationUnit, ...sinUnidad } = gems();
+    await ko(crea(sinUnidad));
+    await ok(crea(gems()));
   });
   it('gafa sin vincular o sin doc de dispositivo no crea', async () => {
     await seed((db) => updateDoc(doc(db, `dispositivos/${GAFA_A}`), { estado: 'sin_vincular' }));
@@ -640,16 +680,11 @@ describe('resultados (sesiones)', () => {
     await ko(crea(luggage()));
     await ok(crea(gems())); // control: el mismo sessionId con el gameId correcto sí
   });
-  it('vigencia: venceEn futuro permite, venceEn pasado deniega (tiempos fijados con seed, deterministas)', async () => {
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() + 120_000) });
+  it('plazo: sesión iniciada con venceEn ya pasado SÍ cierra (regresión C3); pasadas 24 h desde iniciadaEn+duration, no', async () => {
+    await seedActiva(GAFA_A, { publicadaEn: inMin(-30), venceEn: inMin(-10), iniciadaEn: inMin(-8) });
     await ok(crea(gems()));
-    await seedActiva(GAFA_A, { sessionId: 'sess-2', venceEn: Timestamp.fromMillis(Date.now() - 1) });
-    await ko(crea(gems({ sessionId: 'sess-2' })));
-    await seedActiva(GAFA_A, { sessionId: 'sess-3', venceEn: Timestamp.fromMillis(Date.now() - 3_600_000) });
+    await seedActiva(GAFA_A, { sessionId: 'sess-3', iniciadaEn: inMin(-60 * 25) });
     await ko(crea(gems({ sessionId: 'sess-3' })));
-    // control: la misma sesión 'sess-3' vuelve a ser válida si se republica con vencimiento futuro
-    await seedActiva(GAFA_A, { sessionId: 'sess-3', venceEn: Timestamp.fromMillis(Date.now() + 60_000) });
-    await ok(crea(gems({ sessionId: 'sess-3' })));
   });
   it('duplicado: el segundo create del mismo sessionId se deniega (idempotente)', async () => {
     await ok(crea(gems()));
@@ -677,13 +712,14 @@ describe('resultados (sesiones)', () => {
     await ko(getDocs(collection(gA(), 'sesiones')));
     await ko(getDocs(query(collection(gA(), 'sesiones'), where('deviceUid', '==', GAFA_A))));
   });
-  it('clínico: update solo notes; delete sí; otros campos no', async () => {
+  it('clínico: update solo notes; delete NO (D7); otros campos no', async () => {
     await seed((db) => setDoc(doc(db, 'sesiones/sess-1'), gems()));
     await ok(updateDoc(doc(c1(), 'sesiones/sess-1'), { notes: 'nota del fisio' }));
     await ko(updateDoc(doc(c1(), 'sesiones/sess-1'), { score: 1 }));
     await ko(updateDoc(doc(c1(), 'sesiones/sess-1'), { notes: 5 }));
     await ko(updateDoc(doc(gA(), 'sesiones/sess-1'), { notes: 'x' }));
-    await ok(deleteDoc(doc(c1(), 'sesiones/sess-1')));
+    await ko(deleteDoc(doc(c1(), 'sesiones/sess-1'))); // D7: los resultados clínicos no se borran desde el cliente
+    await ko(deleteDoc(doc(adm(), 'sesiones/sess-1')));
   });
 });
 
@@ -770,35 +806,36 @@ describe('dispositivos: edición de alias', () => {
   });
 });
 
-// ======================================================================== AJUSTES PR3: sesion_activa vencida
-describe('sesion_activa vencida', () => {
+// ======================================================================== AJUSTES PR3: pendiente vencida
+describe('sesión pendiente vencida', () => {
   const path = `dispositivos/${GAFA_A}/sesion_activa/current`;
+  const regPath = `dispositivos/${GAFA_A}/sesiones_registro/sess-1`;
   beforeEach(async () => { await seedLinkedDevice(GAFA_A, CLIN1); });
 
-  it('PATCH completed: vigente permitido; vencida denegado', async () => {
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() + 120_000) });
-    await ok(updateDoc(doc(gA(), path), { status: 'completed' }));
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() - 1) });
-    await ko(updateDoc(doc(gA(), path), { status: 'completed' }));
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() - 3_600_000) });
-    await ko(updateDoc(doc(gA(), path), { status: 'completed' }));
+  it('inicio: vigente permitido; vencida denegado', async () => {
+    await seedActiva(GAFA_A, { status: 'pending', venceEn: inMin(2) });
+    await ok(updateDoc(doc(gA(), regPath), { status: 'running', iniciadaEn: serverTimestamp() }));
+    await seedActiva(GAFA_A, { status: 'pending', venceEn: Timestamp.fromMillis(Date.now() - 1), publicadaEn: inMin(-30) });
+    await ko(updateDoc(doc(gA(), regPath), { status: 'running', iniciadaEn: serverTimestamp() }));
+    await seedActiva(GAFA_A, { status: 'pending', venceEn: Timestamp.fromMillis(Date.now() - 3_600_000), publicadaEn: inMin(-90) });
+    await ko(updateDoc(doc(gA(), regPath), { status: 'running', iniciadaEn: serverTimestamp() }));
   });
-  it('DECISIÓN: la gafa vinculada SÍ puede leer una sesión vencida (el 403 queda reservado a revocación/no vinculada)', async () => {
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() - 3_600_000) });
+  it('DECISIÓN: la gafa vinculada SÍ puede leer una vencida (el 403 queda reservado a revocación/no vinculada)', async () => {
+    await seedActiva(GAFA_A, { status: 'pending', publicadaEn: inMin(-90), venceEn: Timestamp.fromMillis(Date.now() - 3_600_000) });
     const snap = await ok(getDoc(doc(gA(), path)));
     assert.ok(snap.data().venceEn.toMillis() < Date.now()); // el cliente la ignora comparando venceEn
     await ok(getDoc(doc(c1(), path)));
     await ko(getDoc(doc(gB(), path)));
   });
-  it('y aun leyéndola, una vencida no admite resultados', async () => {
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() - 1000) });
+  it('y aun leyéndola, una pendiente vencida (sin iniciar) no admite resultados', async () => {
+    await seedActiva(GAFA_A, { status: 'pending', publicadaEn: inMin(-30), venceEn: Timestamp.fromMillis(Date.now() - 1000) });
     await ok(getDoc(doc(gA(), path)));
-    await ko(setDoc(doc(gA(), 'sesiones/sess-1'), gems()));
+    await ko(crea(gems()));
   });
-  it('el propietario puede republicar sobre una vencida (nueva sesión vigente)', async () => {
-    await seedActiva(GAFA_A, { venceEn: Timestamp.fromMillis(Date.now() - 1000) });
-    await ok(setDoc(doc(c1(), path), validActiva({ sessionId: 'sess-nueva' })));
-    await ok(setDoc(doc(gA(), 'sesiones/sess-nueva'), gems({ sessionId: 'sess-nueva' })));
+  it('el propietario puede reemplazar una pendiente vencida (pasándola a vencida en el mismo batch)', async () => {
+    await seedActiva(GAFA_A, { status: 'pending', publicadaEn: inMin(-30), venceEn: Timestamp.fromMillis(Date.now() - 1000) });
+    await ko(publica(c1(), { reg: { sessionId: SID2 } }));
+    await ok(publica(c1(), { reg: { sessionId: SID2 }, prev: 'sess-1' }));
   });
 });
 
@@ -813,17 +850,16 @@ describe('revocación: el mismo contexto de auth pierde todo permiso', () => {
     await seedVinculo(CODE, GAFA_A, { estado: 'vinculado', usado: true });
     const g = gA(); // MISMO contexto antes y después de revocar
     await ok(getDoc(doc(g, act)));
-    await ok(setDoc(doc(g, 'sesiones/sess-1'), gems()));
-    await ok(updateDoc(doc(g, act), { status: 'completed' }));
+    await ok(crea(gems(), 'sess-1', g)); // resultado + cierre del registro en un batch
     await ok(getDoc(doc(g, 'sesiones/sess-1')));
 
     await ok(revoca(c1())); // el propietario revoca
 
     // sesión que "quedó en curso" tras la revocación (vigente y pending)
-    await seedActiva(GAFA_A, { sessionId: 'sess-2', status: 'pending', venceEn: inMin(60) });
+    await seedActiva(GAFA_A, { sessionId: 'sess-2', venceEn: inMin(15) });
     await ko(getDoc(doc(g, act)));
-    await ko(setDoc(doc(g, 'sesiones/sess-2'), gems({ sessionId: 'sess-2' })));
-    await ko(updateDoc(doc(g, act), { status: 'completed' }));
+    await ko(crea(gems({ sessionId: 'sess-2' }), 'sess-2', g));
+    await ko(updateDoc(doc(g, `dispositivos/${GAFA_A}/sesiones_registro/sess-2`), { status: 'interrupted', motivo: 'abandono', finalizadaEn: serverTimestamp(), tardio: false }));
     await ko(getDoc(doc(g, 'sesiones/sess-1'))); // ni siquiera sus resultados previos
     await ko(deleteDoc(doc(g, act)));
   });
@@ -860,10 +896,10 @@ describe('revocación: el mismo contexto de auth pierde todo permiso', () => {
     await ok(revoca(c1()));
     await seed((db) => deleteDoc(doc(db, `dispositivos/${GAFA_A}`)));
     await ko(getDoc(doc(g, act)));
-    await ko(setDoc(doc(g, 'sesiones/sess-1'), gems()));
+    await ko(crea(gems(), 'sess-1', g));
     await ok(gafaSolicita(g, GAFA_A, CODE2)); // sin_vincular: sigue sin poder leer ni escribir resultados
     await ko(getDoc(doc(g, act)));
-    await ko(setDoc(doc(g, 'sesiones/sess-1'), gems()));
+    await ko(crea(gems(), 'sess-1', g));
   });
   it('gafa A revocada escribiendo resultados con deviceUid de otra gafa (B vinculada y con sesión): denegado', async () => {
     await seedLinkedDevice(GAFA_A, CLIN1);
@@ -872,13 +908,13 @@ describe('revocación: el mismo contexto de auth pierde todo permiso', () => {
     await seedActiva(GAFA_B, { sessionId: 'sb' });
     const g = gA();
     await ok(revoca(c1()));
-    await ko(setDoc(doc(g, 'sesiones/sb'), gems({ sessionId: 'sb', deviceUid: GAFA_B })));
-    await ko(setDoc(doc(g, 'sesiones/sa'), gems({ sessionId: 'sa', deviceUid: GAFA_B })));
-    await ko(setDoc(doc(g, 'sesiones/sa'), gems({ sessionId: 'sa', deviceUid: GAFA_A })));
-    await ko(updateDoc(doc(g, `dispositivos/${GAFA_B}/sesion_activa/current`), { status: 'completed' }));
+    await ko(crea(gems({ sessionId: 'sb', deviceUid: GAFA_B }), 'sb', g, GAFA_B));
+    await ko(crea(gems({ sessionId: 'sa', deviceUid: GAFA_B }), 'sa', g, GAFA_A));
+    await ko(crea(gems({ sessionId: 'sa', deviceUid: GAFA_A }), 'sa', g, GAFA_A));
+    await ko(updateDoc(doc(g, `dispositivos/${GAFA_B}/sesiones_registro/sb`), { status: 'completed', finalizadaEn: serverTimestamp(), tardio: false, resultadoEn: serverTimestamp() }));
     await ko(getDoc(doc(g, `dispositivos/${GAFA_B}/sesion_activa/current`)));
     // control: B sigue operativa con su propio contexto
-    await ok(setDoc(doc(gB(), 'sesiones/sb'), gems({ sessionId: 'sb', deviceUid: GAFA_B })));
+    await ok(crea(gems({ sessionId: 'sb', deviceUid: GAFA_B }), 'sb', gB(), GAFA_B));
   });
   it('otra gafa con el mismo patrón no queda afectada por la revocación de A', async () => {
     await seedLinkedDevice(GAFA_A, CLIN1);
@@ -886,7 +922,7 @@ describe('revocación: el mismo contexto de auth pierde todo permiso', () => {
     await seedActiva(GAFA_B, { sessionId: 'sb' });
     await ok(revoca(c1()));
     await ok(getDoc(doc(gB(), `dispositivos/${GAFA_B}/sesion_activa/current`)));
-    await ok(updateDoc(doc(gB(), `dispositivos/${GAFA_B}/sesion_activa/current`), { status: 'completed' }));
+    await ok(crea(gems({ sessionId: 'sb', deviceUid: GAFA_B }), 'sb', gB(), GAFA_B));
   });
 });
 
@@ -933,7 +969,7 @@ describe('pacientes', () => {
     await ko(getDoc(doc(env.authenticatedContext('usuario-sintetico', { email: 'x@example.invalid' }).firestore(), 'pacientes/pac-1')));
   });
   it('colección sin regla (p. ej. sesion_activa en raíz) denegada', async () => {
-    await ko(setDoc(doc(c1(), 'sesion_activa/current'), validActiva()));
+    await ko(setDoc(doc(c1(), 'sesion_activa/current'), validRegistro()));
     await ko(getDoc(doc(c1(), 'otra_coleccion/x')));
   });
 });
