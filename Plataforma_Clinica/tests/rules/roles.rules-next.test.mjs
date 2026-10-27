@@ -911,7 +911,7 @@ describe('pacientes', () => {
     await ko(setDoc(d('x6'), newPaciente({ name: '' })));
     await ko(setDoc(d('x7'), newPaciente({ notes: 'x'.repeat(2001) })));
     await ko(setDoc(d('x8'), { ...validPaciente() })); // sin createdAt = request.time
-    await ok(setDoc(d('x9'), newPaciente({ alias: 'Pac. S' })));
+    await ok(setDoc(d('x9'), newPaciente())); // PR5c-3a: alias/pid/aliasNum ya NO se aceptan al crear
   });
   it('update: no se puede reescribir createdAt', async () => {
     await seedPaciente();
