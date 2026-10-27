@@ -16,7 +16,6 @@ import { initializeApp as adminInit, deleteApp as adminDelete } from 'firebase-a
 import { getAuth as adminAuth } from 'firebase-admin/auth';
 import { getFirestore as adminFirestore, Timestamp as AdminTs } from 'firebase-admin/firestore';
 
-const SKIP_3B2 = 'PR5c-3b-2: devices.ts aún publica el modelo antiguo de sesion_activa (config completa, delete, sessionId corto); se reactiva al migrar publicarSesionEnDispositivo/limpiarSesion/cancelarSesion al batch registro+buzón';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PROJECT_ID = 'demo-tfg-vr';
 const FS = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
@@ -393,7 +392,7 @@ describe('PR5c-3a identidad de paciente contra rules.next', () => {
   });
 
   // ------------------------------------------------------------------ privacidad extremo a extremo
-  it('la sesión que ve la Quest lleva solo pid + alias: ni nombre, ni id de Firestore', { skip: SKIP_3B2 }, async () => {
+  it('la sesión que ve la Quest lleva solo pid + alias: ni nombre, ni id de Firestore', async () => {
     const id = 'AbCdEfGhIjKlMnOpQrSt';
     await aDb.doc(`pacientes/${id}`).set({ ...paciente(id), name: 'NOMBRE-SINTETICO-PRIVADO', notes: 'nota-privada' });
     const ident = await asegurar(FA, id);
@@ -410,14 +409,24 @@ describe('PR5c-3a identidad de paciente contra rules.next', () => {
     const svc = D.crearServicioDispositivos({ db: FA.db, auth: FA.auth });
     await svc.confirmarVinculo(codigo, 'Quest sintética');
     const paraQuest = I.identificadorParaQuest({ id, name: 'NOMBRE-SINTETICO-PRIVADO', ...ident });
-    await svc.publicarSesionEnDispositivo(user.uid, {
-      sessionId: `ses${codigoAleatorio()}`, ...paraQuest, gameId: 'gems', duration: 300,
+    // El fisio solo entrega a la web lo que sale de identificadorParaQuest: pid + alias (+ configuración)
+    const pub = await svc.publicarSesionEnDispositivo(user.uid, {
+      ...paraQuest, gameId: 'gems', duration: 300,
       difficulty: 'Fácil', therapySide: 'Derecho', sessionType: 'Rehabilitación',
     });
-    const visto = (await getDoc(doc(quest.db, `dispositivos/${user.uid}/sesion_activa/current`))).data();
-    const txt = JSON.stringify(visto);
+    // La Quest lee el buzón (puntero) y luego el registro: nada de nombre, notas ni id de Firestore en ninguno
+    const buzon = (await getDoc(doc(quest.db, `dispositivos/${user.uid}/sesion_activa/current`))).data();
+    const visto = (await getDoc(doc(quest.db, `dispositivos/${user.uid}/sesiones_registro/${pub.sessionId}`))).data();
+    assert.equal(buzon.sessionId, pub.sessionId);
+    const txt = JSON.stringify([buzon, visto]);
     assert.equal(visto.patientId, ident.pid);
     assert.equal(visto.patientAlias, ident.alias);
+    assert.match(visto.patientId, /^[A-Za-z0-9_-]{22}$/);
+    assert.notEqual(visto.patientId, id, 'el patientId que ve la Quest no es el id de Firestore');
     for (const prohibido of ['NOMBRE', 'PRIVADO', 'nota-privada', id, 'AbCdEf']) assert.ok(!txt.includes(prohibido), prohibido);
+    // y el cliente rechaza el id de Firestore o el nombre como patientId
+    for (const malo of [id, 'NOMBRE-SINTETICO-PRIVADO']) {
+      await assert.rejects(svc.publicarSesionEnDispositivo(user.uid, { ...paraQuest, patientId: malo, gameId: 'gems', duration: 300, difficulty: 'Fácil', therapySide: 'Derecho', sessionType: 'Rehabilitación' }), (e) => e.codigo === 'sesion_invalida');
+    }
   });
 });
